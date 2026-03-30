@@ -15,6 +15,7 @@ import KanbanPage from "./pages/KanbanPage";
 import TasksPage from "./pages/TasksPage";
 import CallPage from "./pages/CallPage";
 import WorkspaceSettingsPage from "./pages/WorkspaceSettingsPage";
+import AdminUsersPage from "./pages/AdminUsersPage";
 import IncomingCallModal from "./components/call/IncomingCallModal";
 
 const LoadingScreen = () => (
@@ -48,6 +49,17 @@ const AuthRoute = ({ children }) => {
 	const { user, loading } = useAuth();
 	if (loading) return <LoadingScreen />;
 	return user ? children : <Navigate to='/login' replace />;
+};
+
+// System admin maintenance (needs workspace like other app areas)
+const AdminRoute = ({ children }) => {
+	const { user, loading } = useAuth();
+	const workspace = useSelector((s) => s.workspace.current);
+	if (loading) return <LoadingScreen />;
+	if (!user) return <Navigate to='/login' replace />;
+	if (!workspace) return <Navigate to='/onboarding' replace />;
+	if (!user.is_system_admin) return <Navigate to='/dashboard' replace />;
+	return children;
 };
 
 function App() {
@@ -85,6 +97,8 @@ function App() {
 
 				{/* Workspace settings */}
 				<Route path='/workspace/settings' element={<ProtectedRoute><WorkspaceSettingsPage /></ProtectedRoute>} />
+
+				<Route path='/admin/users' element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
 
 				{/* Redirects */}
 				<Route path='/' element={<Navigate to='/dashboard' replace />} />

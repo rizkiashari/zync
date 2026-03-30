@@ -11,17 +11,20 @@ import (
 )
 
 type Config struct {
-	DatabaseDSN        string
-	Addr               string
-	JWTSecret          string
-	JWTTTL             time.Duration
-	AllowedOrigins     []string
-	DBMaxOpenConns     int
-	DBMaxIdleConns     int
-	DBConnMaxLifetime  time.Duration
-	LiveKitURL         string
-	LiveKitAPIKey      string
-	LiveKitAPISecret   string
+	DatabaseDSN              string
+	Addr                     string
+	JWTSecret                string
+	JWTTTL                   time.Duration
+	AllowedOrigins           []string
+	DBMaxOpenConns           int
+	DBMaxIdleConns           int
+	DBConnMaxLifetime        time.Duration
+	LiveKitURL               string
+	LiveKitAPIKey            string
+	LiveKitAPISecret         string
+	MaintenanceAdminEmail    string
+	MaintenanceAdminPassword string
+	MaintenanceAdminUsername string
 }
 
 func Load() (*Config, error) {
@@ -77,18 +80,34 @@ func Load() (*Config, error) {
 		dbConnLifetime = 30 * time.Minute
 	}
 
+	maintEmail := strings.TrimSpace(os.Getenv("MAINTENANCE_ADMIN_EMAIL"))
+	if maintEmail == "" {
+		maintEmail = "maintenance@zync.local"
+	}
+	maintPass := os.Getenv("MAINTENANCE_ADMIN_PASSWORD")
+	if maintPass == "" {
+		maintPass = "MaintenanceZync!2026"
+	}
+	maintUser := strings.TrimSpace(os.Getenv("MAINTENANCE_ADMIN_USERNAME"))
+	if maintUser == "" {
+		maintUser = "MaintenanceAdmin"
+	}
+
 	return &Config{
-		DatabaseDSN:       dsn,
-		Addr:              addr,
-		JWTSecret:         jwtSecret,
-		JWTTTL:            jwtTTL,
-		AllowedOrigins:    allowedOrigins,
-		DBMaxOpenConns:    dbMaxOpen,
-		DBMaxIdleConns:    dbMaxIdle,
-		DBConnMaxLifetime: dbConnLifetime,
-		LiveKitURL:        os.Getenv("LIVEKIT_URL"),
-		LiveKitAPIKey:     os.Getenv("LIVEKIT_API_KEY"),
-		LiveKitAPISecret:  os.Getenv("LIVEKIT_API_SECRET"),
+		DatabaseDSN:              dsn,
+		Addr:                     addr,
+		JWTSecret:                jwtSecret,
+		JWTTTL:                   jwtTTL,
+		AllowedOrigins:           allowedOrigins,
+		DBMaxOpenConns:           dbMaxOpen,
+		DBMaxIdleConns:           dbMaxIdle,
+		DBConnMaxLifetime:        dbConnLifetime,
+		LiveKitURL:               os.Getenv("LIVEKIT_URL"),
+		LiveKitAPIKey:            os.Getenv("LIVEKIT_API_KEY"),
+		LiveKitAPISecret:         os.Getenv("LIVEKIT_API_SECRET"),
+		MaintenanceAdminEmail:    strings.ToLower(maintEmail),
+		MaintenanceAdminPassword: maintPass,
+		MaintenanceAdminUsername: maintUser,
 	}, nil
 }
 

@@ -10,6 +10,7 @@ import {
 	MessageSquare,
 	ClipboardList,
 	Building2,
+	Shield,
 } from "lucide-react";
 import Logo from "../ui/Logo";
 import Avatar from "../ui/Avatar";
@@ -171,7 +172,7 @@ const Sidebar = () => {
 					</div>
 				</div>
 
-				<div className='px-4 pb-3'>
+				<div className='px-4 pb-3 space-y-2'>
 					<button
 						type='button'
 						onClick={() => navigate("/tasks")}
@@ -184,6 +185,20 @@ const Sidebar = () => {
 						<ClipboardList className='w-4 h-4 flex-shrink-0 opacity-90' />
 						Task
 					</button>
+					{user?.is_system_admin && (
+						<button
+							type='button'
+							onClick={() => navigate("/admin/users")}
+							className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+								pathname === "/admin/users" ?
+									"bg-amber-600 text-white shadow-md"
+								:	"bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
+							}`}
+						>
+							<Shield className='w-4 h-4 flex-shrink-0 opacity-90' />
+							Maintenance user
+						</button>
+					)}
 				</div>
 
 				<ChatList rooms={rooms} activeTab={activeTab} searchQuery={search} />

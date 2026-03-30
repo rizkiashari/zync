@@ -46,6 +46,25 @@ func (r *UserRepository) GetByID(id uint) (*models.User, error) {
 	return &u, nil
 }
 
+// ListAllForAdmin returns every user (system maintenance), optional search on username/email.
+func (r *UserRepository) ListAllForAdmin(search string) ([]models.User, error) {
+	q := r.db.Model(&models.User{})
+	if s := strings.TrimSpace(search); s != "" {
+		like := "%" + s + "%"
+		q = q.Where("username ILIKE ? OR email ILIKE ?", like, like)
+	}
+	var users []models.User
+	err := q.Order("id ASC").Find(&users).Error
+	return users, err
+}
+
+// CountSystemAdmins returns users with IsSystemAdmin set.
+func (r *UserRepository) CountSystemAdmins() (int64, error) {
+	var n int64
+	err := r.db.Model(&models.User{}).Where("is_system_admin = ?", true).Count(&n).Error
+	return n, err
+}
+
 // List returns all users except excludeID, optionally filtered by search term (username or email).
 func (r *UserRepository) List(excludeID uint, search string) ([]models.User, error) {
 	q := r.db.Where("id != ?", excludeID)

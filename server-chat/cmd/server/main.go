@@ -25,6 +25,7 @@ import (
 	_ "zync-server/docs"
 
 	"zync-server/internal/auth"
+	"zync-server/internal/bootstrap"
 	"zync-server/internal/config"
 	"zync-server/internal/database"
 	"zync-server/internal/httpapi"
@@ -65,6 +66,11 @@ func main() {
 	rtRepo := repository.NewRefreshTokenRepository(db, 0)
 	notifRepo := repository.NewNotificationRepository(db)
 	taskRepo := repository.NewTaskRepository(db)
+
+	if err := bootstrap.EnsureMaintenanceAdmin(userRepo, wsRepo, cfg, log); err != nil {
+		log.Error("maintenance admin seed", "error", err)
+		os.Exit(1)
+	}
 
 	h := hub.New()
 	go h.Run()

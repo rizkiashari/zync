@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 
+	"zync-server/internal/httpapi/admin"
 	"zync-server/internal/httpapi/authroute"
 	"zync-server/internal/httpapi/calls"
 	"zync-server/internal/httpapi/dashboard"
@@ -62,6 +63,10 @@ func NewRouter(d Deps) *gin.Engine {
 
 	profile.Register(api, d.Users, "./uploads")
 	workspaces.Register(api, d.Workspaces, "./uploads")
+
+	adminAPI := api.Group("/admin")
+	adminAPI.Use(middleware.SystemAdmin(d.Users))
+	admin.Register(adminAPI, d.Users)
 
 	// ── Workspace-scoped routes (Bearer + Tenant middleware) ────────────
 	wsGroup := api.Group("")
