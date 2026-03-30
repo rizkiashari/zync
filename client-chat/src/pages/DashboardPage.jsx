@@ -28,6 +28,7 @@ import { recentTaskService } from "../services/recentTaskService";
 import { buildTaskColumnSections, priorityMeta } from "../lib/taskOverview";
 import { useGroupTaskBoards } from "../hooks/useGroupTaskBoards";
 import { cardClean } from "../lib/uiClasses";
+import AdOnboarding from "../components/onboarding/AdOnboarding";
 
 /* ─── Helpers ──────────────────────────────────────────── */
 const formatTime = (dateStr) => {
@@ -172,14 +173,6 @@ const DashboardPage = () => {
 	const totalUnread = rooms.reduce((sum, r) => sum + (r.unread_count || 0), 0);
 	const recentRooms = rooms.slice(0, 8);
 
-	const getGreeting = () => {
-		const h = new Date().getHours();
-		if (h < 12) return "Selamat pagi";
-		if (h < 15) return "Selamat siang";
-		if (h < 18) return "Selamat sore";
-		return "Selamat malam";
-	};
-
 	const handleRoomClick = (room) => {
 		if (room.type === "group") navigate(`/group/${room.id}`);
 		else navigate(`/chat/${room.id}`);
@@ -219,49 +212,23 @@ const DashboardPage = () => {
 
 			<div className='flex-1 overflow-y-auto'>
 				{/* ── Hero banner ─────────────────────────────── */}
-				<div className='relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 px-6 pt-8 pb-16 overflow-hidden'>
-					<div className='absolute -top-10 -right-10 w-56 h-56 bg-white/5 rounded-full' />
-					<div className='absolute top-4 right-32 w-20 h-20 bg-white/5 rounded-full' />
-					<div className='absolute -bottom-8 left-40 w-40 h-40 bg-white/5 rounded-full' />
-
-					<div className='relative flex items-center justify-between'>
-						<div className='flex items-center gap-4'>
-							<div className='ring-4 ring-white/20 rounded-full'>
-								<Avatar name={user?.username || user?.name} size='xl' online />
-							</div>
-							<div>
-								<p className='text-indigo-200 text-sm mb-0.5'>
-									{getGreeting()},
-								</p>
-								<h1 className='text-white text-2xl font-bold leading-tight'>
-									{(user?.username || user?.name || "").split(" ")[0]}!
-								</h1>
-							</div>
-						</div>
-
-						<div className='flex flex-wrap items-center gap-2'>
-							<button
-								type='button'
-								onClick={() => navigate("/tasks")}
-								className='flex items-center gap-2 bg-white/15 backdrop-blur-sm text-white text-sm font-semibold px-4 py-2 rounded-xl border border-white/35 transition-all hover:bg-white/25'
-							>
-								<ClipboardList className='w-4 h-4' />
-								Task hub
-							</button>
-							<button
-								type='button'
-								onClick={() => dispatch(openCreateGroup())}
-								className='flex items-center gap-2 bg-white text-indigo-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition-all shadow-clean-md ring-1 ring-black/5 hover:bg-indigo-50 hover:shadow-clean'
-							>
-								<Plus className='w-4 h-4' />
-								Grup Baru
-							</button>
-						</div>
-					</div>
-				</div>
+				<AdOnboarding
+					variant='dashboard'
+					user={user}
+					onCreateGroup={() => dispatch(openCreateGroup())}
+					onGoTasks={() => navigate("/tasks")}
+					onSkipToContent={() =>
+						document
+							.getElementById("dashboard-content")
+							?.scrollIntoView({ behavior: "smooth" })
+					}
+				/>
 
 				{/* ── Content ─────────── */}
-				<div className='px-6 -mt-8 pb-8 space-y-5'>
+				<div
+					id='dashboard-content'
+					className='px-4 sm:px-6 -mt-8 pb-8 space-y-5'
+				>
 					{/* Stats row */}
 					<div className='grid grid-cols-2 md:grid-cols-4 gap-3'>
 						<StatCard

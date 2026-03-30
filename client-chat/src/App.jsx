@@ -6,6 +6,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import OnboardingPage from "./pages/OnboardingPage";
+import AdOnboardingPage from "./pages/AdOnboardingPage";
 import DashboardPage from "./pages/DashboardPage";
 import ChatPage from "./pages/ChatPage";
 import GroupChatPage from "./pages/GroupChatPage";
@@ -16,6 +17,7 @@ import TasksPage from "./pages/TasksPage";
 import CallPage from "./pages/CallPage";
 import WorkspaceSettingsPage from "./pages/WorkspaceSettingsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
+import BookmarksPage from "./pages/BookmarksPage";
 import IncomingCallModal from "./components/call/IncomingCallModal";
 
 const LoadingScreen = () => (
@@ -99,10 +101,25 @@ function App() {
 				<Route path='/workspace/settings' element={<ProtectedRoute><WorkspaceSettingsPage /></ProtectedRoute>} />
 
 				<Route path='/admin/users' element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
+			<Route path='/bookmarks' element={<ProtectedRoute><BookmarksPage /></ProtectedRoute>} />
 
 				{/* Redirects */}
-				<Route path='/' element={<Navigate to='/dashboard' replace />} />
-				<Route path='*' element={<Navigate to='/dashboard' replace />} />
+				<Route
+					path='/'
+					element={
+						<PublicRoute>
+							<AdOnboardingPage />
+						</PublicRoute>
+					}
+				/>
+				<Route
+					path='*'
+					element={
+						<PublicRoute>
+							<AdOnboardingPage />
+						</PublicRoute>
+					}
+				/>
 			</Routes>
 		</>
 	);

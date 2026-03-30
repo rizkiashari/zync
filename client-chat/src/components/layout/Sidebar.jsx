@@ -12,6 +12,7 @@ import {
 	Building2,
 	Shield,
 	ChevronDown,
+	Bookmark,
 } from "lucide-react";
 import Logo from "../ui/Logo";
 import Avatar from "../ui/Avatar";
@@ -210,6 +211,22 @@ const Sidebar = () => {
 				</div>
 
 				<div className='px-4 pb-3 space-y-2'>
+					<button
+						type='button'
+						onClick={() => navigate("/bookmarks")}
+						aria-current={pathname === "/bookmarks" ? "page" : undefined}
+						className={`w-full min-h-11 flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ease-out active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+							pathname === "/bookmarks" ?
+								"bg-indigo-600 text-white shadow-md"
+							:	"bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
+						}`}
+					>
+						<Bookmark
+							className='w-4 h-4 flex-shrink-0 opacity-90'
+							aria-hidden='true'
+						/>
+						Tersimpan
+					</button>
 					<button
 						type='button'
 						onClick={() => navigate("/tasks")}

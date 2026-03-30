@@ -21,6 +21,7 @@ import {
 	addOptimisticMessage,
 } from "../store/messagesSlice";
 import { messageService } from "../services/messageService";
+import { bookmarkService } from "../services/bookmarkService";
 import { roomService } from "../services/roomService";
 import ConfirmModal from "../components/ui/ConfirmModal";
 import CallEventBubble from "../components/chat/CallEventBubble";
@@ -97,6 +98,7 @@ const ChatPage = () => {
 	const [replyCache, setReplyCache] = useState({});
 	// readUpTo: the msg_id up to which the other party has read
 	const [readUpTo, setReadUpTo] = useState(0);
+	const [bookmarkedIds, setBookmarkedIds] = useState([]);
 
 	useEffect(() => {
 		let cancelled = false;

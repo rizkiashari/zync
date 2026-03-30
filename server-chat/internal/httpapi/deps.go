@@ -16,9 +16,11 @@ type Deps struct {
 	Users         *repository.UserRepository
 	Workspaces    *repository.WorkspaceRepository
 	RecentTasks   *repository.RecentTaskRepository
+	OnboardingPricingPlans *repository.OnboardingPricingRepository
 	RefreshTokens *repository.RefreshTokenRepository
 	Notifications *repository.NotificationRepository
 	Tasks         *repository.TaskRepository
+	Bookmarks     *repository.BookmarkRepository
 	Auth          *auth.Service
 	Config        *config.Config
 	Logger        *slog.Logger

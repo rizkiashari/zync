@@ -57,6 +57,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := database.SeedOnboardingPricing(db, log); err != nil {
+		log.Error("onboarding pricing database seed", "error", err)
+		os.Exit(1)
+	}
+
 	jwtSvc, err := auth.NewService(cfg.JWTSecret, cfg.JWTTTL)
 	if err != nil {
 		log.Error("auth", "error", err)
@@ -71,6 +76,8 @@ func main() {
 	notifRepo := repository.NewNotificationRepository(db)
 	taskRepo := repository.NewTaskRepository(db)
 	recentRepo := repository.NewRecentTaskRepository(db)
+	bookmarkRepo := repository.NewBookmarkRepository(db)
+	onboardingPricingRepo := repository.NewOnboardingPricingRepository(db)
 
 	h := hub.New()
 	go h.Run()
@@ -85,6 +92,8 @@ func main() {
 		RefreshTokens: rtRepo,
 		Notifications: notifRepo,
 		Tasks:         taskRepo,
+		Bookmarks:     bookmarkRepo,
+		OnboardingPricingPlans: onboardingPricingRepo,
 		Auth:          jwtSvc,
 		Config:        cfg,
 		Logger:        log,

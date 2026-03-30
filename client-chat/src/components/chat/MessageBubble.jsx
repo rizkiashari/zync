@@ -9,6 +9,8 @@ import {
 	Download,
 	Pin,
 	PinOff,
+	Bookmark,
+	BookmarkCheck,
 } from "lucide-react";
 import Avatar from "../ui/Avatar";
 import { formatMessageTime } from "../../data/mockData";
@@ -72,7 +74,7 @@ const FileBubble = ({ meta, dark }) => {
 	);
 };
 
-const ContextMenu = ({ x, y, isOwn, onReply, onCopy, onDelete, onPin, isPinned, onClose }) => {
+const ContextMenu = ({ x, y, isOwn, onReply, onCopy, onDelete, onPin, isPinned, onBookmark, isBookmarked, onClose }) => {
 	const ref = useRef(null);
 
 	useEffect(() => {
@@ -110,6 +112,18 @@ const ContextMenu = ({ x, y, isOwn, onReply, onCopy, onDelete, onPin, isPinned, 
 				<Copy className='w-4 h-4 text-slate-500' />
 				Salin
 			</button>
+			{onBookmark && (
+				<button
+					onClick={onBookmark}
+					className='w-full flex items-center gap-3 px-3 py-2 hover:bg-indigo-50 text-slate-700 transition-colors'
+				>
+					{isBookmarked ? (
+						<><BookmarkCheck className='w-4 h-4 text-indigo-500' /><span>Tersimpan</span></>
+					) : (
+						<><Bookmark className='w-4 h-4 text-slate-500' /><span>Simpan</span></>
+					)}
+				</button>
+			)}
 			{onPin && (
 				<button
 					onClick={onPin}
@@ -169,11 +183,14 @@ const MessageBubble = ({
 	onDelete,
 	onPin,
 	pinnedMessageId,
+	onBookmark,
+	bookmarkedIds = [],
 }) => {
 	const [menu, setMenu] = useState(null);
 	const time = formatMessageTime(message.timestamp);
 	const isDeleted = message.deleted;
 	const isPinned = pinnedMessageId === message.id;
+	const isBookmarked = bookmarkedIds.includes(message.id);
 
 	const handleContextMenu = (e) => {
 		e.preventDefault();
@@ -200,6 +217,11 @@ const MessageBubble = ({
 
 	const handlePin = () => {
 		onPin?.(isPinned ? null : message.id, message);
+		setMenu(null);
+	};
+
+	const handleBookmark = () => {
+		onBookmark?.(message.id, isBookmarked);
 		setMenu(null);
 	};
 
@@ -254,6 +276,8 @@ const MessageBubble = ({
 						onDelete={handleDelete}
 						onPin={onPin ? handlePin : undefined}
 						isPinned={isPinned}
+						onBookmark={onBookmark ? handleBookmark : undefined}
+						isBookmarked={isBookmarked}
 						onClose={() => setMenu(null)}
 					/>
 				)}
@@ -319,6 +343,8 @@ const MessageBubble = ({
 					onDelete={handleDelete}
 					onPin={onPin ? handlePin : undefined}
 					isPinned={isPinned}
+					onBookmark={onBookmark ? handleBookmark : undefined}
+					isBookmarked={isBookmarked}
 					onClose={() => setMenu(null)}
 				/>
 			)}

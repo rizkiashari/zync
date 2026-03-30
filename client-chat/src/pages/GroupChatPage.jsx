@@ -457,7 +457,7 @@ const GroupChatPage = () => {
 						<GroupInfo
 							group={groupForInfo}
 							onClose={() => setShowInfo(false)}
-							onMembersUpdated={(newMembers) =>
+							onMembersUpdated={(newMembers) => {
 								setMembers(
 									newMembers.map((m) => ({
 										id: m.id,
@@ -465,8 +465,8 @@ const GroupChatPage = () => {
 										email: m.email,
 										role: m.role || "member",
 									})),
-								)
-							}
+								);
+							}}
 						/>
 					)}
 				</div>
