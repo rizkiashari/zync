@@ -1,9 +1,12 @@
 package workspaces
 
 import (
+	"fmt"
 	"net/http"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -156,5 +159,79 @@ func handleRegenerateInvite(wsRepo *repository.WorkspaceRepository) gin.HandlerF
 			return
 		}
 		response.OK(c, gin.H{"invite_token": token})
+	}
+}
+
+type updateBrandingBody struct {
+	CustomName   string `json:"custom_name"`
+	PrimaryColor string `json:"primary_color"`
+	Description  string `json:"description"`
+}
+
+// handleUpdateBranding updates white-label branding fields (admin/owner only).
+func handleUpdateBranding(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ws, ok := middleware.GetWorkspace(c)
+		if !ok {
+			response.Error(c, http.StatusNotFound, "workspace_not_found", "Workspace not found")
+			return
+		}
+		userID, _ := middleware.UserID(c)
+		role, _ := wsRepo.GetMemberRole(ws.ID, userID)
+		if role != "owner" && role != "admin" {
+			response.Error(c, http.StatusForbidden, "forbidden", "Only admin or owner can update branding")
+			return
+		}
+		var req updateBrandingBody
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid request body")
+			return
+		}
+		if err := wsRepo.UpdateBranding(ws.ID, req.CustomName, req.PrimaryColor, "", req.Description); err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to update branding")
+			return
+		}
+		updated, _ := wsRepo.GetByID(ws.ID)
+		response.OK(c, gin.H{"workspace": updated})
+	}
+}
+
+// handleUploadLogo handles logo file upload (admin/owner only).
+func handleUploadLogo(wsRepo *repository.WorkspaceRepository, uploadsDir string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ws, ok := middleware.GetWorkspace(c)
+		if !ok {
+			response.Error(c, http.StatusNotFound, "workspace_not_found", "Workspace not found")
+			return
+		}
+		userID, _ := middleware.UserID(c)
+		role, _ := wsRepo.GetMemberRole(ws.ID, userID)
+		if role != "owner" && role != "admin" {
+			response.Error(c, http.StatusForbidden, "forbidden", "Only admin or owner can upload logo")
+			return
+		}
+		fh, err := c.FormFile("logo")
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "No logo file provided")
+			return
+		}
+		ext := strings.ToLower(filepath.Ext(fh.Filename))
+		if ext != ".png" && ext != ".jpg" && ext != ".jpeg" && ext != ".svg" && ext != ".webp" {
+			response.Error(c, http.StatusBadRequest, "invalid_file_type", "Only PNG, JPG, SVG or WebP logos are accepted")
+			return
+		}
+		filename := fmt.Sprintf("logo_%d_%d%s", ws.ID, time.Now().UnixMilli(), ext)
+		dest := filepath.Join(uploadsDir, "logos", filename)
+		if err := c.SaveUploadedFile(fh, dest); err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to save logo")
+			return
+		}
+		logoURL := "/uploads/logos/" + filename
+		if err := wsRepo.UpdateBranding(ws.ID, ws.CustomName, ws.PrimaryColor, logoURL, ws.Description); err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to save logo URL")
+			return
+		}
+		updated, _ := wsRepo.GetByID(ws.ID)
+		response.OK(c, gin.H{"workspace": updated, "logo_url": logoURL})
 	}
 }

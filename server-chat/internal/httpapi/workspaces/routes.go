@@ -13,7 +13,7 @@ import (
 //	withAuth  — routes that only need Bearer auth (profile-level, no workspace yet)
 //
 // Routes that need a workspace context are nested under a Tenant middleware group.
-func Register(api *gin.RouterGroup, wsRepo *repository.WorkspaceRepository) {
+func Register(api *gin.RouterGroup, wsRepo *repository.WorkspaceRepository, uploadsDir string) {
 	g := api.Group("/workspaces")
 
 	// No workspace context needed
@@ -27,4 +27,6 @@ func Register(api *gin.RouterGroup, wsRepo *repository.WorkspaceRepository) {
 	ws.GET("/current", handleGetCurrent())
 	ws.GET("/invite", handleGetInvite(wsRepo))
 	ws.POST("/invite/regenerate", handleRegenerateInvite(wsRepo))
+	ws.PUT("/branding", handleUpdateBranding(wsRepo))
+	ws.POST("/branding/logo", handleUploadLogo(wsRepo, uploadsDir))
 }

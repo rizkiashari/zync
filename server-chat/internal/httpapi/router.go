@@ -61,7 +61,7 @@ func NewRouter(d Deps) *gin.Engine {
 	api.Use(middleware.Bearer(d.Auth))
 
 	profile.Register(api, d.Users, "./uploads")
-	workspaces.Register(api, d.Workspaces)
+	workspaces.Register(api, d.Workspaces, "./uploads")
 
 	// ── Workspace-scoped routes (Bearer + Tenant middleware) ────────────
 	wsGroup := api.Group("")

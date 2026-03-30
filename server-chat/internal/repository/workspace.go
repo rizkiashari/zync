@@ -150,6 +150,19 @@ func (r *WorkspaceRepository) RegenerateInviteToken(workspaceID uint) (string, e
 	return token, err
 }
 
+// UpdateBranding updates white-label fields on a workspace.
+func (r *WorkspaceRepository) UpdateBranding(workspaceID uint, customName, primaryColor, logoURL, description string) error {
+	updates := map[string]interface{}{
+		"custom_name":   customName,
+		"primary_color": primaryColor,
+		"description":   description,
+	}
+	if logoURL != "" {
+		updates["logo_url"] = logoURL
+	}
+	return r.db.Model(&models.Workspace{}).Where("id = ?", workspaceID).Updates(updates).Error
+}
+
 // UniqueSlug returns base if available, otherwise base-1, base-2, …
 func (r *WorkspaceRepository) UniqueSlug(base string) (string, error) {
 	slug := base
