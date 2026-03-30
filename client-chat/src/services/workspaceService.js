@@ -7,4 +7,12 @@ export const workspaceService = {
   join:               (token)       => api.post(`/api/workspaces/join/${token}`),
   getInvite:          ()            => api.get('/api/workspaces/invite'),
   regenerateInvite:   ()            => api.post('/api/workspaces/invite/regenerate'),
+  updateBranding:     (data)        => api.put('/api/workspaces/branding', data),
+  uploadLogo:         (file)        => {
+    const fd = new FormData();
+    fd.append('logo', file);
+    return api.post('/api/workspaces/branding/logo', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
 };

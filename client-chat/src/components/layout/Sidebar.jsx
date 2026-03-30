@@ -20,6 +20,7 @@ import { useSocket } from "../../context/SocketContext";
 import { useAppDispatch, useAppSelector } from "../../store/index";
 import { fetchRooms, selectAllRooms } from "../../store/roomsSlice";
 import { openCreateGroup, closeCreateGroup } from "../../store/uiSlice";
+import { useBranding } from "../../hooks/useBranding";
 
 const Sidebar = () => {
 	const { user } = useAuth();
@@ -29,6 +30,7 @@ const Sidebar = () => {
 	const dispatch = useAppDispatch();
 	const rooms = useAppSelector(selectAllRooms);
 	const showCreateGroup = useAppSelector((s) => s.ui.showCreateGroup);
+	const { displayName, primaryColor, logoURL } = useBranding();
 	const [search, setSearch] = useState("");
 	const [activeTab, setActiveTab] = useState("all");
 	const [showNewMenu, setShowNewMenu] = useState(false);
@@ -56,12 +58,19 @@ const Sidebar = () => {
 							onClick={() => navigate("/dashboard")}
 							className='flex items-center gap-2.5 hover:opacity-80 transition-opacity'
 						>
-							<div className='w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg'>
-								<Logo size={18} variant='white' />
+							<div
+								className='w-8 h-8 rounded-xl flex items-center justify-center shadow-lg overflow-hidden flex-shrink-0'
+								style={{ backgroundColor: primaryColor }}
+							>
+								{logoURL ? (
+									<img src={logoURL} alt='logo' className='w-full h-full object-cover' />
+								) : (
+									<Logo size={18} variant='white' />
+								)}
 							</div>
 							<div>
 								<span className='text-white font-bold text-lg leading-none'>
-									Zync
+									{displayName}
 								</span>
 								{totalUnread > 0 && (
 									<p className='text-xs text-indigo-400'>
@@ -88,7 +97,8 @@ const Sidebar = () => {
 							<div className='relative'>
 								<button
 									onClick={() => setShowNewMenu(!showNewMenu)}
-									className='w-8 h-8 bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center justify-center text-white transition-all duration-200 shadow-sm'
+									className='w-8 h-8 rounded-xl flex items-center justify-center text-white transition-all duration-200 shadow-sm hover:opacity-90'
+									style={{ backgroundColor: primaryColor }}
 								>
 									<Plus className='w-4 h-4' />
 								</button>
