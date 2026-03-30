@@ -14,6 +14,7 @@ import ChangePasswordPage from "./pages/ChangePasswordPage";
 import KanbanPage from "./pages/KanbanPage";
 import TasksPage from "./pages/TasksPage";
 import CallPage from "./pages/CallPage";
+import WorkspaceSettingsPage from "./pages/WorkspaceSettingsPage";
 import IncomingCallModal from "./components/call/IncomingCallModal";
 
 const LoadingScreen = () => (
