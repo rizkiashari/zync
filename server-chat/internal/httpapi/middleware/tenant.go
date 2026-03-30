@@ -15,7 +15,7 @@ const ctxWorkspace = "workspace"
 
 // Tenant resolves the workspace from X-Workspace-Slug header and validates membership.
 // Must run after Bearer middleware so authUserID is already set in context.
-func Tenant(workspaces *repository.WorkspaceRepository) gin.HandlerFunc {
+func Tenant(workspaces *repository.WorkspaceRepository, users *repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		slug := c.GetHeader("X-Workspace-Slug")
 		if slug == "" {
@@ -33,10 +33,18 @@ func Tenant(workspaces *repository.WorkspaceRepository) gin.HandlerFunc {
 		}
 		userID, ok := UserID(c)
 		if ok {
-			member, _ := workspaces.IsMember(ws.ID, userID)
-			if !member {
-				response.Abort(c, http.StatusForbidden, "not_workspace_member", "You are not a member of this workspace")
+			// System admin can access any workspace.
+			u, err := users.GetByID(userID)
+			if err != nil || u == nil {
+				response.Abort(c, http.StatusForbidden, response.CodeForbidden, "Forbidden")
 				return
+			}
+			if !u.IsSystemAdmin {
+				member, _ := workspaces.IsMember(ws.ID, userID)
+				if !member {
+					response.Abort(c, http.StatusForbidden, "not_workspace_member", "You are not a member of this workspace")
+					return
+				}
 			}
 		}
 		c.Set(ctxWorkspaceID, ws.ID)

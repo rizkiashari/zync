@@ -12,4 +12,5 @@ func Register(api *gin.RouterGroup, usersRepo *repository.UserRepository, upload
 	api.PUT("/profile", handleUpdateProfile(usersRepo))
 	api.POST("/profile/avatar", handleUploadAvatar(uploadsDir))
 	api.PUT("/profile/password", handleChangePassword(usersRepo))
+	api.PUT("/profile/status", handleUpdateStatus(usersRepo))
 }

@@ -44,6 +44,9 @@ export const roomService = {
   deleteRoom: (roomId) =>
     api.delete(`/api/rooms/${roomId}`),
 
+  markRead: (roomId) =>
+    api.put(`/api/rooms/${roomId}/read`),
+
   joinByInvite: (token) =>
     api.post(`/api/invite/${token}`),
 

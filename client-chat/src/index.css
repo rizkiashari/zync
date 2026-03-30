@@ -3,52 +3,85 @@
 @tailwind utilities;
 
 @layer base {
-  * { box-sizing: border-box; }
-  html {
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-  body {
-    @apply bg-slate-50 text-slate-900 font-sans;
-    margin: 0;
-  }
-  #root {
-    width: 100%;
-    max-width: 100%;
-    margin: 0;
-    text-align: left;
-    border-inline: none;
-    min-height: 100svh;
+	* {
+		box-sizing: border-box;
+	}
+	html {
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+	body {
+		@apply bg-slate-50 text-slate-900 font-sans text-base leading-relaxed;
+		margin: 0;
+		touch-action: manipulation;
+	}
+	#root {
+		width: 100%;
+		max-width: 100%;
+		margin: 0;
+		text-align: left;
+		border-inline: none;
+		min-height: 100dvh;
+	}
+
+  /* Link tanpa kelas khusus tetap punya ring fokus */
+  a:focus-visible {
+    @apply outline-none ring-2 ring-indigo-500 ring-offset-2 rounded-sm;
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+		scroll-behavior: auto !important;
+	}
+}
+
 @layer components {
-  /* Sidebar – dark scrollbar */
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: #334155 transparent;
-  }
-  .scrollbar-thin::-webkit-scrollbar        { width: 3px; }
-  .scrollbar-thin::-webkit-scrollbar-track  { background: transparent; }
-  .scrollbar-thin::-webkit-scrollbar-thumb  {
-    background: #334155;
-    border-radius: 99px;
-  }
+	/* Sidebar – dark scrollbar */
+	.scrollbar-thin {
+		scrollbar-width: thin;
+		scrollbar-color: #334155 transparent;
+	}
+	.scrollbar-thin::-webkit-scrollbar {
+		width: 3px;
+	}
+	.scrollbar-thin::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	.scrollbar-thin::-webkit-scrollbar-thumb {
+		background: #334155;
+		border-radius: 99px;
+	}
 
-  /* Main content – light scrollbar */
-  .scrollbar-light {
-    scrollbar-width: thin;
-    scrollbar-color: #e2e8f0 transparent;
-  }
-  .scrollbar-light::-webkit-scrollbar        { width: 4px; }
-  .scrollbar-light::-webkit-scrollbar-track  { background: transparent; }
-  .scrollbar-light::-webkit-scrollbar-thumb  {
-    background: #e2e8f0;
-    border-radius: 99px;
-  }
-  .scrollbar-light::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+	/* Main content – light scrollbar */
+	.scrollbar-light {
+		scrollbar-width: thin;
+		scrollbar-color: #e2e8f0 transparent;
+	}
+	.scrollbar-light::-webkit-scrollbar {
+		width: 4px;
+	}
+	.scrollbar-light::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	.scrollbar-light::-webkit-scrollbar-thumb {
+		background: #e2e8f0;
+		border-radius: 99px;
+	}
+	.scrollbar-light::-webkit-scrollbar-thumb:hover {
+		background: #cbd5e1;
+	}
 
-  /* Hide scrollbar, keep scroll */
-  .scrollbar-none                                  { scrollbar-width: none; }
-  .scrollbar-none::-webkit-scrollbar               { display: none; }
+	/* Hide scrollbar, keep scroll */
+	.scrollbar-none {
+		scrollbar-width: none;
+	}
+	.scrollbar-none::-webkit-scrollbar {
+		display: none;
+	}
 }

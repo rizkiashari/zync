@@ -125,12 +125,14 @@ const VoiceLayout = ({ onEndCall }) => {
 
 			<div className='flex items-center justify-center gap-4 py-5 bg-[#202124] border-t border-white/10'>
 				<button
+					type='button'
 					onClick={toggleMic}
-					className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+					className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124] ${
 						muted ?
 							"bg-red-500 hover:bg-red-600"
 						:	"bg-[#3c4043] hover:bg-[#4a4d51]"
 					}`}
+					aria-label={muted ? "Nyalakan mikrofon" : "Mute mikrofon"}
 					title={muted ? "Unmute" : "Mute"}
 				>
 					{muted ?
@@ -138,8 +140,10 @@ const VoiceLayout = ({ onEndCall }) => {
 					:	<Mic className='w-5 h-5 text-white' />}
 				</button>
 				<button
+					type='button'
 					onClick={onEndCall}
-					className='w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-colors shadow-lg'
+					className='w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-colors shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124]'
+					aria-label='Tinggalkan panggilan'
 					title='Tinggalkan'
 				>
 					<PhoneOff className='w-6 h-6 text-white' />
@@ -223,12 +227,14 @@ const VideoLayout = ({ onEndCall }) => {
 
 			<div className='flex items-center justify-center gap-4 py-5 bg-[#202124] border-t border-white/10'>
 				<button
+					type='button'
 					onClick={toggleMic}
-					className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+					className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124] ${
 						muted ?
 							"bg-red-500 hover:bg-red-600"
 						:	"bg-[#3c4043] hover:bg-[#4a4d51]"
 					}`}
+					aria-label={muted ? "Nyalakan mikrofon" : "Mute mikrofon"}
 					title={muted ? "Unmute" : "Mute"}
 				>
 					{muted ?
@@ -236,12 +242,14 @@ const VideoLayout = ({ onEndCall }) => {
 					:	<Mic className='w-5 h-5 text-white' />}
 				</button>
 				<button
+					type='button'
 					onClick={toggleCamera}
-					className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+					className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124] ${
 						videoOff ?
 							"bg-red-500 hover:bg-red-600"
 						:	"bg-[#3c4043] hover:bg-[#4a4d51]"
 					}`}
+					aria-label={videoOff ? "Nyalakan kamera" : "Matikan kamera"}
 					title={videoOff ? "Nyalakan Kamera" : "Matikan Kamera"}
 				>
 					{videoOff ?
@@ -249,8 +257,10 @@ const VideoLayout = ({ onEndCall }) => {
 					:	<Video className='w-5 h-5 text-white' />}
 				</button>
 				<button
+					type='button'
 					onClick={onEndCall}
-					className='w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-colors shadow-lg'
+					className='w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-colors shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124]'
+					aria-label='Tinggalkan panggilan'
 					title='Tinggalkan'
 				>
 					<PhoneOff className='w-6 h-6 text-white' />

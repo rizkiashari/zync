@@ -143,6 +143,44 @@ func (r *WorkspaceRepository) AddMember(workspaceID, userID uint, role string) e
 	return r.db.Create(&m).Error
 }
 
+// MemberWithUser holds workspace member info joined with user details.
+type MemberWithUser struct {
+	UserID    uint      `json:"user_id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	Avatar    string    `json:"avatar"`
+	Role      string    `json:"role"`
+	JoinedAt  time.Time `json:"joined_at"`
+}
+
+// ListMembers returns all members of a workspace with user details.
+func (r *WorkspaceRepository) ListMembers(workspaceID uint) ([]MemberWithUser, error) {
+	var members []MemberWithUser
+	err := r.db.Table("workspace_members").
+		Select("workspace_members.user_id, users.username, users.email, users.avatar, workspace_members.role, workspace_members.joined_at").
+		Joins("JOIN users ON users.id = workspace_members.user_id").
+		Where("workspace_members.workspace_id = ?", workspaceID).
+		Order("workspace_members.joined_at ASC").
+		Scan(&members).Error
+	if members == nil {
+		members = make([]MemberWithUser, 0)
+	}
+	return members, err
+}
+
+// UpdateMemberRole changes the role of a workspace member.
+func (r *WorkspaceRepository) UpdateMemberRole(workspaceID, userID uint, role string) error {
+	return r.db.Model(&models.WorkspaceMember{}).
+		Where("workspace_id = ? AND user_id = ?", workspaceID, userID).
+		Update("role", role).Error
+}
+
+// RemoveMember removes a user from a workspace.
+func (r *WorkspaceRepository) RemoveMember(workspaceID, userID uint) error {
+	return r.db.Where("workspace_id = ? AND user_id = ?", workspaceID, userID).
+		Delete(&models.WorkspaceMember{}).Error
+}
+
 // RegenerateInviteToken creates a fresh invite token for the workspace.
 func (r *WorkspaceRepository) RegenerateInviteToken(workspaceID uint) (string, error) {
 	token := genWorkspaceToken()

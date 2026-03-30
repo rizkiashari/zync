@@ -5,6 +5,9 @@ export const messageService = {
   list: (roomId, params = {}) =>
     api.get(`/api/rooms/${roomId}/messages`, { params }),
 
+  getById: (msgId) =>
+    api.get(`/api/messages/${msgId}`),
+
   search: (roomId, query) =>
     api.get(`/api/rooms/${roomId}/messages/search`, { params: { q: query } }),
 
@@ -32,4 +35,7 @@ export const messageService = {
   },
 
   fileUrl: (url) => `${API_BASE}${url}`,
+
+  listFiles: (roomId, params = {}) =>
+    api.get(`/api/rooms/${roomId}/files`, { params }),
 };

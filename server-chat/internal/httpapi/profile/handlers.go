@@ -186,6 +186,30 @@ func handleUploadAvatar(uploadsDir string) gin.HandlerFunc {
 	}
 }
 
+type updateStatusBody struct {
+	StatusMessage string `json:"status_message" binding:"max=64"`
+}
+
+func handleUpdateStatus(usersRepo *repository.UserRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, ok := middleware.UserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, response.CodeUnauthorized, "Unauthorized")
+			return
+		}
+		var req updateStatusBody
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid or malformed request body")
+			return
+		}
+		if err := usersRepo.UpdateProfileFields(userID, map[string]any{"status_message": strings.TrimSpace(req.StatusMessage)}); err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
+			return
+		}
+		response.OK(c, gin.H{"status_message": strings.TrimSpace(req.StatusMessage)})
+	}
+}
+
 // handleChangePassword godoc
 // @Summary      Change password
 // @Tags         profile

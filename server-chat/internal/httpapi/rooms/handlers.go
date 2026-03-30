@@ -6,9 +6,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"zync-server/internal/hub"
 	"zync-server/internal/httpapi/middleware"
 	"zync-server/internal/httpapi/response"
+	"zync-server/internal/hub"
 	"zync-server/internal/models"
 	"zync-server/internal/repository"
 )
@@ -40,7 +40,7 @@ type pinMessageBody struct {
 	MessageID *uint `json:"message_id"` // null = unpin
 }
 
-func handleCreateGroup(h *hub.Hub, roomsRepo *repository.RoomRepository) gin.HandlerFunc {
+func handleCreateGroup(h *hub.Hub, roomsRepo *repository.RoomRepository, workspacesRepo *repository.WorkspaceRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, ok := middleware.UserID(c)
 		if !ok {
@@ -65,6 +65,16 @@ func handleCreateGroup(h *hub.Hub, roomsRepo *repository.RoomRepository) gin.Han
 		// Add additional members and notify each one
 		for _, memberID := range req.MemberIDs {
 			if memberID != userID {
+				// Tenant isolation: only allow adding users that belong to this workspace.
+				memberOK, err := workspacesRepo.IsMember(workspaceID, memberID)
+				if err != nil {
+					response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
+					return
+				}
+				if !memberOK {
+					response.Error(c, http.StatusForbidden, response.CodeForbidden, "You can only add users from this workspace")
+					return
+				}
 				_ = roomsRepo.AddMember(room.ID, memberID)
 				_ = h.NotifyUser(memberID, map[string]any{"type": "room_added", "room": room})
 			}
@@ -73,7 +83,7 @@ func handleCreateGroup(h *hub.Hub, roomsRepo *repository.RoomRepository) gin.Han
 	}
 }
 
-func handleCreateDirect(h *hub.Hub, roomsRepo *repository.RoomRepository, usersRepo *repository.UserRepository) gin.HandlerFunc {
+func handleCreateDirect(h *hub.Hub, roomsRepo *repository.RoomRepository, usersRepo *repository.UserRepository, workspacesRepo *repository.WorkspaceRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, ok := middleware.UserID(c)
 		if !ok {
@@ -93,6 +103,16 @@ func handleCreateDirect(h *hub.Hub, roomsRepo *repository.RoomRepository, usersR
 		other, err := usersRepo.GetByID(req.UserID)
 		if err != nil || other == nil {
 			response.Error(c, http.StatusNotFound, response.CodeNotFound, "User not found")
+			return
+		}
+		// Tenant isolation: direct chat can only be created within a workspace shared by both users.
+		otherOK, err := workspacesRepo.IsMember(workspaceID, req.UserID)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
+			return
+		}
+		if !otherOK {
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "You can only chat with users from this workspace")
 			return
 		}
 		room, err := roomsRepo.CreateDirect(userID, req.UserID, workspaceID)
@@ -201,13 +221,14 @@ func handleUpdateRoom(roomsRepo *repository.RoomRepository) gin.HandlerFunc {
 	}
 }
 
-func handleAddMember(roomsRepo *repository.RoomRepository, usersRepo *repository.UserRepository) gin.HandlerFunc {
+func handleAddMember(roomsRepo *repository.RoomRepository, usersRepo *repository.UserRepository, workspacesRepo *repository.WorkspaceRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, ok := middleware.UserID(c)
 		if !ok {
 			response.Error(c, http.StatusUnauthorized, response.CodeUnauthorized, "Unauthorized")
 			return
 		}
+		workspaceID, _ := middleware.WorkspaceID(c)
 		roomID, err := parseRoomID(c)
 		if err != nil {
 			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid room ID")
@@ -235,6 +256,16 @@ func handleAddMember(roomsRepo *repository.RoomRepository, usersRepo *repository
 		target, err := usersRepo.GetByID(req.UserID)
 		if err != nil || target == nil {
 			response.Error(c, http.StatusNotFound, response.CodeNotFound, "User not found")
+			return
+		}
+		// Tenant isolation: only allow adding users that belong to this workspace.
+		targetOK, err := workspacesRepo.IsMember(workspaceID, req.UserID)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
+			return
+		}
+		if !targetOK {
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "You can only add users from this workspace")
 			return
 		}
 		if err := roomsRepo.AddMember(roomID, req.UserID); err != nil {
@@ -470,6 +501,43 @@ func handleGenerateInvite(roomsRepo *repository.RoomRepository) gin.HandlerFunc 
 			return
 		}
 		response.OK(c, gin.H{"invite_token": token})
+	}
+}
+
+// handleMarkRoomRead marks all messages in a room as read for the current user
+// and broadcasts a read event to other room members.
+func handleMarkRoomRead(h *hub.Hub, roomsRepo *repository.RoomRepository, msgRepo *repository.MessageRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, ok := middleware.UserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, response.CodeUnauthorized, "Unauthorized")
+			return
+		}
+		roomID, err := parseRoomID(c)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid room ID")
+			return
+		}
+		isMember, err := roomsRepo.IsMember(roomID, userID)
+		if err != nil || !isMember {
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "You are not a member of this room")
+			return
+		}
+		last, err := msgRepo.GetLastMessage(roomID)
+		if err != nil || last == nil {
+			response.OK(c, gin.H{"message": "No messages to mark as read"})
+			return
+		}
+		_ = roomsRepo.UpdateLastRead(roomID, userID, last.ID)
+		// Broadcast read event so the sender sees "Dibaca"
+		roomKey := strconv.FormatUint(uint64(roomID), 10)
+		_ = h.BroadcastToRoom(roomKey, map[string]any{
+			"type":    "read",
+			"room":    roomID,
+			"user_id": userID,
+			"msg_id":  last.ID,
+		})
+		response.OK(c, gin.H{"message": "Marked as read", "last_msg_id": last.ID})
 	}
 }
 

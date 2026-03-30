@@ -14,9 +14,10 @@ import KanbanColumn from "../components/kanban/KanbanColumn";
 import TaskModal from "../components/kanban/TaskModal";
 import ColumnModal from "../components/kanban/ColumnModal";
 import Sidebar from "../components/layout/Sidebar";
-import { pushRecentOpenedTask } from "../lib/recentTasks";
 import { taskService } from "../services/taskService";
 import { deadlineForTaskUpdate } from "../lib/tasksHubLogic";
+import { recentTaskService } from "../services/recentTaskService";
+import { focusRing } from "../lib/uiClasses";
 
 const KanbanPage = () => {
 	const { groupId } = useParams();
@@ -105,14 +106,11 @@ const KanbanPage = () => {
 			const columnName = board?.columns?.find(
 				(col) => col.id === task.column_id,
 			)?.name;
-			pushRecentOpenedTask({
-				id: task.id,
-				title: task.title || "Untitled task",
-				priority: task.priority || "medium",
-				deadline_at: task.deadline_at || null,
-				groupId: Number(groupId),
-				groupName: room?.name || "Group",
-				columnName: columnName || null,
+			// Persist recents to DB (source of truth) for Dashboard.
+			recentTaskService.upsert(task.id).catch(() => {
+				// Non-blocking: user should still be able to open the task.
+				// eslint-disable-next-line no-console
+				console.error("Failed to save recent task");
 			});
 			setTaskModal({ task });
 		},
@@ -121,13 +119,12 @@ const KanbanPage = () => {
 
 	const handleTaskMove = useCallback(
 		async (task, targetColumnId) => {
-			if (
-				task.groupId != null &&
-				Number(task.groupId) !== Number(groupId)
-			) {
+			if (task.groupId != null && Number(task.groupId) !== Number(groupId)) {
 				return;
 			}
-			if (!board?.columns?.some((c) => Number(c.id) === Number(targetColumnId))) {
+			if (
+				!board?.columns?.some((c) => Number(c.id) === Number(targetColumnId))
+			) {
 				return;
 			}
 			if (Number(task.column_id) === Number(targetColumnId)) return;
@@ -169,25 +166,29 @@ const KanbanPage = () => {
 			<Sidebar />
 			<div className='flex-1 flex flex-col min-w-0'>
 				{/* Top bar */}
-				<div className='flex items-center justify-between px-6 py-4 bg-white border-b border-slate-100 shadow-sm flex-shrink-0'>
-					<div className='flex items-center gap-3'>
+				<div className='flex items-center justify-between px-6 py-4 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-clean flex-shrink-0'>
+					<div className='flex items-center gap-3 min-w-0'>
 						<Link
 							to={`/group/${groupId}`}
-							className='p-2 rounded-xl hover:bg-slate-100 transition-colors text-slate-600'
+							aria-label='Kembali ke grup'
+							className={`min-h-11 min-w-11 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors text-slate-600 hover:text-slate-900 ${focusRing}`}
 						>
-							<ArrowLeft className='w-4 h-4' />
+							<ArrowLeft className='w-5 h-5' />
 						</Link>
 						<ClipboardList className='w-5 h-5 text-indigo-600' />
 						<div>
-							<h1 className='text-base font-semibold text-slate-800'>
-								Track Task
+							<h1 className='text-base font-semibold text-slate-900 tracking-tight'>
+								Track task
 							</h1>
-							<p className='text-xs text-slate-500'>{room?.name || "Group"}</p>
+							<p className='text-xs text-slate-500 mt-0.5'>
+								{room?.name || "Group"}
+							</p>
 						</div>
 					</div>
 					<button
+						type='button'
 						onClick={() => setColumnModal({})}
-						className='flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition-colors'
+						className={`flex items-center gap-1.5 px-3 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-clean ring-1 ring-indigo-700/20 ${focusRing}`}
 					>
 						<Plus className='w-4 h-4' />
 						Tambah Kolom

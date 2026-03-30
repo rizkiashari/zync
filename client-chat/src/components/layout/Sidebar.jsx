@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
 	Search,
@@ -11,6 +11,7 @@ import {
 	ClipboardList,
 	Building2,
 	Shield,
+	ChevronDown,
 } from "lucide-react";
 import Logo from "../ui/Logo";
 import Avatar from "../ui/Avatar";
@@ -23,6 +24,15 @@ import { useAppDispatch, useAppSelector } from "../../store/index";
 import { fetchRooms, selectAllRooms } from "../../store/roomsSlice";
 import { openCreateGroup, closeCreateGroup } from "../../store/uiSlice";
 import { useBranding } from "../../hooks/useBranding";
+import { profileService } from "../../services/profileService";
+
+const STATUS_PRESETS = [
+	{ emoji: "🟢", label: "Aktif", value: "" },
+	{ emoji: "📅", label: "Sedang rapat", value: "Sedang rapat" },
+	{ emoji: "🎯", label: "Fokus kerja", value: "Fokus kerja" },
+	{ emoji: "🔕", label: "Tidak mengganggu", value: "Tidak mengganggu" },
+	{ emoji: "🌙", label: "Pergi", value: "Pergi" },
+];
 
 const Sidebar = () => {
 	const { user } = useAuth();
@@ -37,6 +47,31 @@ const Sidebar = () => {
 	const [activeTab, setActiveTab] = useState("all");
 	const [showNewMenu, setShowNewMenu] = useState(false);
 	const [showNewChat, setShowNewChat] = useState(false);
+	const [statusMessage, setStatusMessage] = useState(user?.status_message || "");
+	const [showStatusMenu, setShowStatusMenu] = useState(false);
+	const statusMenuRef = useRef(null);
+
+	const handleSetStatus = async (value) => {
+		setShowStatusMenu(false);
+		setStatusMessage(value);
+		try {
+			await profileService.updateStatus(value);
+		} catch {
+			/* ignore */
+		}
+	};
+
+	// Close status menu on outside click
+	useEffect(() => {
+		if (!showStatusMenu) return;
+		const handler = (e) => {
+			if (statusMenuRef.current && !statusMenuRef.current.contains(e.target)) {
+				setShowStatusMenu(false);
+			}
+		};
+		document.addEventListener("mousedown", handler);
+		return () => document.removeEventListener("mousedown", handler);
+	}, [showStatusMenu]);
 
 	useEffect(() => {
 		dispatch(fetchRooms());
@@ -64,11 +99,13 @@ const Sidebar = () => {
 								className='w-8 h-8 rounded-xl flex items-center justify-center shadow-lg overflow-hidden flex-shrink-0'
 								style={{ backgroundColor: primaryColor }}
 							>
-								{logoURL ? (
-									<img src={logoURL} alt='logo' className='w-full h-full object-cover' />
-								) : (
-									<Logo size={18} variant='white' />
-								)}
+								{logoURL ?
+									<img
+										src={logoURL}
+										alt='logo'
+										className='w-full h-full object-cover'
+									/>
+								:	<Logo size={18} variant='white' />}
 							</div>
 							<div>
 								<span className='text-white font-bold text-lg leading-none'>
@@ -176,26 +213,34 @@ const Sidebar = () => {
 					<button
 						type='button'
 						onClick={() => navigate("/tasks")}
-						className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+						aria-current={pathname === "/tasks" ? "page" : undefined}
+						className={`w-full min-h-11 flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ease-out active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
 							pathname === "/tasks" ?
 								"bg-indigo-600 text-white shadow-md"
 							:	"bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
 						}`}
 					>
-						<ClipboardList className='w-4 h-4 flex-shrink-0 opacity-90' />
+						<ClipboardList
+							className='w-4 h-4 flex-shrink-0 opacity-90'
+							aria-hidden='true'
+						/>
 						Task
 					</button>
 					{user?.is_system_admin && (
 						<button
 							type='button'
 							onClick={() => navigate("/admin/users")}
-							className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+							aria-current={pathname === "/admin/users" ? "page" : undefined}
+							className={`w-full min-h-11 flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ease-out active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
 								pathname === "/admin/users" ?
 									"bg-amber-600 text-white shadow-md"
 								:	"bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
 							}`}
 						>
-							<Shield className='w-4 h-4 flex-shrink-0 opacity-90' />
+							<Shield
+								className='w-4 h-4 flex-shrink-0 opacity-90'
+								aria-hidden='true'
+							/>
 							Maintenance user
 						</button>
 					)}
@@ -216,22 +261,55 @@ const Sidebar = () => {
 							<p className='text-sm font-medium text-slate-100 truncate'>
 								{user?.username || user?.name || user?.email}
 							</p>
-							<p className='text-xs text-emerald-400'>Online</p>
+							{/* Status picker */}
+							<div className='relative' ref={statusMenuRef}>
+								<button
+									type='button'
+									onClick={() => setShowStatusMenu((s) => !s)}
+									className='flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 transition-colors focus:outline-none'
+								>
+									<span className='truncate max-w-[120px]'>
+										{statusMessage || "Aktif"}
+									</span>
+									<ChevronDown className='w-3 h-3 flex-shrink-0' />
+								</button>
+								{showStatusMenu && (
+									<div className='absolute bottom-6 left-0 z-50 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 w-48'>
+										{STATUS_PRESETS.map((preset) => (
+											<button
+												key={preset.value}
+												type='button'
+												onClick={() => handleSetStatus(preset.value)}
+												className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
+													statusMessage === preset.value ?
+														"text-indigo-400 bg-slate-700"
+													:	"text-slate-300 hover:bg-slate-700"
+												}`}
+											>
+												<span>{preset.emoji}</span>
+												<span>{preset.label}</span>
+											</button>
+										))}
+									</div>
+								)}
+							</div>
 						</div>
-						<div className='flex items-center gap-1'>
+						<div className='flex items-center gap-0.5'>
 							<button
+								type='button'
 								onClick={() => navigate("/workspace/settings")}
-								className='p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors'
-								title='Pengaturan Workspace'
+								className='min-w-11 min-h-11 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900'
+								aria-label='Pengaturan workspace'
 							>
-								<Building2 className='w-4 h-4' />
+								<Building2 className='w-4 h-4' aria-hidden='true' />
 							</button>
 							<button
+								type='button'
 								onClick={() => navigate("/profile")}
-								className='p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors'
-								title='Profil'
+								className='min-w-11 min-h-11 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900'
+								aria-label='Profil saya'
 							>
-								<Settings className='w-4 h-4' />
+								<Settings className='w-4 h-4' aria-hidden='true' />
 							</button>
 						</div>
 					</div>

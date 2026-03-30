@@ -6,6 +6,7 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import { adminService } from "../services/adminService";
 import toast from "react-hot-toast";
+import { cardClean, focusRing } from "../lib/uiClasses";
 
 const AdminUsersPage = () => {
 	const navigate = useNavigate();
@@ -52,7 +53,9 @@ const AdminUsersPage = () => {
 				is_system_admin: edit.is_system_admin,
 			});
 			toast.success("Pengguna diperbarui");
-			setUsers((prev) => prev.map((u) => (u.id === edit.id ? res.data.data : u)));
+			setUsers((prev) =>
+				prev.map((u) => (u.id === edit.id ? res.data.data : u)),
+			);
 			setEdit(null);
 		} catch (e) {
 			const msg = e?.response?.data?.error?.message;
@@ -66,17 +69,18 @@ const AdminUsersPage = () => {
 		<div className='flex h-screen bg-slate-50 overflow-hidden'>
 			<Sidebar />
 			<div className='flex-1 flex flex-col min-w-0 overflow-hidden'>
-				<div className='sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-slate-100 px-6 py-3.5 flex items-center gap-3'>
+				<div className='sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-6 py-3.5 flex items-center gap-3 shadow-clean'>
 					<button
 						type='button'
 						onClick={() => navigate("/dashboard")}
-						className='p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors'
+						aria-label='Kembali ke beranda'
+						className={`min-h-11 min-w-11 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors ${focusRing}`}
 					>
-						<ArrowLeft className='w-4 h-4' />
+						<ArrowLeft className='w-5 h-5' />
 					</button>
-					<div className='flex items-center gap-2'>
-						<Shield className='w-5 h-5 text-indigo-600' />
-						<h1 className='text-sm font-semibold text-slate-900'>
+					<div className='flex items-center gap-2 min-w-0'>
+						<Shield className='w-5 h-5 text-indigo-600 shrink-0' />
+						<h1 className='text-sm font-semibold text-slate-900 tracking-tight truncate'>
 							Pemeliharaan — semua pengguna
 						</h1>
 					</div>
@@ -85,8 +89,9 @@ const AdminUsersPage = () => {
 				<div className='flex-1 overflow-y-auto p-6'>
 					<div className='max-w-4xl mx-auto space-y-4'>
 						<p className='text-sm text-slate-500'>
-							Akun maintenance (system admin) dapat melihat dan mengedit profil semua
-							pengguna. Ubah sandi lewat alur profil per pengguna jika diperlukan.
+							Akun maintenance (system admin) dapat melihat dan mengedit profil
+							semua pengguna. Ubah sandi lewat alur profil per pengguna jika
+							diperlukan.
 						</p>
 
 						<div className='flex gap-2 flex-wrap items-end'>
@@ -104,7 +109,7 @@ const AdminUsersPage = () => {
 							</Button>
 						</div>
 
-						<div className='bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden'>
+						<div className={`${cardClean} overflow-hidden`}>
 							{loading ?
 								<p className='p-6 text-sm text-slate-500'>Memuat...</p>
 							:	<div className='overflow-x-auto'>
@@ -124,19 +129,27 @@ const AdminUsersPage = () => {
 													key={u.id}
 													className='border-b border-slate-50 hover:bg-slate-50/80'
 												>
-													<td className='px-4 py-3 tabular-nums text-slate-600'>{u.id}</td>
-													<td className='px-4 py-3 text-slate-800'>{u.email}</td>
-													<td className='px-4 py-3 text-slate-700'>{u.username}</td>
+													<td className='px-4 py-3 tabular-nums text-slate-600'>
+														{u.id}
+													</td>
+													<td className='px-4 py-3 text-slate-800'>
+														{u.email}
+													</td>
+													<td className='px-4 py-3 text-slate-700'>
+														{u.username}
+													</td>
 													<td className='px-4 py-3'>
 														{u.is_system_admin ?
-															<span className='text-indigo-600 font-medium'>Ya</span>
+															<span className='text-indigo-600 font-medium'>
+																Ya
+															</span>
 														:	<span className='text-slate-400'>—</span>}
 													</td>
 													<td className='px-4 py-3 text-right'>
 														<button
 															type='button'
 															onClick={() => openEdit(u)}
-															className='text-indigo-600 hover:text-indigo-800 font-medium'
+															className={`text-indigo-600 hover:text-indigo-800 font-medium rounded-sm px-1 -mx-1 ${focusRing}`}
 														>
 															Edit
 														</button>
@@ -156,7 +169,9 @@ const AdminUsersPage = () => {
 
 				{edit && (
 					<div className='fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40'>
-						<div className='bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4'>
+						<div
+							className={`${cardClean} shadow-clean-md max-w-md w-full p-6 space-y-4 ring-1 ring-black/5`}
+						>
 							<h2 className='text-lg font-semibold text-slate-900'>
 								Edit pengguna #{edit.id}
 							</h2>
@@ -173,9 +188,11 @@ const AdminUsersPage = () => {
 								</label>
 								<textarea
 									value={edit.bio}
-									onChange={(e) => setEdit((s) => ({ ...s, bio: e.target.value }))}
+									onChange={(e) =>
+										setEdit((s) => ({ ...s, bio: e.target.value }))
+									}
 									rows={3}
-									className='w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500'
+									className='w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500'
 								/>
 							</div>
 							<label className='flex items-center gap-2 cursor-pointer'>
@@ -183,7 +200,10 @@ const AdminUsersPage = () => {
 									type='checkbox'
 									checked={edit.is_system_admin}
 									onChange={(e) =>
-										setEdit((s) => ({ ...s, is_system_admin: e.target.checked }))
+										setEdit((s) => ({
+											...s,
+											is_system_admin: e.target.checked,
+										}))
 									}
 									className='rounded border-slate-300 text-indigo-600 focus:ring-indigo-500'
 								/>
@@ -198,11 +218,7 @@ const AdminUsersPage = () => {
 								>
 									Batal
 								</Button>
-								<Button
-									type='button'
-									onClick={saveEdit}
-									loading={!!savingId}
-								>
+								<Button type='button' onClick={saveEdit} loading={!!savingId}>
 									Simpan
 								</Button>
 							</div>

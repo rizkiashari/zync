@@ -6,12 +6,13 @@ import {
 	serializeTaskForDrag,
 	parseTaskDragPayload,
 } from "../../lib/taskDragPayload";
+import { cardClean } from "../../lib/uiClasses";
 
 const TasksHubListTable = ({ rows, onOpenKanban, onMoveTask }) => {
 	const [dropTargetKey, setDropTargetKey] = useState(null);
 
 	return (
-		<div className='bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto max-w-6xl'>
+		<div className={`${cardClean} overflow-x-auto max-w-6xl`}>
 			<p className='text-xs text-slate-500 px-4 py-2 border-b border-slate-50'>
 				Tarik baris ke baris lain untuk mengubah status (kolom tujuan sama
 				dengan status baris yang dilewati).

@@ -10,6 +10,8 @@ func Register(api *gin.RouterGroup, msgRepo *repository.MessageRepository, rooms
 	// Uses :id to match the same wildcard as /api/rooms/:id defined in rooms package.
 	api.GET("/rooms/:id/messages", listMessages(msgRepo, roomsRepo))
 	api.GET("/rooms/:id/messages/search", searchMessages(msgRepo, roomsRepo))
+	api.GET("/rooms/:id/files", listFiles(msgRepo, roomsRepo))
+	api.GET("/messages/:msgId", getMessage(msgRepo))
 	api.PUT("/messages/:msgId", editMessage(msgRepo))
 	api.DELETE("/messages/:msgId", deleteMessage(msgRepo))
 	api.GET("/messages/:msgId/reactions", getReactions(msgRepo))

@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { authService } from '../services/authService';
 import { profileService } from '../services/profileService';
 import { setWorkspace, setWorkspaceList, clearWorkspace } from './workspaceSlice';
+import { workspaceService } from '../services/workspaceService';
 
 const TOKEN_KEY   = 'access_token';
 const REFRESH_KEY = 'refresh_token';
@@ -26,8 +27,15 @@ export const loginThunk = createAsyncThunk(
       const { access_token, refresh_token, user, workspace, workspaces } = res.data.data;
       saveTokens(access_token, refresh_token);
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-      if (workspace) dispatch(setWorkspace(workspace));
-      if (workspaces) dispatch(setWorkspaceList(workspaces));
+
+      const wsList = Array.isArray(workspaces) ? workspaces : [];
+      // Prevent stale workspace from localStorage when the account has none.
+      if (!workspace || wsList.length === 0) {
+        dispatch(clearWorkspace());
+      } else {
+        dispatch(setWorkspace(workspace));
+        dispatch(setWorkspaceList(wsList));
+      }
       return user;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'Login failed');
@@ -43,7 +51,28 @@ export const registerThunk = createAsyncThunk(
       const { access_token, refresh_token, user, workspace } = res.data.data;
       saveTokens(access_token, refresh_token);
       localStorage.setItem(USER_KEY, JSON.stringify(user));
-      if (workspace) dispatch(setWorkspace(workspace));
+
+      if (workspace) {
+        dispatch(setWorkspace(workspace));
+      }
+
+      // Ensure workspace list + selected workspace are always consistent.
+      // Register API returns only `workspace`, but some flows expect `workspace.list` too.
+      try {
+        const listRes = await workspaceService.listMine();
+        const wsList = listRes?.data?.data?.workspaces;
+        const arr = Array.isArray(wsList) ? wsList : [];
+        dispatch(setWorkspaceList(arr));
+        if (!workspace && arr.length > 0) {
+          dispatch(setWorkspace(arr[0]));
+        }
+      } catch {
+        // If list fetch fails, keep whatever we already set from register response.
+        if (!workspace) dispatch(clearWorkspace());
+      }
+
+      // If we still don't have a workspace (e.g. server returned null), go onboarding.
+      if (!workspace) dispatch(clearWorkspace());
       return user;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'Registration failed');

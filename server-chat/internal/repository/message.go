@@ -181,6 +181,20 @@ func (r *MessageRepository) UpdateLastRead(roomID, userID, msgID uint) error {
 	}).Error
 }
 
+// ListFiles returns messages that contain file attachments (body starts with {"_type":"file"}).
+func (r *MessageRepository) ListFiles(roomID uint, limit, offset int) ([]models.Message, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	var msgs []models.Message
+	err := r.db.Where("room_id = ? AND is_deleted = false AND body LIKE ?", roomID, `{"_type":"file"%`).
+		Order("id DESC").Limit(limit).Offset(offset).Find(&msgs).Error
+	if err != nil {
+		return nil, err
+	}
+	return msgs, nil
+}
+
 // CountUnread returns the number of messages the user hasn't read in a room.
 func (r *MessageRepository) CountUnread(roomID, userID, lastReadMsgID uint) (int64, error) {
 	var n int64

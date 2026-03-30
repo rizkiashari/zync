@@ -7,6 +7,8 @@ import {
 	CornerUpLeft,
 	FileText,
 	Download,
+	Pin,
+	PinOff,
 } from "lucide-react";
 import Avatar from "../ui/Avatar";
 import { formatMessageTime } from "../../data/mockData";
@@ -70,7 +72,7 @@ const FileBubble = ({ meta, dark }) => {
 	);
 };
 
-const ContextMenu = ({ x, y, isOwn, onReply, onCopy, onDelete, onClose }) => {
+const ContextMenu = ({ x, y, isOwn, onReply, onCopy, onDelete, onPin, isPinned, onClose }) => {
 	const ref = useRef(null);
 
 	useEffect(() => {
@@ -83,8 +85,8 @@ const ContextMenu = ({ x, y, isOwn, onReply, onCopy, onDelete, onClose }) => {
 
 	const style = {
 		position: "fixed",
-		left: Math.min(x, window.innerWidth - 160),
-		top: Math.min(y, window.innerHeight - 140),
+		left: Math.min(x, window.innerWidth - 180),
+		top: Math.min(y, window.innerHeight - 160),
 		zIndex: 9999,
 	};
 
@@ -92,7 +94,7 @@ const ContextMenu = ({ x, y, isOwn, onReply, onCopy, onDelete, onClose }) => {
 		<div
 			ref={ref}
 			style={style}
-			className='bg-white rounded-xl shadow-xl border border-slate-100 py-1 w-40 text-sm overflow-hidden'
+			className='bg-white rounded-xl shadow-xl border border-slate-100 py-1 w-44 text-sm overflow-hidden'
 		>
 			<button
 				onClick={onReply}
@@ -108,6 +110,18 @@ const ContextMenu = ({ x, y, isOwn, onReply, onCopy, onDelete, onClose }) => {
 				<Copy className='w-4 h-4 text-slate-500' />
 				Salin
 			</button>
+			{onPin && (
+				<button
+					onClick={onPin}
+					className='w-full flex items-center gap-3 px-3 py-2 hover:bg-amber-50 text-slate-700 transition-colors'
+				>
+					{isPinned ? (
+						<><PinOff className='w-4 h-4 text-amber-500' /><span>Lepas Sematan</span></>
+					) : (
+						<><Pin className='w-4 h-4 text-amber-500' /><span>Sematkan</span></>
+					)}
+				</button>
+			)}
 			{isOwn && (
 				<>
 					<div className='h-px bg-slate-100 my-1' />
@@ -153,10 +167,13 @@ const MessageBubble = ({
 	isGroup = false,
 	onReply,
 	onDelete,
+	onPin,
+	pinnedMessageId,
 }) => {
 	const [menu, setMenu] = useState(null);
 	const time = formatMessageTime(message.timestamp);
 	const isDeleted = message.deleted;
+	const isPinned = pinnedMessageId === message.id;
 
 	const handleContextMenu = (e) => {
 		e.preventDefault();
@@ -178,6 +195,11 @@ const MessageBubble = ({
 
 	const handleDelete = () => {
 		onDelete?.(message.id);
+		setMenu(null);
+	};
+
+	const handlePin = () => {
+		onPin?.(isPinned ? null : message.id, message);
 		setMenu(null);
 	};
 
@@ -230,6 +252,8 @@ const MessageBubble = ({
 						onReply={handleReply}
 						onCopy={handleCopy}
 						onDelete={handleDelete}
+						onPin={onPin ? handlePin : undefined}
+						isPinned={isPinned}
 						onClose={() => setMenu(null)}
 					/>
 				)}
@@ -293,6 +317,8 @@ const MessageBubble = ({
 					onReply={handleReply}
 					onCopy={handleCopy}
 					onDelete={handleDelete}
+					onPin={onPin ? handlePin : undefined}
+					isPinned={isPinned}
 					onClose={() => setMenu(null)}
 				/>
 			)}

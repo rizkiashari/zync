@@ -70,6 +70,7 @@ func main() {
 	rtRepo := repository.NewRefreshTokenRepository(db, 0)
 	notifRepo := repository.NewNotificationRepository(db)
 	taskRepo := repository.NewTaskRepository(db)
+	recentRepo := repository.NewRecentTaskRepository(db)
 
 	h := hub.New()
 	go h.Run()
@@ -80,6 +81,7 @@ func main() {
 		Rooms:         roomRepo,
 		Users:         userRepo,
 		Workspaces:    wsRepo,
+		RecentTasks:   recentRepo,
 		RefreshTokens: rtRepo,
 		Notifications: notifRepo,
 		Tasks:         taskRepo,

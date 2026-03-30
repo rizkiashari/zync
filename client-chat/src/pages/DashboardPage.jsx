@@ -24,12 +24,10 @@ import {
 	createDirectRoom,
 } from "../store/roomsSlice";
 import { openCreateGroup, closeCreateGroup } from "../store/uiSlice";
-import {
-	getRecentOpenedTasks,
-	reorderRecentOpenedTasks,
-} from "../lib/recentTasks";
+import { recentTaskService } from "../services/recentTaskService";
 import { buildTaskColumnSections, priorityMeta } from "../lib/taskOverview";
 import { useGroupTaskBoards } from "../hooks/useGroupTaskBoards";
+import { cardClean } from "../lib/uiClasses";
 
 /* ─── Helpers ──────────────────────────────────────────── */
 const formatTime = (dateStr) => {
@@ -53,7 +51,9 @@ const formatTime = (dateStr) => {
 
 /* ─── Stat card ────────────────────────────────────────── */
 const StatCard = ({ icon: Icon, label, value, gradient, iconBg }) => (
-	<div className={`relative rounded-2xl p-5 overflow-hidden ${gradient}`}>
+	<div
+		className={`relative rounded-2xl p-5 overflow-hidden shadow-clean ring-1 ring-white/15 ${gradient}`}
+	>
 		<div className='absolute -right-4 -top-4 w-20 h-20 bg-white/10 rounded-full' />
 		<div className='absolute -right-1 top-6 w-10 h-10 bg-white/10 rounded-full' />
 		<div
@@ -73,11 +73,12 @@ const ChatRow = ({ room, isOnline, onClick }) => {
 	const displayName = room.name || (isGroup ? "Grup" : "Chat");
 	return (
 		<button
+			type='button'
 			onClick={onClick}
-			className='w-full flex items-center gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors text-left group'
+			className='w-full flex items-center gap-3 mx-0.5 px-5 py-3.5 rounded-xl hover:bg-slate-50/90 transition-colors duration-200 text-left group'
 		>
 			{isGroup ?
-				<div className='w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-sm'>
+				<div className='w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-clean ring-1 ring-black/5'>
 					<Users className='w-5 h-5 text-white' />
 				</div>
 			:	<Avatar name={displayName} size='md' online={isOnline} />}
@@ -128,11 +129,31 @@ const DashboardPage = () => {
 	const stats = useAppSelector((s) => s.rooms.stats);
 	const onlineServerUsers = useAppSelector((s) => s.rooms.onlineUsers);
 	const showCreateGroup = useAppSelector((s) => s.ui.showCreateGroup);
-	const [recentTasks, setRecentTasks] = useState(() => getRecentOpenedTasks());
+	const [recentTasks, setRecentTasks] = useState([]);
 	const [dragIndex, setDragIndex] = useState(null);
 	useEffect(() => {
 		dispatch(fetchDashboard());
 	}, [dispatch]);
+
+	// Load recent tasks from DB (source of truth).
+	useEffect(() => {
+		let cancelled = false;
+		const loadRecents = async () => {
+			try {
+				const res = await recentTaskService.list();
+				if (cancelled) return;
+				const items = res?.data?.data || [];
+				setRecentTasks(Array.isArray(items) ? items : []);
+			} catch {
+				// Non-blocking: dashboard can still render without recents.
+				if (!cancelled) setRecentTasks([]);
+			}
+		};
+		loadRecents();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	const groupRooms = useMemo(
 		() => rooms.filter((r) => r.type === "group"),
@@ -164,11 +185,32 @@ const DashboardPage = () => {
 		else navigate(`/chat/${room.id}`);
 	};
 
-	const handleTaskDrop = (toIndex) => {
+	const handleTaskDrop = async (toIndex) => {
 		if (dragIndex === null) return;
-		const reordered = reorderRecentOpenedTasks(dragIndex, toIndex);
-		setRecentTasks(reordered);
+		const current = [...recentTasks];
+		if (
+			toIndex < 0 ||
+			dragIndex < 0 ||
+			dragIndex >= current.length ||
+			toIndex >= current.length ||
+			dragIndex === toIndex
+		) {
+			setDragIndex(null);
+			return;
+		}
+
+		const [moved] = current.splice(dragIndex, 1);
+		current.splice(toIndex, 0, moved);
+		setRecentTasks(current);
 		setDragIndex(null);
+
+		// Persist ordering to DB (best-effort).
+		try {
+			await recentTaskService.reorder(current.map((t) => t.id));
+		} catch {
+			// Non-blocking: UI already updated.
+			console.error("Failed to persist recent task order");
+		}
 	};
 
 	return (
@@ -209,7 +251,7 @@ const DashboardPage = () => {
 							<button
 								type='button'
 								onClick={() => dispatch(openCreateGroup())}
-								className='flex items-center gap-2 bg-white text-indigo-700 text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-lg hover:shadow-xl hover:bg-indigo-50'
+								className='flex items-center gap-2 bg-white text-indigo-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition-all shadow-clean-md ring-1 ring-black/5 hover:bg-indigo-50 hover:shadow-clean'
 							>
 								<Plus className='w-4 h-4' />
 								Grup Baru
@@ -253,7 +295,7 @@ const DashboardPage = () => {
 					</div>
 
 					{/* Ringkasan task per kolom (semua grup) */}
-					<div className='bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden'>
+					<div className={`${cardClean} overflow-hidden`}>
 						<div className='flex items-center justify-between px-5 py-4 border-b border-slate-50 gap-3'>
 							<div className='flex items-center gap-2 min-w-0'>
 								<div className='w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0'>
@@ -361,7 +403,7 @@ const DashboardPage = () => {
 
 					{/* Online contacts */}
 					{onlineContacts.length > 0 && (
-						<div className='bg-white rounded-2xl border border-slate-100 shadow-sm p-5'>
+						<div className={`${cardClean} p-5`}>
 							<p className='text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4'>
 								Online Sekarang · {onlineContacts.length}
 							</p>
@@ -387,7 +429,7 @@ const DashboardPage = () => {
 					)}
 
 					{/* Recent conversations */}
-					<div className='bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden'>
+					<div className={`${cardClean} overflow-hidden`}>
 						<div className='flex items-center justify-between px-5 py-4 border-b border-slate-50'>
 							<div>
 								<p className='text-sm font-semibold text-slate-800'>
@@ -421,7 +463,7 @@ const DashboardPage = () => {
 					</div>
 
 					{/* Recently opened tasks (drag & drop) */}
-					<div className='bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden'>
+					<div className={`${cardClean} overflow-hidden`}>
 						<div className='flex items-center justify-between px-5 py-4 border-b border-slate-50'>
 							<div>
 								<p className='text-sm font-semibold text-slate-800'>

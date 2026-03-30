@@ -15,6 +15,7 @@ type Deps struct {
 	Rooms         *repository.RoomRepository
 	Users         *repository.UserRepository
 	Workspaces    *repository.WorkspaceRepository
+	RecentTasks   *repository.RecentTaskRepository
 	RefreshTokens *repository.RefreshTokenRepository
 	Notifications *repository.NotificationRepository
 	Tasks         *repository.TaskRepository

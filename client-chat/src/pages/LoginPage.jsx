@@ -5,14 +5,18 @@ import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
 import Logo from "../components/ui/Logo";
 import { useAuth } from "../context/AuthContext";
+import { authLink, authLinkMuted } from "../lib/uiClasses";
 import toast from "react-hot-toast";
 
 const Feature = ({ icon: Icon, text }) => (
 	<div className='flex items-center gap-3'>
-		<div className='w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center flex-shrink-0'>
+		<div
+			className='w-8 h-8 bg-white/15 rounded-lg flex items-center justify-center flex-shrink-0'
+			aria-hidden='true'
+		>
 			<Icon className='w-4 h-4 text-white' />
 		</div>
-		<span className='text-sm text-indigo-100'>{text}</span>
+		<span className='text-sm text-indigo-100 leading-relaxed'>{text}</span>
 	</div>
 );
 
@@ -29,7 +33,8 @@ const LoginPage = () => {
 		else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
 			errs.email = "Format email tidak valid";
 		if (!form.password) errs.password = "Kata sandi wajib diisi";
-		else if (form.password.length < 6) errs.password = "Minimal 6 karakter";
+		else if (form.password.length < 8)
+			errs.password = "Minimal 8 karakter (sesuai kebijakan akun)";
 		setErrors(errs);
 		return Object.keys(errs).length === 0;
 	};
@@ -56,7 +61,7 @@ const LoginPage = () => {
 	};
 
 	return (
-		<div className='min-h-screen flex'>
+		<div className='min-h-dvh flex'>
 			{/* ── Left brand panel ─────────────────────────────── */}
 			<div className='hidden lg:flex lg:w-[45%] xl:w-2/5 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 flex-col items-center justify-center p-12 relative overflow-hidden'>
 				{/* Decorative circles */}
@@ -70,10 +75,10 @@ const LoginPage = () => {
 							<Logo size={44} variant='white' />
 						</div>
 					</div>
-					<h1 className='text-3xl font-bold text-white mb-2 tracking-tight'>
+					<p className='text-3xl font-bold text-white mb-2 tracking-tight'>
 						Zync
-					</h1>
-					<p className='text-indigo-200 text-base leading-relaxed mb-10'>
+					</p>
+					<p className='text-indigo-100/90 text-base leading-[1.6] mb-10 max-w-[28ch] mx-auto'>
 						Terhubung dengan siapa saja, kapan saja, secara real-time.
 					</p>
 
@@ -90,30 +95,36 @@ const LoginPage = () => {
 			</div>
 
 			{/* ── Right form panel ─────────────────────────────── */}
-			<div className='flex-1 flex items-center justify-center px-6 py-12 bg-slate-50'>
+			<main className='flex-1 flex items-center justify-center px-6 py-12 bg-slate-50 overflow-y-auto'>
 				<div className='w-full max-w-sm'>
 					{/* Mobile logo */}
 					<div className='lg:hidden flex flex-col items-center mb-10'>
-						<div className='w-14 h-14 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg mb-3'>
+						<div className='w-14 h-14 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl flex items-center justify-center shadow-clean-md mb-3 ring-1 ring-black/5'>
 							<Logo size={30} variant='white' />
 						</div>
-						<h1 className='text-xl font-bold text-slate-900'>Zync</h1>
+						<p className='text-xl font-bold text-slate-900'>Zync</p>
 					</div>
 
-					<div className='mb-8'>
-						<h2 className='text-2xl font-bold text-slate-900'>Masuk</h2>
-						<p className='text-slate-500 text-sm mt-1'>
+					<header className='mb-8'>
+						<h1
+							id='login-heading'
+							className='text-2xl font-bold text-slate-900 tracking-tight'
+						>
+							Masuk
+						</h1>
+						<p className='text-slate-600 text-sm mt-2 leading-relaxed'>
 							Belum punya akun?{" "}
-							<Link
-								to='/register'
-								className='text-indigo-600 hover:text-indigo-700 font-semibold'
-							>
+							<Link to='/register' className={authLink}>
 								Daftar sekarang
 							</Link>
 						</p>
-					</div>
+					</header>
 
-					<form onSubmit={handleSubmit} className='space-y-4'>
+					<form
+						onSubmit={handleSubmit}
+						className='space-y-5'
+						aria-labelledby='login-heading'
+					>
 						<Input
 							label='Alamat Email'
 							type='email'
@@ -122,6 +133,7 @@ const LoginPage = () => {
 							onChange={set("email")}
 							error={errors.email}
 							icon={Mail}
+							autoComplete='email'
 							required
 						/>
 						<div>
@@ -136,10 +148,7 @@ const LoginPage = () => {
 								required
 							/>
 							<div className='flex justify-end mt-1.5'>
-								<Link
-									to='/forgot-password'
-									className='text-xs text-indigo-600 hover:text-indigo-700 font-medium'
-								>
+								<Link to='/forgot-password' className={authLinkMuted}>
 									Lupa kata sandi?
 								</Link>
 							</div>
@@ -156,7 +165,7 @@ const LoginPage = () => {
 						</Button>
 					</form>
 				</div>
-			</div>
+			</main>
 		</div>
 	);
 };

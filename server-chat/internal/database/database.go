@@ -58,6 +58,7 @@ func Connect(dsn string, pool PoolConfig) (*gorm.DB, error) {
 		&models.TaskColumn{},
 		&models.Task{},
 		&models.TaskAssignee{},
+		&models.RecentTask{},
 	); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}

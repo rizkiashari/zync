@@ -24,4 +24,7 @@ export const profileService = {
       current_password: currentPassword,
       new_password: newPassword,
     }),
+
+  updateStatus: (statusMessage) =>
+    api.put('/api/profile/status', { status_message: statusMessage }),
 };

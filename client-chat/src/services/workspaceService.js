@@ -15,4 +15,8 @@ export const workspaceService = {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+  listMembers:        ()                     => api.get('/api/workspaces/members'),
+  updateMemberRole:   (userId, role)         => api.put(`/api/workspaces/members/${userId}/role`, { role }),
+  removeMember:       (userId)               => api.delete(`/api/workspaces/members/${userId}`),
+  leave:              ()                     => api.delete('/api/workspaces/me/leave'),
 };

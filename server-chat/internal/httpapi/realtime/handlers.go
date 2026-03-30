@@ -91,6 +91,10 @@ func handleWebSocket(
 			response.Error(c, http.StatusForbidden, response.CodeForbidden, "You are not a member of this room")
 			return
 		}
-		chatws.Serve(h, msgRepo, usersRepo, roomsRepo, c.Writer, c.Request, userID, roomID, allowedOrigins)
+		statusMessage := ""
+		if u, err2 := usersRepo.GetByID(userID); err2 == nil && u != nil {
+			statusMessage = u.StatusMessage
+		}
+		chatws.Serve(h, msgRepo, usersRepo, roomsRepo, c.Writer, c.Request, userID, roomID, statusMessage, allowedOrigins)
 	}
 }

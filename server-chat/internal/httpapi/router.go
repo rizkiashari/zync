@@ -17,6 +17,7 @@ import (
 	"zync-server/internal/httpapi/notifications"
 	"zync-server/internal/httpapi/profile"
 	"zync-server/internal/httpapi/realtime"
+	"zync-server/internal/httpapi/recenttasks"
 	"zync-server/internal/httpapi/rooms"
 	"zync-server/internal/httpapi/tasks"
 	"zync-server/internal/httpapi/upload"
@@ -62,7 +63,7 @@ func NewRouter(d Deps) *gin.Engine {
 	api.Use(middleware.Bearer(d.Auth))
 
 	profile.Register(api, d.Users, "./uploads")
-	workspaces.Register(api, d.Workspaces, "./uploads")
+	workspaces.Register(api, d.Workspaces, d.Users, "./uploads")
 
 	adminAPI := api.Group("/admin")
 	adminAPI.Use(middleware.SystemAdmin(d.Users))
@@ -70,16 +71,17 @@ func NewRouter(d Deps) *gin.Engine {
 
 	// ── Workspace-scoped routes (Bearer + Tenant middleware) ────────────
 	wsGroup := api.Group("")
-	wsGroup.Use(middleware.Tenant(d.Workspaces))
+	wsGroup.Use(middleware.Tenant(d.Workspaces, d.Users))
 
 	users.Register(wsGroup, d.Users)
 	dashboard.Register(wsGroup, d.Rooms, d.Users)
-	rooms.Register(wsGroup, d.Hub, d.Rooms, d.Users)
+	rooms.Register(wsGroup, d.Hub, d.Rooms, d.Users, d.Workspaces, d.Messages)
 	messages.Register(wsGroup, d.Messages, d.Rooms)
 	upload.Register(wsGroup, d.Rooms, "./uploads")
 	notifications.Register(wsGroup, d.Notifications)
 	tasks.Register(wsGroup, d.Hub, d.Tasks, d.Rooms)
 	calls.Register(wsGroup, d.Hub, d.Rooms, d.Users, d.Config)
+	recenttasks.Register(wsGroup, d.RecentTasks)
 
 	return r
 }

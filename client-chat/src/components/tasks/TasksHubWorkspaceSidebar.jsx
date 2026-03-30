@@ -12,7 +12,7 @@ const TasksHubWorkspaceSidebar = ({
 		<button
 			type='button'
 			onClick={() => onSelectWorkspace(null)}
-			className={`mx-2 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors ${
+			className={`mx-2 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
 				workspaceId === null ?
 					"bg-indigo-600 text-white"
 				:	"text-slate-300 hover:bg-slate-800"
@@ -30,7 +30,7 @@ const TasksHubWorkspaceSidebar = ({
 					key={g.id}
 					type='button'
 					onClick={() => onSelectWorkspace(g.id)}
-					className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors ${
+					className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
 						Number(workspaceId) === Number(g.id) ?
 							"bg-indigo-600 text-white"
 						:	"text-slate-300 hover:bg-slate-800"

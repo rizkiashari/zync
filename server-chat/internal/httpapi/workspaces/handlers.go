@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -159,6 +160,136 @@ func handleRegenerateInvite(wsRepo *repository.WorkspaceRepository) gin.HandlerF
 			return
 		}
 		response.OK(c, gin.H{"invite_token": token})
+	}
+}
+
+// handleListMembers returns all members of the workspace.
+func handleListMembers(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ws, ok := middleware.GetWorkspace(c)
+		if !ok {
+			response.Error(c, http.StatusNotFound, "workspace_not_found", "Workspace not found")
+			return
+		}
+		members, err := wsRepo.ListMembers(ws.ID)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
+			return
+		}
+		response.OK(c, gin.H{"members": members})
+	}
+}
+
+type updateMemberRoleBody struct {
+	Role string `json:"role" binding:"required,oneof=owner admin member"`
+}
+
+// handleUpdateMemberRole changes a member's role (owner only).
+func handleUpdateMemberRole(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ws, ok := middleware.GetWorkspace(c)
+		if !ok {
+			response.Error(c, http.StatusNotFound, "workspace_not_found", "Workspace not found")
+			return
+		}
+		userID, _ := middleware.UserID(c)
+		role, _ := wsRepo.GetMemberRole(ws.ID, userID)
+		if role != "owner" {
+			response.Error(c, http.StatusForbidden, "forbidden", "Only workspace owner can change member roles")
+			return
+		}
+		targetID64, err := strconv.ParseUint(c.Param("userId"), 10, 64)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid user ID")
+			return
+		}
+		targetID := uint(targetID64)
+		if targetID == userID {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Cannot change your own role")
+			return
+		}
+		var req updateMemberRoleBody
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid request body")
+			return
+		}
+		if err := wsRepo.UpdateMemberRole(ws.ID, targetID, req.Role); err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to update member role")
+			return
+		}
+		response.OK(c, gin.H{"message": "Role updated"})
+	}
+}
+
+// handleRemoveMember removes a member from the workspace (owner/admin only).
+func handleRemoveMember(wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ws, ok := middleware.GetWorkspace(c)
+		if !ok {
+			response.Error(c, http.StatusNotFound, "workspace_not_found", "Workspace not found")
+			return
+		}
+		userID, _ := middleware.UserID(c)
+		u, err := usersRepo.GetByID(userID)
+		if err != nil || u == nil {
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "Forbidden")
+			return
+		}
+		// Superadmin bypass: allow maintenance user to remove members across tenants.
+		if !u.IsSystemAdmin {
+			role, _ := wsRepo.GetMemberRole(ws.ID, userID)
+			if role != "owner" && role != "admin" {
+				response.Error(c, http.StatusForbidden, "forbidden", "Only owner or admin can remove members")
+				return
+			}
+		}
+		targetID64, err := strconv.ParseUint(c.Param("userId"), 10, 64)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid user ID")
+			return
+		}
+		targetID := uint(targetID64)
+		if targetID == userID {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Cannot remove yourself")
+			return
+		}
+		targetRole, _ := wsRepo.GetMemberRole(ws.ID, targetID)
+		if targetRole == "owner" {
+			response.Error(c, http.StatusForbidden, "forbidden", "Cannot remove the workspace owner")
+			return
+		}
+		if err := wsRepo.RemoveMember(ws.ID, targetID); err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to remove member")
+			return
+		}
+		response.OK(c, gin.H{"message": "Member removed"})
+	}
+}
+
+// handleLeaveMe removes the current user from the active workspace.
+// Owners cannot leave (to avoid orphaned workspaces without an owner).
+func handleLeaveMe(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ws, ok := middleware.GetWorkspace(c)
+		if !ok {
+			response.Error(c, http.StatusNotFound, "workspace_not_found", "Workspace not found")
+			return
+		}
+		userID, _ := middleware.UserID(c)
+		role, _ := wsRepo.GetMemberRole(ws.ID, userID)
+		if role == "" {
+			response.Error(c, http.StatusForbidden, "forbidden", "You are not a workspace member")
+			return
+		}
+		if role == "owner" {
+			response.Error(c, http.StatusForbidden, "forbidden", "Workspace owner cannot leave the workspace")
+			return
+		}
+		if err := wsRepo.RemoveMember(ws.ID, userID); err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to leave workspace")
+			return
+		}
+		response.OK(c, gin.H{"message": "Left workspace"})
 	}
 }
 

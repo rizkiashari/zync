@@ -107,8 +107,67 @@ func searchMessages(msgRepo *repository.MessageRepository, roomsRepo *repository
 	}
 }
 
+func listFiles(msgRepo *repository.MessageRepository, roomsRepo *repository.RoomRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, ok := middleware.UserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, response.CodeUnauthorized, "Unauthorized")
+			return
+		}
+		roomID, err := parseID(c, "id")
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidRoom, "roomId must be a positive integer")
+			return
+		}
+		if ok, _ := assertMember(c, roomsRepo, roomID, userID); !ok {
+			return
+		}
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+		offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+		msgs, err := msgRepo.ListFiles(roomID, limit, offset)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
+			return
+		}
+		if msgs == nil {
+			msgs = make([]models.Message, 0)
+		}
+		response.OK(c, msgs)
+	}
+}
+
 type editBody struct {
 	Body string `json:"body" binding:"required,min=1"`
+}
+
+// getMessage godoc
+// @Summary      Get a single message by ID
+// @Tags         messages
+// @Produce      json
+// @Security     BearerAuth
+// @Param        msgId path int true "Message ID"
+// @Success      200 {object} apidocs.MessageSuccess
+// @Failure      404 {object} apidocs.ErrorEnvelope
+// @Router       /api/messages/{msgId} [get]
+func getMessage(msgRepo *repository.MessageRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		_, ok := middleware.UserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, response.CodeUnauthorized, "Unauthorized")
+			return
+		}
+		msgID, err := parseID(c, "msgId")
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid message ID")
+			return
+		}
+		msg, err := msgRepo.GetByID(msgID)
+		if err != nil || msg == nil {
+			response.Error(c, http.StatusNotFound, response.CodeNotFound, "Message not found")
+			return
+		}
+		response.OK(c, msg)
+	}
 }
 
 // editMessage godoc

@@ -17,6 +17,7 @@ import Input from "../components/ui/Input";
 import { useAuth } from "../context/AuthContext";
 import { profileService } from "../services/profileService";
 import toast from "react-hot-toast";
+import { cardClean, focusRing } from "../lib/uiClasses";
 
 /* ─── Action row ─────────────────────────────────────── */
 const ActionRow = ({
@@ -29,8 +30,9 @@ const ActionRow = ({
 	onClick,
 }) => (
 	<button
+		type='button'
 		onClick={onClick}
-		className='w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-slate-50 transition-colors text-left group'
+		className={`w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-slate-50 transition-colors text-left group ${focusRing}`}
 	>
 		<div
 			className={`w-10 h-10 ${iconBg} rounded-xl flex items-center justify-center flex-shrink-0 transition-colors`}
@@ -148,12 +150,14 @@ const ProfilePage = () => {
 
 			<div className='flex-1 overflow-y-auto'>
 				{/* ── Sticky top bar ───────────────────────── */}
-				<div className='sticky top-0 z-20 bg-white/80 backdrop-blur border-b border-slate-100 px-6 py-3.5 flex items-center gap-3'>
+				<div className='sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-6 py-3.5 flex items-center gap-3 shadow-clean'>
 					<button
+						type='button'
 						onClick={() => navigate("/dashboard")}
-						className='p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors'
+						aria-label='Kembali ke beranda'
+						className={`min-h-11 min-w-11 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors ${focusRing}`}
 					>
-						<ArrowLeft className='w-4 h-4' />
+						<ArrowLeft className='w-5 h-5' />
 					</button>
 					<h1 className='text-sm font-semibold text-slate-900'>Profil Saya</h1>
 				</div>
@@ -166,7 +170,7 @@ const ProfilePage = () => {
 
 				{/* ── Profile card overlapping banner ──────── */}
 				<div className='px-6 -mt-12 pb-8 space-y-4'>
-					<div className='bg-white rounded-3xl border border-slate-100 shadow-md p-6'>
+					<div className='bg-white rounded-3xl border border-slate-200/80 shadow-clean p-6'>
 						{/* Avatar */}
 						<div className='flex items-end justify-between mb-5'>
 							<div className='relative'>
@@ -216,7 +220,7 @@ const ProfilePage = () => {
 					</div>
 
 					{/* ── Edit form ─────────────────────────── */}
-					<div className='bg-white rounded-2xl border border-slate-100 shadow-sm p-5'>
+					<div className={`${cardClean} p-5`}>
 						<p className='text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4'>
 							Informasi Profil
 						</p>
@@ -249,7 +253,7 @@ const ProfilePage = () => {
 									value={form.bio}
 									onChange={set("bio")}
 									rows={3}
-									className='w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent hover:border-slate-300 transition-all resize-none'
+									className='w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-transparent hover:border-slate-300 transition-all resize-none'
 								/>
 							</div>
 							{edited && (
@@ -261,7 +265,7 @@ const ProfilePage = () => {
 					</div>
 
 					{/* ── Account actions ──────────────────── */}
-					<div className='bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden'>
+					<div className={`${cardClean} overflow-hidden`}>
 						<div className='px-5 pt-4 pb-2'>
 							<p className='text-xs font-semibold text-slate-500 uppercase tracking-wider'>
 								Pengaturan Akun

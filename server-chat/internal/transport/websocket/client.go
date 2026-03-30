@@ -58,16 +58,17 @@ type Incoming struct {
 }
 
 type Outgoing struct {
-	Type      string `json:"type"`
-	ID        uint   `json:"id,omitempty"`
-	From      uint   `json:"from,omitempty"`
-	Room      uint   `json:"room,omitempty"`
-	Text      string `json:"text,omitempty"`
-	ReplyToID uint   `json:"reply_to_id,omitempty"`
-	UserID    uint   `json:"user_id,omitempty"`
-	Online    bool   `json:"online,omitempty"`
-	MsgID     uint   `json:"msg_id,omitempty"`
-	SentAt    int64  `json:"sent_at,omitempty"`
+	Type          string `json:"type"`
+	ID            uint   `json:"id,omitempty"`
+	From          uint   `json:"from,omitempty"`
+	Room          uint   `json:"room,omitempty"`
+	Text          string `json:"text,omitempty"`
+	ReplyToID     uint   `json:"reply_to_id,omitempty"`
+	UserID        uint   `json:"user_id,omitempty"`
+	Online        bool   `json:"online,omitempty"`
+	MsgID         uint   `json:"msg_id,omitempty"`
+	SentAt        int64  `json:"sent_at,omitempty"`
+	StatusMessage string `json:"status_message,omitempty"`
 }
 
 // MessageStore persists chat messages.
@@ -93,15 +94,16 @@ type RoomMemberStore interface {
 }
 
 type Client struct {
-	hub         *hub.Hub
-	store       MessageStore
-	presence    PresenceStore
-	members     RoomMemberStore
-	conn        *gorillaws.Conn
-	send        chan []byte
-	userID      uint
-	roomID      uint
-	roomKey     string
+	hub           *hub.Hub
+	store         MessageStore
+	presence      PresenceStore
+	members       RoomMemberStore
+	conn          *gorillaws.Conn
+	send          chan []byte
+	userID        uint
+	roomID        uint
+	roomKey       string
+	statusMessage string
 }
 
 func (c *Client) Send() chan<- []byte { return c.send }
@@ -109,7 +111,7 @@ func (c *Client) SendCh() chan []byte  { return c.send }
 func (c *Client) ID() string          { return strconv.FormatUint(uint64(c.userID), 10) }
 func (c *Client) Room() string        { return c.roomKey }
 
-func Serve(h *hub.Hub, store MessageStore, presence PresenceStore, members RoomMemberStore, w http.ResponseWriter, r *http.Request, userID, roomID uint, allowedOrigins []string) {
+func Serve(h *hub.Hub, store MessageStore, presence PresenceStore, members RoomMemberStore, w http.ResponseWriter, r *http.Request, userID, roomID uint, statusMessage string, allowedOrigins []string) {
 	roomKey := strconv.FormatUint(uint64(roomID), 10)
 	upgrader := newUpgrader(allowedOrigins)
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -118,15 +120,16 @@ func Serve(h *hub.Hub, store MessageStore, presence PresenceStore, members RoomM
 		return
 	}
 	c := &Client{
-		hub:      h,
-		store:    store,
-		presence: presence,
-		members:  members,
-		conn:     conn,
-		send:     make(chan []byte, 256),
-		userID:   userID,
-		roomID:   roomID,
-		roomKey:  roomKey,
+		hub:           h,
+		store:         store,
+		presence:      presence,
+		members:       members,
+		conn:          conn,
+		send:          make(chan []byte, 256),
+		userID:        userID,
+		roomID:        roomID,
+		roomKey:       roomKey,
+		statusMessage: statusMessage,
 	}
 	c.hub.Register(c)
 
@@ -134,9 +137,10 @@ func Serve(h *hub.Hub, store MessageStore, presence PresenceStore, members RoomM
 		log.Printf("set online: %v", err)
 	}
 	_ = c.hub.BroadcastToRoom(roomKey, Outgoing{
-		Type:   "presence",
-		UserID: userID,
-		Online: true,
+		Type:          "presence",
+		UserID:        userID,
+		Online:        true,
+		StatusMessage: statusMessage,
 	})
 
 	go c.writePump()

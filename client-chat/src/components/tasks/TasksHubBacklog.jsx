@@ -6,6 +6,7 @@ import {
 	serializeTaskForDrag,
 	parseTaskDragPayload,
 } from "../../lib/taskDragPayload";
+import { cardClean } from "../../lib/uiClasses";
 
 const TasksHubBacklog = ({ sections, onOpenKanban, onMoveTask }) => {
 	const [dropTargetSection, setDropTargetSection] = useState(null);
@@ -23,10 +24,10 @@ const TasksHubBacklog = ({ sections, onOpenKanban, onMoveTask }) => {
 			{sections.map((section) => (
 				<section
 					key={section.name}
-					className={`bg-white rounded-2xl border shadow-sm overflow-hidden transition-shadow ${
+					className={`${cardClean} overflow-hidden transition-shadow ${
 						dropTargetSection === section.name ?
 							"border-indigo-400 ring-2 ring-indigo-200"
-						:	"border-slate-100"
+						:	""
 					}`}
 					onDragOver={(e) => {
 						e.preventDefault();

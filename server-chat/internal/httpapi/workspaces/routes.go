@@ -13,7 +13,7 @@ import (
 //	withAuth  — routes that only need Bearer auth (profile-level, no workspace yet)
 //
 // Routes that need a workspace context are nested under a Tenant middleware group.
-func Register(api *gin.RouterGroup, wsRepo *repository.WorkspaceRepository, uploadsDir string) {
+func Register(api *gin.RouterGroup, wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository, uploadsDir string) {
 	g := api.Group("/workspaces")
 
 	// No workspace context needed
@@ -23,10 +23,14 @@ func Register(api *gin.RouterGroup, wsRepo *repository.WorkspaceRepository, uplo
 
 	// Workspace-scoped routes
 	ws := g.Group("")
-	ws.Use(middleware.Tenant(wsRepo))
+	ws.Use(middleware.Tenant(wsRepo, usersRepo))
 	ws.GET("/current", handleGetCurrent())
 	ws.GET("/invite", handleGetInvite(wsRepo))
 	ws.POST("/invite/regenerate", handleRegenerateInvite(wsRepo))
 	ws.PUT("/branding", handleUpdateBranding(wsRepo))
 	ws.POST("/branding/logo", handleUploadLogo(wsRepo, uploadsDir))
+	ws.GET("/members", handleListMembers(wsRepo))
+	ws.PUT("/members/:userId/role", handleUpdateMemberRole(wsRepo))
+	ws.DELETE("/members/:userId", handleRemoveMember(wsRepo, usersRepo))
+	ws.DELETE("/me/leave", handleLeaveMe(wsRepo))
 }

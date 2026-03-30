@@ -109,9 +109,17 @@ func (r *RoomRepository) CreateDirect(a, b, workspaceID uint) (*models.Room, err
 }
 
 func (r *RoomRepository) IsMember(roomID, userID uint) (bool, error) {
+	// Tenant isolation:
+	// User is allowed to access a room only if they are a member of the room
+	// AND also a member of the workspace that owns the room.
 	var n int64
-	err := r.db.Model(&models.RoomMember{}).
-		Where("room_id = ? AND user_id = ?", roomID, userID).
+	// If user is system admin, bypass workspace_members isolation.
+	err := r.db.Table("room_members").
+		Select("COUNT(*)").
+		Joins("JOIN rooms ON rooms.id = room_members.room_id").
+		Joins("JOIN users ON users.id = room_members.user_id").
+		Joins("LEFT JOIN workspace_members ON workspace_members.workspace_id = rooms.workspace_id AND workspace_members.user_id = room_members.user_id").
+		Where("room_members.room_id = ? AND room_members.user_id = ? AND (users.is_system_admin = ? OR workspace_members.workspace_id IS NOT NULL)", roomID, userID, true).
 		Count(&n).Error
 	return n > 0, err
 }
@@ -169,6 +177,8 @@ func (r *RoomRepository) GetMembers(roomID uint) ([]MemberDetail, error) {
 		Model(&models.User{}).
 		Select("users.*, room_members.role, room_members.joined_at").
 		Joins("JOIN room_members ON room_members.user_id = users.id").
+		Joins("JOIN rooms ON rooms.id = room_members.room_id").
+		Joins("JOIN workspace_members wm ON wm.workspace_id = rooms.workspace_id AND wm.user_id = users.id").
 		Where("room_members.room_id = ?", roomID).
 		Order("room_members.joined_at ASC").
 		Scan(&rows).Error
@@ -185,7 +195,19 @@ func (r *RoomRepository) GetMembers(roomID uint) ([]MemberDetail, error) {
 // IsAdmin returns true if the user has the admin role in the room.
 func (r *RoomRepository) IsAdmin(roomID, userID uint) (bool, error) {
 	var m models.RoomMember
-	err := r.db.Where("room_id = ? AND user_id = ?", roomID, userID).First(&m).Error
+	err := r.db.
+		Table("room_members").
+		Select("room_members.*").
+		Joins("JOIN rooms ON rooms.id = room_members.room_id").
+		Joins("JOIN users ON users.id = room_members.user_id").
+		Joins("LEFT JOIN workspace_members ON workspace_members.workspace_id = rooms.workspace_id AND workspace_members.user_id = room_members.user_id").
+		Where(
+			"room_id = ? AND user_id = ? AND (users.is_system_admin = ? OR workspace_members.workspace_id IS NOT NULL)",
+			roomID,
+			userID,
+			true,
+		).
+		First(&m).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil
@@ -295,9 +317,13 @@ func (r *RoomRepository) DeleteRoom(roomID uint) error {
 // GetMemberIDs returns the user IDs of all members of a room.
 func (r *RoomRepository) GetMemberIDs(roomID uint) ([]uint, error) {
 	var ids []uint
-	err := r.db.Model(&models.RoomMember{}).
-		Where("room_id = ?", roomID).
-		Pluck("user_id", &ids).Error
+	// Only return members that are also workspace members (tenant isolation).
+	err := r.db.Table("room_members").
+		Select("room_members.user_id").
+		Joins("JOIN rooms ON rooms.id = room_members.room_id").
+		Joins("JOIN workspace_members ON workspace_members.workspace_id = rooms.workspace_id AND workspace_members.user_id = room_members.user_id").
+		Where("room_members.room_id = ?", roomID).
+		Pluck("room_members.user_id", &ids).Error
 	return ids, err
 }
 
