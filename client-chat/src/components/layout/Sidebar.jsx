@@ -9,6 +9,7 @@ import {
 	WifiOff,
 	MessageSquare,
 	ClipboardList,
+	Building2,
 } from "lucide-react";
 import Logo from "../ui/Logo";
 import Avatar from "../ui/Avatar";
@@ -202,13 +203,22 @@ const Sidebar = () => {
 							</p>
 							<p className='text-xs text-emerald-400'>Online</p>
 						</div>
-						<button
-							onClick={() => navigate("/profile")}
-							className='p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors'
-							title='Profil'
-						>
-							<Settings className='w-4 h-4' />
-						</button>
+						<div className='flex items-center gap-1'>
+							<button
+								onClick={() => navigate("/workspace/settings")}
+								className='p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors'
+								title='Pengaturan Workspace'
+							>
+								<Building2 className='w-4 h-4' />
+							</button>
+							<button
+								onClick={() => navigate("/profile")}
+								className='p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700 transition-colors'
+								title='Profil'
+							>
+								<Settings className='w-4 h-4' />
+							</button>
+						</div>
 					</div>
 				</div>
 			</div>

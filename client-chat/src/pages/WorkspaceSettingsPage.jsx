@@ -24,8 +24,7 @@ import { API_BASE } from "../lib/api";
 export default function WorkspaceSettingsPage() {
 	const navigate = useNavigate();
 	const dispatch = useDispatch();
-	const { displayName, primaryColor, logoURL, description, workspace } =
-		useBranding();
+	const { logoURL, workspace } = useBranding();
 
 	const [form, setForm] = useState({
 		custom_name: workspace?.custom_name ?? "",

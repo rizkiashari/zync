@@ -83,6 +83,9 @@ function App() {
 				<Route path='/profile' element={<AuthRoute><ProfilePage /></AuthRoute>} />
 				<Route path='/change-password' element={<AuthRoute><ChangePasswordPage /></AuthRoute>} />
 
+				{/* Workspace settings */}
+				<Route path='/workspace/settings' element={<ProtectedRoute><WorkspaceSettingsPage /></ProtectedRoute>} />
+
 				{/* Redirects */}
 				<Route path='/' element={<Navigate to='/dashboard' replace />} />
 				<Route path='*' element={<Navigate to='/dashboard' replace />} />
