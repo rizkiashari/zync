@@ -30,6 +30,9 @@ server-chat/tmp/
 server-chat/bin/
 server-chat/uploads/
 
+# BMAD Method — generated workflow artifacts (keep _bmad/ and .cursor/skills in repo)
+_bmad-output/
+
 # OS / editor / local AI
 .claude/
 .idea/
