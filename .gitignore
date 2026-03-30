@@ -1,0 +1,28 @@
+# Root / monorepo
+node_modules/
+.turbo/
+*.log
+.DS_Store
+
+# Client (Vite / React)
+client-chat/dist
+client-chat/dist-ssr
+client-chat/*.local
+client-chat/.env
+client-chat/.env.*
+!client-chat/.env.example
+
+# Server (Go)
+server-chat/.env
+server-chat/tmp/
+server-chat/bin/
+server-chat/uploads/
+
+# OS / editor / local AI
+.claude/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

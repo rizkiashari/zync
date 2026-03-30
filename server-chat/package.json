@@ -1,0 +1,9 @@
+{
+  "name": "server-chat",
+  "private": true,
+  "scripts": {
+    "build": "go build -o bin/server ./cmd/server",
+    "dev": "air",
+    "lint": "go vet ./..."
+  }
+}

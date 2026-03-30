@@ -1,0 +1,1021 @@
+basePath: /
+definitions:
+  apidocs.AddMemberRequest:
+    properties:
+      user_id:
+        example: 5
+        type: integer
+    type: object
+  apidocs.AddReactionRequest:
+    properties:
+      emoji:
+        example: "\U0001F44D"
+        type: string
+    type: object
+  apidocs.AuthCredentials:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: longpassword123
+        type: string
+    type: object
+  apidocs.AuthSuccess:
+    properties:
+      data:
+        properties:
+          access_token:
+            type: string
+          refresh_token:
+            type: string
+          user:
+            $ref: '#/definitions/apidocs.UserPayload'
+        type: object
+      success:
+        type: boolean
+    type: object
+  apidocs.ChangePasswordRequest:
+    properties:
+      current_password:
+        example: oldpass123
+        type: string
+      new_password:
+        example: newpass456
+        type: string
+    type: object
+  apidocs.DashboardSuccess:
+    properties:
+      data:
+        properties:
+          online_users:
+            items:
+              $ref: '#/definitions/apidocs.UserPayload'
+            type: array
+          rooms:
+            items:
+              $ref: '#/definitions/apidocs.RoomPayload'
+            type: array
+          stats:
+            properties:
+              online_users:
+                example: 3
+                type: integer
+              room_count:
+                example: 5
+                type: integer
+            type: object
+        type: object
+      success:
+        type: boolean
+    type: object
+  apidocs.EditMessageRequest:
+    properties:
+      body:
+        example: Edited content
+        type: string
+    type: object
+  apidocs.ErrorEnvelope:
+    properties:
+      error:
+        properties:
+          code:
+            example: INVALID_BODY
+            type: string
+          message:
+            example: Invalid or malformed request body
+            type: string
+        type: object
+      success:
+        example: false
+        type: boolean
+    type: object
+  apidocs.HealthResponse:
+    properties:
+      data:
+        properties:
+          status:
+            example: ok
+            type: string
+        type: object
+      success:
+        type: boolean
+    type: object
+  apidocs.MessageItem:
+    properties:
+      body:
+        example: Hello!
+        type: string
+      created_at:
+        type: string
+      edited_at:
+        type: string
+      id:
+        type: integer
+      is_deleted:
+        type: boolean
+      reply_to_id:
+        type: integer
+      room_id:
+        type: integer
+      sender_id:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  apidocs.MessageSuccess:
+    properties:
+      data:
+        $ref: '#/definitions/apidocs.MessageItem'
+      success:
+        type: boolean
+    type: object
+  apidocs.MessagesSuccess:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/apidocs.MessageItem'
+        type: array
+      success:
+        type: boolean
+    type: object
+  apidocs.NotificationItem:
+    properties:
+      body:
+        example: '@you in #general'
+        type: string
+      created_at:
+        type: string
+      from_id:
+        type: integer
+      id:
+        type: integer
+      message_id:
+        type: integer
+      read_at:
+        type: string
+      room_id:
+        type: integer
+      type:
+        example: mention
+        type: string
+      user_id:
+        type: integer
+    type: object
+  apidocs.NotificationsSuccess:
+    properties:
+      data:
+        properties:
+          notifications:
+            items:
+              $ref: '#/definitions/apidocs.NotificationItem'
+            type: array
+          unread_count:
+            example: 2
+            type: integer
+        type: object
+      success:
+        type: boolean
+    type: object
+  apidocs.OKMessage:
+    properties:
+      data:
+        properties:
+          message:
+            example: Done
+            type: string
+        type: object
+      success:
+        example: true
+        type: boolean
+    type: object
+  apidocs.ProfileSuccess:
+    properties:
+      data:
+        $ref: '#/definitions/apidocs.UserPayload'
+      success:
+        type: boolean
+    type: object
+  apidocs.ReactionItem:
+    properties:
+      count:
+        example: 3
+        type: integer
+      emoji:
+        example: "\U0001F44D"
+        type: string
+    type: object
+  apidocs.ReactionsSuccess:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/apidocs.ReactionItem'
+        type: array
+      success:
+        type: boolean
+    type: object
+  apidocs.RefreshRequest:
+    properties:
+      refresh_token:
+        example: a1b2c3...
+        type: string
+    type: object
+  apidocs.RefreshSuccess:
+    properties:
+      data:
+        properties:
+          access_token:
+            type: string
+          refresh_token:
+            type: string
+        type: object
+      success:
+        type: boolean
+    type: object
+  apidocs.RegisterRequest:
+    properties:
+      email:
+        example: user@example.com
+        type: string
+      password:
+        example: longpassword123
+        type: string
+      username:
+        example: john_doe
+        type: string
+    type: object
+  apidocs.RoomPayload:
+    properties:
+      created_at:
+        type: string
+      creator_id:
+        type: integer
+      description:
+        example: Backend discussions
+        type: string
+      id:
+        type: integer
+      invite_token:
+        type: string
+      name:
+        example: Team Alpha
+        type: string
+      pinned_message_id:
+        type: integer
+      type:
+        enum:
+        - group
+        - direct
+        type: string
+      updated_at:
+        type: string
+    type: object
+  apidocs.UpdateProfileRequest:
+    properties:
+      avatar:
+        example: https://...
+        type: string
+      bio:
+        example: Updated bio
+        type: string
+      username:
+        example: new_name
+        type: string
+    type: object
+  apidocs.UserPayload:
+    properties:
+      avatar:
+        example: https://...
+        type: string
+      bio:
+        example: Hello!
+        type: string
+      email:
+        example: user@example.com
+        type: string
+      id:
+        type: integer
+      is_online:
+        type: boolean
+      last_seen_at:
+        type: string
+      username:
+        example: john_doe
+        type: string
+    type: object
+  apidocs.UsersListSuccess:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/apidocs.UserPayload'
+        type: array
+      success:
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: REST + WebSocket backend for realtime chat (rooms, JWT auth, message
+    history, reactions, notifications).
+  title: Chat Server API
+  version: "1.0"
+paths:
+  /api/dashboard:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.DashboardSuccess'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Dashboard overview
+      tags:
+      - dashboard
+  /api/messages/{msgId}:
+    delete:
+      parameters:
+      - description: Message ID
+        in: path
+        name: msgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.OKMessage'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Delete a message (soft delete)
+      tags:
+      - messages
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Message ID
+        in: path
+        name: msgId
+        required: true
+        type: integer
+      - description: New body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apidocs.EditMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.MessageSuccess'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Edit a message
+      tags:
+      - messages
+  /api/messages/{msgId}/reactions:
+    get:
+      parameters:
+      - description: Message ID
+        in: path
+        name: msgId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.ReactionsSuccess'
+      security:
+      - BearerAuth: []
+      summary: Get reactions for a message
+      tags:
+      - messages
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Message ID
+        in: path
+        name: msgId
+        required: true
+        type: integer
+      - description: Emoji
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apidocs.AddReactionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.ReactionsSuccess'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Add emoji reaction to a message
+      tags:
+      - messages
+  /api/messages/{msgId}/reactions/{emoji}:
+    delete:
+      parameters:
+      - description: Message ID
+        in: path
+        name: msgId
+        required: true
+        type: integer
+      - description: Emoji character
+        in: path
+        name: emoji
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.ReactionsSuccess'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Remove emoji reaction from a message
+      tags:
+      - messages
+  /api/notifications:
+    get:
+      parameters:
+      - description: Max results (default 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.NotificationsSuccess'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: List notifications
+      tags:
+      - notifications
+  /api/notifications/{id}/read:
+    put:
+      parameters:
+      - description: Notification ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.OKMessage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Mark one notification as read
+      tags:
+      - notifications
+  /api/notifications/read:
+    put:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.OKMessage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Mark all notifications as read
+      tags:
+      - notifications
+  /api/profile:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.ProfileSuccess'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Get my profile
+      tags:
+      - profile
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Profile fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apidocs.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.ProfileSuccess'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Update profile (username / avatar / bio)
+      tags:
+      - profile
+  /api/profile/password:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Current and new password
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apidocs.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.OKMessage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Change password
+      tags:
+      - profile
+  /api/rooms/{id}/messages:
+    get:
+      parameters:
+      - description: Room ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Page size (default 50, max 100)
+        in: query
+        name: limit
+        type: integer
+      - description: 'Cursor: only messages with id < before_id'
+        in: query
+        name: before_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.MessagesSuccess'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Message history for a room
+      tags:
+      - messages
+  /api/rooms/{id}/messages/search:
+    get:
+      parameters:
+      - description: Room ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Search keyword
+        in: query
+        name: q
+        required: true
+        type: string
+      - description: Max results (default 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.MessagesSuccess'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Search messages in a room
+      tags:
+      - messages
+  /api/users:
+    get:
+      parameters:
+      - description: Search by username or email
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.UsersListSuccess'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: List users
+      tags:
+      - users
+  /api/users/{id}:
+    get:
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.ProfileSuccess'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Get user by ID
+      tags:
+      - users
+  /api/users/block:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: User ID to block
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apidocs.AddMemberRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.OKMessage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Block a user
+      tags:
+      - users
+  /api/users/block/{id}:
+    delete:
+      parameters:
+      - description: User ID to unblock
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.OKMessage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Unblock a user
+      tags:
+      - users
+  /api/users/blocked:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.UsersListSuccess'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: List blocked users
+      tags:
+      - users
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apidocs.AuthCredentials'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.AuthSuccess'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      summary: Login
+      tags:
+      - auth
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Specific refresh_token to revoke; omit to revoke all
+        in: body
+        name: body
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.OKMessage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: Logout (revoke refresh token)
+      tags:
+      - auth
+  /auth/refresh:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Refresh token
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apidocs.RefreshRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.RefreshSuccess'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      summary: Refresh access token
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Credentials + optional username
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/apidocs.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/apidocs.AuthSuccess'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      summary: Register account
+      tags:
+      - auth
+  /health:
+    get:
+      description: Returns service status.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/apidocs.HealthResponse'
+      summary: Liveness / readiness
+      tags:
+      - health
+  /ws:
+    get:
+      description: 'Upgrade to WebSocket after JWT validation (membership checked).
+        Send JSON: {"type":"chat","text":"..."}. Incoming events use JSON with id,
+        from, room, text, sent_at.'
+      parameters:
+      - description: Room ID
+        in: query
+        name: room
+        required: true
+        type: integer
+      - description: JWT alternative to Authorization header (mobile/tools)
+        in: query
+        name: token
+        type: string
+      responses:
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/apidocs.ErrorEnvelope'
+      security:
+      - BearerAuth: []
+      summary: WebSocket chat connection
+      tags:
+      - realtime
+schemes:
+- http
+securityDefinitions:
+  BearerAuth:
+    description: 'JWT access token. Format: Bearer followed by a space and the token
+      value.'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

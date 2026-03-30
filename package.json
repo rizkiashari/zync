@@ -1,0 +1,19 @@
+{
+	"name": "Zync",
+	"private": true,
+	"packageManager": "npm@10.8.2",
+	"workspaces": [
+		"client-chat",
+		"server-chat"
+	],
+	"scripts": {
+		"dev": "node node_modules/turbo/bin/turbo run dev",
+		"build": "node node_modules/turbo/bin/turbo run build",
+		"lint": "node node_modules/turbo/bin/turbo run lint",
+		"client": "npm run dev -w client-chat",
+		"server": "npm run dev -w server-chat"
+	},
+	"devDependencies": {
+		"turbo": "^2.5.4"
+	}
+}
