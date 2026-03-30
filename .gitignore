@@ -2,7 +2,19 @@
 node_modules/
 .turbo/
 *.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 .DS_Store
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+client-chat/.vscode/*
+!client-chat/.vscode/extensions.json
 
 # Client (Vite / React)
 client-chat/dist
