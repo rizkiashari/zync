@@ -14,9 +14,9 @@ import (
 	"zync-server/internal/httpapi/dashboard"
 	"zync-server/internal/httpapi/health"
 	"zync-server/internal/httpapi/messages"
-	"zync-server/internal/httpapi/onboardingpricing"
 	"zync-server/internal/httpapi/middleware"
 	"zync-server/internal/httpapi/notifications"
+	"zync-server/internal/httpapi/onboardingpricing"
 	"zync-server/internal/httpapi/profile"
 	"zync-server/internal/httpapi/realtime"
 	"zync-server/internal/httpapi/recenttasks"
@@ -58,7 +58,7 @@ func NewRouter(d Deps) *gin.Engine {
 	authGroup.Use(middleware.RateLimit(rate.Limit(10), 20))
 	authroute.Register(authGroup, d.Users, d.RefreshTokens, d.Auth, d.Workspaces)
 
-	realtime.Register(r, d.Hub, d.Messages, d.Rooms, d.Users, d.Auth, d.Config.AllowedOrigins)
+	realtime.Register(r, d.Hub, d.Messages, d.Rooms, d.Users, d.Workspaces, d.Auth, d.Config.AllowedOrigins)
 
 	// ── Public endpoints (no Bearer auth) ────────────────────────────
 	publicAPI := r.Group("/api")
@@ -69,11 +69,11 @@ func NewRouter(d Deps) *gin.Engine {
 	api.Use(middleware.Bearer(d.Auth))
 
 	profile.Register(api, d.Users, "./uploads")
-	workspaces.Register(api, d.Workspaces, d.Users, "./uploads")
+	workspaces.Register(api, d.Workspaces, d.Users, "./uploads", d.Subscriptions)
 
 	adminAPI := api.Group("/admin")
 	adminAPI.Use(middleware.SystemAdmin(d.Users))
-	admin.Register(adminAPI, d.Users)
+	admin.Register(adminAPI, d.Users, d.Subscriptions)
 	onboardingpricing.RegisterAdmin(adminAPI, d.OnboardingPricingPlans)
 
 	// ── Workspace-scoped routes (Bearer + Tenant middleware) ────────────
@@ -86,7 +86,7 @@ func NewRouter(d Deps) *gin.Engine {
 	messages.Register(wsGroup, d.Messages, d.Rooms)
 	upload.Register(wsGroup, d.Rooms, "./uploads")
 	notifications.Register(wsGroup, d.Notifications)
-	tasks.Register(wsGroup, d.Hub, d.Tasks, d.Rooms)
+	tasks.Register(wsGroup, d.Hub, d.Tasks, d.Rooms, d.Users, d.Mailer)
 	calls.Register(wsGroup, d.Hub, d.Rooms, d.Users, d.Config)
 	recenttasks.Register(wsGroup, d.RecentTasks)
 	bookmarks.Register(wsGroup, d.Bookmarks, d.Messages)

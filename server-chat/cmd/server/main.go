@@ -30,7 +30,9 @@ import (
 	"zync-server/internal/httpapi"
 	"zync-server/internal/hub"
 	applogger "zync-server/internal/logger"
+	"zync-server/internal/mailer"
 	"zync-server/internal/repository"
+	"zync-server/internal/scheduler"
 )
 
 func main() {
@@ -78,9 +80,14 @@ func main() {
 	recentRepo := repository.NewRecentTaskRepository(db)
 	bookmarkRepo := repository.NewBookmarkRepository(db)
 	onboardingPricingRepo := repository.NewOnboardingPricingRepository(db)
+	subscriptionRepo := repository.NewSubscriptionRepository(db)
+	mailSvc := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
 	h := hub.New()
 	go h.Run()
+
+	schedulerCtx, schedulerCancel := context.WithCancel(context.Background())
+	go scheduler.RunTaskReminders(schedulerCtx, taskRepo, notifRepo, h, log)
 
 	r := httpapi.NewRouter(httpapi.Deps{
 		Hub:           h,
@@ -93,6 +100,8 @@ func main() {
 		Notifications: notifRepo,
 		Tasks:         taskRepo,
 		Bookmarks:     bookmarkRepo,
+		Subscriptions: subscriptionRepo,
+		Mailer:        mailSvc,
 		OnboardingPricingPlans: onboardingPricingRepo,
 		Auth:          jwtSvc,
 		Config:        cfg,
@@ -120,6 +129,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	schedulerCancel()
 	h.Shutdown()
 
 	if err := srv.Shutdown(ctx); err != nil {

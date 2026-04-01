@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Building2, Hash, ArrowRight, Link } from "lucide-react";
 import Logo from "../components/ui/Logo";
 import Input from "../components/ui/Input";
@@ -20,6 +20,7 @@ function slugify(s) {
 
 const OnboardingPage = () => {
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
 	const { switchWorkspace } = useWorkspace();
 	const { user } = useAuth();
 	const isSystemAdmin = !!user?.is_system_admin;
@@ -29,6 +30,15 @@ const OnboardingPage = () => {
 	const [slugManual, setSlugManual] = useState(false);
 	const [inviteToken, setInviteToken] = useState("");
 	const [loading, setLoading] = useState(false);
+
+	// Auto-fill invite token from URL and switch to join tab
+	useEffect(() => {
+		const token = searchParams.get("invite");
+		if (token) {
+			setInviteToken(token);
+			setTab("join");
+		}
+	}, [searchParams]);
 
 	const handleNameChange = (e) => {
 		setName(e.target.value);

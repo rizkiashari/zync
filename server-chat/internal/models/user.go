@@ -14,5 +14,6 @@ type User struct {
 	IsOnline      bool       `gorm:"default:false" json:"is_online"`
 	LastSeenAt    *time.Time `json:"last_seen_at"`
 	StatusMessage string     `gorm:"size:64" json:"status_message"`
-	IsSystemAdmin bool       `gorm:"default:false;index" json:"is_system_admin"`
+	IsSystemAdmin       bool       `gorm:"default:false;index" json:"is_system_admin"`
+	EmailNotifications  bool       `gorm:"default:true" json:"email_notifications"`
 }

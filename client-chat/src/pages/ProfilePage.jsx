@@ -9,6 +9,7 @@ import {
 	Key,
 	LogOut,
 	ChevronRight,
+	Bell,
 } from "lucide-react";
 import Sidebar from "../components/layout/Sidebar";
 import Avatar from "../components/ui/Avatar";
@@ -62,6 +63,10 @@ const ProfilePage = () => {
 	const [loading, setLoading] = useState(false);
 	const [avatarUploading, setAvatarUploading] = useState(false);
 	const [edited, setEdited] = useState(false);
+	const [emailNotif, setEmailNotif] = useState(
+		user?.email_notifications ?? true,
+	);
+	const [savingEmailNotif, setSavingEmailNotif] = useState(false);
 	const avatarInputRef = useRef(null);
 
 	const set = (field) => (e) => {
@@ -135,6 +140,20 @@ const ProfilePage = () => {
 		navigate("/login");
 	};
 
+	const handleToggleEmailNotif = async (val) => {
+		setEmailNotif(val);
+		setSavingEmailNotif(true);
+		try {
+			await profileService.updateEmailPreference(val);
+			toast.success(val ? "Notifikasi email diaktifkan" : "Notifikasi email dinonaktifkan");
+		} catch {
+			setEmailNotif(!val);
+			toast.error("Gagal memperbarui preferensi email");
+		} finally {
+			setSavingEmailNotif(false);
+		}
+	};
+
 	const joinDate =
 		user?.createdAt ?
 			new Date(user.createdAt).toLocaleDateString("id-ID", {
@@ -183,11 +202,7 @@ const ProfilePage = () => {
 									disabled={avatarUploading}
 								/>
 								<div className='ring-4 ring-white rounded-full shadow-xl -mt-16'>
-									<Avatar
-										name={form.name}
-										avatar={user?.avatar}
-										size='2xl'
-									/>
+									<Avatar name={form.name} avatar={user?.avatar} size='2xl' />
 								</div>
 								<button
 									type='button'
@@ -279,6 +294,27 @@ const ProfilePage = () => {
 							iconColor='text-indigo-600'
 							onClick={() => navigate("/change-password")}
 						/>
+						<div className='mx-5 h-px bg-slate-50' />
+						{/* Email notification toggle */}
+						<div className='flex items-center gap-4 p-4 rounded-2xl'>
+							<div className='w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center flex-shrink-0'>
+								<Bell className='w-5 h-5 text-amber-600' />
+							</div>
+							<div className='flex-1 min-w-0'>
+								<p className='text-sm font-medium text-slate-800'>Notifikasi Email</p>
+								<p className='text-xs text-slate-400 mt-0.5'>Terima notifikasi via email</p>
+							</div>
+							<button
+								type='button'
+								role='switch'
+								aria-checked={emailNotif}
+								disabled={savingEmailNotif}
+								onClick={() => handleToggleEmailNotif(!emailNotif)}
+								className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${emailNotif ? "bg-indigo-600" : "bg-slate-200"} disabled:opacity-60`}
+							>
+								<span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${emailNotif ? "translate-x-5" : "translate-x-0"}`} />
+							</button>
+						</div>
 						<div className='mx-5 h-px bg-slate-50' />
 						<ActionRow
 							icon={LogOut}

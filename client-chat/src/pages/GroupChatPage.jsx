@@ -20,6 +20,7 @@ import {
 	addOptimisticMessage,
 } from "../store/messagesSlice";
 import { messageService } from "../services/messageService";
+import { bookmarkService } from "../services/bookmarkService";
 import { roomService } from "../services/roomService";
 import MediaGallery from "../components/chat/MediaGallery";
 import toast from "react-hot-toast";
@@ -96,6 +97,7 @@ const GroupChatPage = () => {
 	// Members stored locally from fetch result — avoids conflict with ChatPage's activeRoomMembers
 	const [members, setMembers] = useState([]);
 	const [replyCache, setReplyCache] = useState({});
+	const [bookmarkedIds, setBookmarkedIds] = useState([]);
 
 	// Map userId → displayName
 	const memberMap = Object.fromEntries(
@@ -131,6 +133,10 @@ const GroupChatPage = () => {
 				connectToRoom(Number(groupId));
 				dispatch(markRoomRead(Number(groupId)));
 				roomService.markRead(Number(groupId)).catch(() => {});
+				bookmarkService.list().then((res) => {
+					const ids = (res.data.data || []).map((b) => b.message_id);
+					if (!cancelled) setBookmarkedIds(ids);
+				}).catch(() => {});
 			} catch {
 				if (!cancelled) navigate("/dashboard");
 			} finally {
@@ -240,6 +246,22 @@ const GroupChatPage = () => {
 		},
 		[groupId],
 	);
+
+	const handleBookmark = useCallback(async (msgId, isCurrentlyBookmarked) => {
+		try {
+			if (isCurrentlyBookmarked) {
+				await bookmarkService.remove(msgId);
+				setBookmarkedIds((prev) => prev.filter((id) => id !== msgId));
+				toast.success("Bookmark dihapus");
+			} else {
+				await bookmarkService.add(msgId);
+				setBookmarkedIds((prev) => [...prev, msgId]);
+				toast.success("Pesan disimpan");
+			}
+		} catch {
+			toast.error("Gagal menyimpan pesan");
+		}
+	}, []);
 
 	// Enrich reply-to previews — fetch missing parent messages once
 	useEffect(() => {
@@ -425,6 +447,8 @@ const GroupChatPage = () => {
 												onDelete={handleDelete}
 												onPin={handlePin}
 												pinnedMessageId={pinnedMessage?.id}
+												onBookmark={handleBookmark}
+												bookmarkedIds={bookmarkedIds}
 											/>
 										</div>
 									);

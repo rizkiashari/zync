@@ -22,6 +22,11 @@ type Config struct {
 	LiveKitURL        string
 	LiveKitAPIKey     string
 	LiveKitAPISecret  string
+	SMTPHost          string
+	SMTPPort          int
+	SMTPUser          string
+	SMTPPass          string
+	SMTPFrom          string
 }
 
 func Load() (*Config, error) {
@@ -89,6 +94,11 @@ func Load() (*Config, error) {
 		LiveKitURL:        os.Getenv("LIVEKIT_URL"),
 		LiveKitAPIKey:     os.Getenv("LIVEKIT_API_KEY"),
 		LiveKitAPISecret:  os.Getenv("LIVEKIT_API_SECRET"),
+		SMTPHost:          os.Getenv("SMTP_HOST"),
+		SMTPPort:          envInt("SMTP_PORT", 587),
+		SMTPUser:          os.Getenv("SMTP_USER"),
+		SMTPPass:          os.Getenv("SMTP_PASS"),
+		SMTPFrom:          os.Getenv("SMTP_FROM"),
 	}, nil
 }
 

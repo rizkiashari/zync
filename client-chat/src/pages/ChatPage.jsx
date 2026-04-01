@@ -150,6 +150,11 @@ const ChatPage = () => {
 				dispatch(markRoomRead(Number(roomId)));
 				// Persist read state to server
 				roomService.markRead(Number(roomId)).catch(() => {});
+				// Load bookmarks for this user
+				bookmarkService.list().then((res) => {
+					const ids = (res.data.data || []).map((b) => b.message_id);
+					if (!cancelled) setBookmarkedIds(ids);
+				}).catch(() => {});
 			} catch {
 				if (!cancelled) setError("Gagal memuat percakapan");
 			} finally {
@@ -254,6 +259,22 @@ const ChatPage = () => {
 			await messageService.delete(msgId);
 		} catch {
 			/* ignore */
+		}
+	}, []);
+
+	const handleBookmark = useCallback(async (msgId, isCurrentlyBookmarked) => {
+		try {
+			if (isCurrentlyBookmarked) {
+				await bookmarkService.remove(msgId);
+				setBookmarkedIds((prev) => prev.filter((id) => id !== msgId));
+				toast.success("Bookmark dihapus");
+			} else {
+				await bookmarkService.add(msgId);
+				setBookmarkedIds((prev) => [...prev, msgId]);
+				toast.success("Pesan disimpan");
+			}
+		} catch {
+			toast.error("Gagal menyimpan pesan");
 		}
 	}, []);
 
@@ -495,6 +516,8 @@ const ChatPage = () => {
 										onDelete={handleDelete}
 										onPin={handlePin}
 										pinnedMessageId={pinnedMessage?.id}
+										onBookmark={handleBookmark}
+										bookmarkedIds={bookmarkedIds}
 									/>
 									{isOwn && item.showRead && (
 										<div className='flex justify-end pr-2 -mt-1 mb-1'>

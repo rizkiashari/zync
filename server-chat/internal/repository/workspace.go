@@ -216,3 +216,104 @@ func (r *WorkspaceRepository) UniqueSlug(base string) (string, error) {
 	}
 	return "", errors.New("could not generate unique slug")
 }
+
+// WorkspaceAnalytics holds aggregated stats for a workspace.
+type WorkspaceAnalytics struct {
+	TotalMessages    int64          `json:"total_messages"`
+	Messages30Days   int64          `json:"messages_30_days"`
+	ActiveUsers7Days int64          `json:"active_users_7_days"`
+	TotalRooms       int64          `json:"total_rooms"`
+	TotalGroups      int64          `json:"total_groups"`
+	TotalDMs         int64          `json:"total_dms"`
+	TotalMembers     int64          `json:"total_members"`
+	TotalTasks       int64          `json:"total_tasks"`
+	TopRooms         []TopRoom      `json:"top_rooms"`
+	DailyMessages    []DailyMessage `json:"daily_messages"`
+}
+
+// TopRoom holds message count for a room.
+type TopRoom struct {
+	RoomID   uint   `json:"room_id"`
+	RoomName string `json:"room_name"`
+	Count    int64  `json:"count"`
+}
+
+// DailyMessage holds message count per day.
+type DailyMessage struct {
+	Date  string `json:"date"`
+	Count int64  `json:"count"`
+}
+
+// GetAnalytics returns aggregated workspace stats.
+func (r *WorkspaceRepository) GetAnalytics(workspaceID uint) (*WorkspaceAnalytics, error) {
+	a := &WorkspaceAnalytics{}
+
+	// Total messages
+	r.db.Model(&models.Message{}).
+		Joins("JOIN rooms ON rooms.id = messages.room_id").
+		Where("rooms.workspace_id = ?", workspaceID).
+		Count(&a.TotalMessages)
+
+	// Messages last 30 days
+	since30 := time.Now().UTC().AddDate(0, 0, -30)
+	r.db.Model(&models.Message{}).
+		Joins("JOIN rooms ON rooms.id = messages.room_id").
+		Where("rooms.workspace_id = ? AND messages.created_at >= ?", workspaceID, since30).
+		Count(&a.Messages30Days)
+
+	// Active users last 7 days (sent at least one message)
+	since7 := time.Now().UTC().AddDate(0, 0, -7)
+	r.db.Model(&models.Message{}).
+		Joins("JOIN rooms ON rooms.id = messages.room_id").
+		Where("rooms.workspace_id = ? AND messages.created_at >= ?", workspaceID, since7).
+		Distinct("messages.sender_id").
+		Count(&a.ActiveUsers7Days)
+
+	// Total rooms / groups / DMs
+	r.db.Model(&models.Room{}).Where("workspace_id = ?", workspaceID).Count(&a.TotalRooms)
+	r.db.Model(&models.Room{}).Where("workspace_id = ? AND is_group = true", workspaceID).Count(&a.TotalGroups)
+	r.db.Model(&models.Room{}).Where("workspace_id = ? AND is_group = false", workspaceID).Count(&a.TotalDMs)
+
+	// Total members
+	r.db.Model(&models.WorkspaceMember{}).Where("workspace_id = ?", workspaceID).Count(&a.TotalMembers)
+
+	// Total tasks
+	r.db.Model(&models.Task{}).
+		Joins("JOIN task_boards ON task_boards.id = tasks.board_id").
+		Joins("JOIN rooms ON rooms.id = task_boards.room_id").
+		Where("rooms.workspace_id = ?", workspaceID).
+		Count(&a.TotalTasks)
+
+	// Top 5 rooms by message count
+	var topRooms []TopRoom
+	r.db.Raw(`
+		SELECT rooms.id as room_id, rooms.name as room_name, COUNT(messages.id) as count
+		FROM messages
+		JOIN rooms ON rooms.id = messages.room_id
+		WHERE rooms.workspace_id = ?
+		GROUP BY rooms.id, rooms.name
+		ORDER BY count DESC
+		LIMIT 5
+	`, workspaceID).Scan(&topRooms)
+	if topRooms == nil {
+		topRooms = []TopRoom{}
+	}
+	a.TopRooms = topRooms
+
+	// Daily messages last 30 days
+	var daily []DailyMessage
+	r.db.Raw(`
+		SELECT TO_CHAR(messages.created_at, 'YYYY-MM-DD') as date, COUNT(*) as count
+		FROM messages
+		JOIN rooms ON rooms.id = messages.room_id
+		WHERE rooms.workspace_id = ? AND messages.created_at >= ?
+		GROUP BY date
+		ORDER BY date ASC
+	`, workspaceID, since30).Scan(&daily)
+	if daily == nil {
+		daily = []DailyMessage{}
+	}
+	a.DailyMessages = daily
+
+	return a, nil
+}

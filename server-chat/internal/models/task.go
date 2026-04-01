@@ -37,9 +37,10 @@ type Task struct {
 	CreatedBy   uint       `gorm:"not null" json:"created_by"`
 	Title       string     `gorm:"size:256;not null" json:"title"`
 	Description string     `gorm:"type:text" json:"description"`
-	DeadlineAt  *time.Time `json:"deadline_at"`
-	Priority    string     `gorm:"size:16;default:'medium'" json:"priority"`
-	Position    int        `gorm:"default:0" json:"position"`
+	DeadlineAt       *time.Time `json:"deadline_at"`
+	Priority         string     `gorm:"size:16;default:'medium'" json:"priority"`
+	Position         int        `gorm:"default:0" json:"position"`
+	ReminderSentAt   *time.Time `json:"reminder_sent_at"`
 }
 
 // TaskAssignee is the many-to-many join between tasks and users.

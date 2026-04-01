@@ -19,4 +19,6 @@ export const workspaceService = {
   updateMemberRole:   (userId, role)         => api.put(`/api/workspaces/members/${userId}/role`, { role }),
   removeMember:       (userId)               => api.delete(`/api/workspaces/members/${userId}`),
   leave:              ()                     => api.delete('/api/workspaces/me/leave'),
+  getAnalytics:       ()                     => api.get('/api/workspaces/analytics'),
+  getSubscription:    ()                     => api.get('/api/workspaces/subscription'),
 };

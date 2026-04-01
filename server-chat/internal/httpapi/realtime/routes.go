@@ -9,7 +9,7 @@ import (
 )
 
 // Register mounts WebSocket upgrade routes.
-func Register(r gin.IRoutes, h *hub.Hub, msgRepo *repository.MessageRepository, roomsRepo *repository.RoomRepository, usersRepo *repository.UserRepository, jwtSvc *auth.Service, allowedOrigins []string) {
-	r.GET("/ws", handleWebSocket(h, msgRepo, roomsRepo, usersRepo, jwtSvc, allowedOrigins))
+func Register(r gin.IRoutes, h *hub.Hub, msgRepo *repository.MessageRepository, roomsRepo *repository.RoomRepository, usersRepo *repository.UserRepository, wsRepo *repository.WorkspaceRepository, jwtSvc *auth.Service, allowedOrigins []string) {
+	r.GET("/ws", handleWebSocket(h, msgRepo, roomsRepo, usersRepo, wsRepo, jwtSvc, allowedOrigins))
 	r.GET("/ws/notify", handleNotifyWS(h, jwtSvc, allowedOrigins))
 }

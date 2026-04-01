@@ -4,10 +4,11 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"zync-server/internal/hub"
+	"zync-server/internal/mailer"
 	"zync-server/internal/repository"
 )
 
-func Register(api *gin.RouterGroup, h *hub.Hub, tasksRepo *repository.TaskRepository, roomsRepo *repository.RoomRepository) {
+func Register(api *gin.RouterGroup, h *hub.Hub, tasksRepo *repository.TaskRepository, roomsRepo *repository.RoomRepository, usersRepo *repository.UserRepository, mailSvc *mailer.Mailer) {
 	// Board
 	api.GET("/rooms/:id/board", handleGetBoard(h, tasksRepo, roomsRepo))
 
@@ -22,6 +23,6 @@ func Register(api *gin.RouterGroup, h *hub.Hub, tasksRepo *repository.TaskReposi
 	api.DELETE("/tasks/:taskId", handleDeleteTask(h, tasksRepo, roomsRepo))
 
 	// Assignees
-	api.POST("/tasks/:taskId/assignees", handleAddAssignee(h, tasksRepo, roomsRepo))
+	api.POST("/tasks/:taskId/assignees", handleAddAssignee(h, tasksRepo, roomsRepo, usersRepo, mailSvc))
 	api.DELETE("/tasks/:taskId/assignees/:userId", handleRemoveAssignee(h, tasksRepo, roomsRepo))
 }

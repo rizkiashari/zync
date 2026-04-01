@@ -6,6 +6,7 @@ import (
 	"zync-server/internal/auth"
 	"zync-server/internal/config"
 	"zync-server/internal/hub"
+	"zync-server/internal/mailer"
 	"zync-server/internal/repository"
 )
 
@@ -21,7 +22,9 @@ type Deps struct {
 	Notifications *repository.NotificationRepository
 	Tasks         *repository.TaskRepository
 	Bookmarks     *repository.BookmarkRepository
+	Subscriptions *repository.SubscriptionRepository
 	Auth          *auth.Service
+	Mailer        *mailer.Mailer
 	Config        *config.Config
 	Logger        *slog.Logger
 }

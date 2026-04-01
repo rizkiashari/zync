@@ -8,12 +8,10 @@ import (
 )
 
 // Register mounts workspace endpoints on two groups:
-//
 //	noTenant — routes that don't require a workspace context (create, list, join)
 //	withAuth  — routes that only need Bearer auth (profile-level, no workspace yet)
-//
 // Routes that need a workspace context are nested under a Tenant middleware group.
-func Register(api *gin.RouterGroup, wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository, uploadsDir string) {
+func Register(api *gin.RouterGroup, wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository, uploadsDir string, subRepo *repository.SubscriptionRepository) {
 	g := api.Group("/workspaces")
 
 	// No workspace context needed
@@ -33,4 +31,6 @@ func Register(api *gin.RouterGroup, wsRepo *repository.WorkspaceRepository, user
 	ws.PUT("/members/:userId/role", handleUpdateMemberRole(wsRepo))
 	ws.DELETE("/members/:userId", handleRemoveMember(wsRepo, usersRepo))
 	ws.DELETE("/me/leave", handleLeaveMe(wsRepo))
+	ws.GET("/analytics", handleGetAnalytics(wsRepo))
+	ws.GET("/subscription", handleGetSubscription(subRepo))
 }

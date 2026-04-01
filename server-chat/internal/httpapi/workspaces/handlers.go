@@ -366,3 +366,43 @@ func handleUploadLogo(wsRepo *repository.WorkspaceRepository, uploadsDir string)
 		response.OK(c, gin.H{"workspace": updated, "logo_url": logoURL})
 	}
 }
+
+// handleGetAnalytics returns workspace usage analytics (admin/owner only).
+func handleGetAnalytics(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ws, ok := middleware.GetWorkspace(c)
+		if !ok {
+			response.Error(c, http.StatusNotFound, "workspace_not_found", "Workspace not found")
+			return
+		}
+		userID, _ := middleware.UserID(c)
+		role, _ := wsRepo.GetMemberRole(ws.ID, userID)
+		if role != "owner" && role != "admin" {
+			response.Error(c, http.StatusForbidden, "forbidden", "Only admin or owner can view analytics")
+			return
+		}
+		analytics, err := wsRepo.GetAnalytics(ws.ID)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to fetch analytics")
+			return
+		}
+		response.OK(c, gin.H{"analytics": analytics})
+	}
+}
+
+// handleGetSubscription returns the subscription for the current workspace.
+func handleGetSubscription(subRepo *repository.SubscriptionRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ws, ok := middleware.GetWorkspace(c)
+		if !ok {
+			response.Error(c, http.StatusNotFound, "workspace_not_found", "Workspace not found")
+			return
+		}
+		sub, err := subRepo.GetByWorkspace(ws.ID)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to fetch subscription")
+			return
+		}
+		response.OK(c, gin.H{"subscription": sub})
+	}
+}

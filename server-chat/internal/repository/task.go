@@ -351,3 +351,43 @@ func (r *TaskRepository) AddAssignee(taskID, userID uint) error {
 func (r *TaskRepository) RemoveAssignee(taskID, userID uint) error {
 	return r.db.Where("task_id = ? AND user_id = ?", taskID, userID).Delete(&models.TaskAssignee{}).Error
 }
+
+// TaskDueSoon holds a task with its assignee IDs for reminder processing.
+type TaskDueSoon struct {
+	models.Task
+	AssigneeIDs []uint
+	RoomID      uint
+}
+
+// GetDueSoon returns tasks with deadlines within the given duration that haven't been reminded yet.
+func (r *TaskRepository) GetDueSoon(within time.Duration) ([]TaskDueSoon, error) {
+	now := time.Now().UTC()
+	cutoff := now.Add(within)
+	var tasks []models.Task
+	err := r.db.Where(
+		"deadline_at IS NOT NULL AND deadline_at > ? AND deadline_at <= ? AND (reminder_sent_at IS NULL OR reminder_sent_at < ?)",
+		now, cutoff, now.Add(-23*time.Hour),
+	).Find(&tasks).Error
+	if err != nil {
+		return nil, err
+	}
+	result := make([]TaskDueSoon, 0, len(tasks))
+	for _, t := range tasks {
+		var assignees []models.TaskAssignee
+		r.db.Where("task_id = ?", t.ID).Find(&assignees)
+		ids := make([]uint, len(assignees))
+		for i, a := range assignees {
+			ids[i] = a.UserID
+		}
+		// Get room_id from board
+		var board models.TaskBoard
+		r.db.First(&board, t.BoardID)
+		result = append(result, TaskDueSoon{Task: t, AssigneeIDs: ids, RoomID: board.RoomID})
+	}
+	return result, nil
+}
+
+// MarkReminderSent updates the reminder_sent_at for a task.
+func (r *TaskRepository) MarkReminderSent(taskID uint, at time.Time) error {
+	return r.db.Model(&models.Task{}).Where("id = ?", taskID).Update("reminder_sent_at", at).Error
+}

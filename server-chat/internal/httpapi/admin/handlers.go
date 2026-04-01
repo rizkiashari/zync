@@ -134,3 +134,30 @@ func handleUpdateUser(usersRepo *repository.UserRepository) gin.HandlerFunc {
 		response.OK(c, u)
 	}
 }
+
+type setSubscriptionBody struct {
+	Plan        string  `json:"plan" binding:"required,oneof=free pro enterprise"`
+	Status      string  `json:"status" binding:"required,oneof=active expired canceled"`
+	MemberLimit int     `json:"member_limit" binding:"required,min=1"`
+}
+
+func handleSetSubscription(subRepo *repository.SubscriptionRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid workspace ID")
+			return
+		}
+		var req setSubscriptionBody
+		if err := c.ShouldBindJSON(&req); err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid request body")
+			return
+		}
+		sub, err := subRepo.SetPlan(uint(id64), req.Plan, req.Status, req.MemberLimit, nil)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to update subscription")
+			return
+		}
+		response.OK(c, gin.H{"subscription": sub})
+	}
+}

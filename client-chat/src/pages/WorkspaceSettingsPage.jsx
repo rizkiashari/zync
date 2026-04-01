@@ -14,6 +14,10 @@ import {
 	Crown,
 	Trash2,
 	Search,
+	BarChart2,
+	CreditCard,
+	CheckCircle2,
+	Zap,
 } from "lucide-react";
 import { useDispatch } from "react-redux";
 import Sidebar from "../components/layout/Sidebar";
@@ -33,6 +37,7 @@ import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 import { API_BASE } from "../lib/api";
 import { cardClean, focusRing } from "../lib/uiClasses";
+import AnalyticsCharts from "../components/workspace/AnalyticsCharts";
 
 const ROLE_LABELS = { owner: "Pemilik", admin: "Admin", member: "Anggota" };
 const ROLE_COLORS = {
@@ -62,6 +67,14 @@ export default function WorkspaceSettingsPage() {
 	const [regenerating, setRegenerating] = useState(false);
 	const logoRef = useRef(null);
 
+	// Analytics
+	const [analytics, setAnalytics] = useState(null);
+	const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+
+	// Subscription
+	const [subscription, setSubscription] = useState(null);
+	const [loadingSubscription, setLoadingSubscription] = useState(false);
+
 	// Members
 	const [members, setMembers] = useState([]);
 	const [loadingMembers, setLoadingMembers] = useState(false);
@@ -73,7 +86,35 @@ export default function WorkspaceSettingsPage() {
 
 	useEffect(() => {
 		if (activeTab === "members") loadMembers();
+		if (activeTab === "analytics") loadAnalytics();
+		if (activeTab === "subscription") loadSubscription();
 	}, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	const loadAnalytics = async () => {
+		if (analytics) return; // already loaded
+		setLoadingAnalytics(true);
+		try {
+			const res = await workspaceService.getAnalytics();
+			setAnalytics(res.data.data.analytics);
+		} catch {
+			toast.error("Gagal memuat analitik");
+		} finally {
+			setLoadingAnalytics(false);
+		}
+	};
+
+	const loadSubscription = async () => {
+		if (subscription) return;
+		setLoadingSubscription(true);
+		try {
+			const res = await workspaceService.getSubscription();
+			setSubscription(res.data.data.subscription);
+		} catch {
+			toast.error("Gagal memuat informasi langganan");
+		} finally {
+			setLoadingSubscription(false);
+		}
+	};
 
 	const loadMembers = async () => {
 		setLoadingMembers(true);
@@ -217,6 +258,8 @@ export default function WorkspaceSettingsPage() {
 	const tabs = [
 		{ id: "branding", label: "Branding", icon: Building2 },
 		{ id: "members", label: "Anggota", icon: Users },
+		{ id: "analytics", label: "Analitik", icon: BarChart2 },
+		{ id: "subscription", label: "Langganan", icon: CreditCard },
 	];
 
 	return (
@@ -269,7 +312,7 @@ export default function WorkspaceSettingsPage() {
 					</div>
 				</div>
 
-				<div className='flex-1 max-w-2xl mx-auto w-full px-6 py-8 space-y-8'>
+				<div className='flex-1 max-w-3xl mx-auto w-full px-6 py-8 space-y-8'>
 					{activeTab === "branding" && (
 						<>
 							{/* Logo */}
@@ -624,6 +667,176 @@ export default function WorkspaceSettingsPage() {
 								</div>
 							}
 						</section>
+					)}
+					{activeTab === "analytics" && (
+						<section className={`${cardClean} p-6`}>
+							<div className='flex items-center gap-3 mb-6'>
+								<div className='w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center'>
+									<BarChart2 className='w-5 h-5 text-indigo-600' />
+								</div>
+								<div>
+									<h2 className='text-sm font-semibold text-slate-800'>
+										Analitik Workspace
+									</h2>
+									<p className='text-xs text-slate-400'>
+										Statistik penggunaan workspace
+									</p>
+								</div>
+							</div>
+
+							{loadingAnalytics ?
+								<div className='flex justify-center py-12'>
+									<div className='w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin' />
+								</div>
+							: analytics ?
+								<AnalyticsCharts analytics={analytics} />
+							:	<p className='text-sm text-slate-400 text-center py-8'>
+									Tidak ada data analitik
+								</p>
+							}
+						</section>
+					)}
+					{activeTab === "subscription" && (
+						<div className='space-y-6'>
+							{/* Current plan */}
+							<section className={`${cardClean} p-6`}>
+								<div className='flex items-center gap-3 mb-6'>
+									<div className='w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center'>
+										<CreditCard className='w-5 h-5 text-amber-600' />
+									</div>
+									<div>
+										<h2 className='text-sm font-semibold text-slate-800'>
+											Paket Langganan
+										</h2>
+										<p className='text-xs text-slate-400'>
+											Informasi paket dan batas penggunaan
+										</p>
+									</div>
+								</div>
+
+								{loadingSubscription ?
+									<div className='flex justify-center py-8'>
+										<div className='w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin' />
+									</div>
+								: subscription ?
+									<div className='space-y-4'>
+										<div className='flex items-center gap-3 p-4 bg-slate-50 rounded-xl'>
+											<Zap className='w-5 h-5 text-amber-500' />
+											<div>
+												<p className='text-xs text-slate-500'>Paket Aktif</p>
+												<p className='text-base font-bold text-slate-800 capitalize'>
+													{subscription.plan}
+												</p>
+											</div>
+											<span className={`ml-auto text-xs font-medium px-2.5 py-1 rounded-full ${
+												subscription.status === "active"
+													? "bg-emerald-100 text-emerald-700"
+													: "bg-rose-100 text-rose-700"
+											}`}>
+												{subscription.status === "active" ? "Aktif" : subscription.status}
+											</span>
+										</div>
+										<div className='flex items-center justify-between text-sm'>
+											<span className='text-slate-500'>Batas Anggota</span>
+											<span className='font-medium text-slate-800'>
+												{subscription.member_limit === -1
+													? "Tidak terbatas"
+													: `${subscription.member_limit} anggota`}
+											</span>
+										</div>
+										{subscription.expires_at && (
+											<div className='flex items-center justify-between text-sm'>
+												<span className='text-slate-500'>Berakhir</span>
+												<span className='font-medium text-slate-800'>
+													{new Date(subscription.expires_at).toLocaleDateString("id-ID")}
+												</span>
+											</div>
+										)}
+									</div>
+								:	<p className='text-sm text-slate-400 text-center py-4'>Tidak ada data langganan</p>
+								}
+							</section>
+
+							{/* Plan comparison */}
+							<section className={`${cardClean} p-6`}>
+								<h3 className='text-sm font-semibold text-slate-800 mb-4'>
+									Perbandingan Paket
+								</h3>
+								<div className='grid grid-cols-3 gap-4'>
+									{[
+										{
+											id: "free",
+											name: "Free",
+											price: "Gratis",
+											features: ["5 anggota", "100 MB storage", "Basic chat", "Kanban board"],
+										},
+										{
+											id: "pro",
+											name: "Pro",
+											price: "Hubungi kami",
+											features: ["Anggota tak terbatas", "10 GB storage", "Semua fitur", "Prioritas support"],
+											highlight: true,
+										},
+										{
+											id: "enterprise",
+											name: "Enterprise",
+											price: "Custom",
+											features: ["Custom anggota", "Storage custom", "Fitur custom", "Dedicated support"],
+										},
+									].map((plan) => (
+										<div
+											key={plan.id}
+											className={`p-4 rounded-2xl border-2 transition-all ${
+												subscription?.plan === plan.id
+													? "border-indigo-500 bg-indigo-50/50"
+													: plan.highlight
+														? "border-indigo-200 bg-white"
+														: "border-slate-200 bg-white"
+											}`}
+										>
+											{subscription?.plan === plan.id && (
+												<span className='text-xs font-semibold text-indigo-600 flex items-center gap-1 mb-2'>
+													<CheckCircle2 className='w-3.5 h-3.5' />
+													Paket kamu
+												</span>
+											)}
+											<p className='font-bold text-slate-800'>{plan.name}</p>
+											<p className='text-xs text-slate-500 mb-3'>{plan.price}</p>
+											<ul className='space-y-1.5'>
+												{plan.features.map((f) => (
+													<li key={f} className='flex items-start gap-1.5 text-xs text-slate-600'>
+														<CheckCircle2 className='w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5' />
+														{f}
+													</li>
+												))}
+											</ul>
+											{plan.id !== "free" && subscription?.plan !== plan.id && (
+												<button
+													type='button'
+													onClick={() => {
+														const email = "sales@zync.chat";
+														window.location.href = `mailto:${email}?subject=Upgrade ke paket ${plan.name}&body=Halo, saya ingin upgrade workspace saya ke paket ${plan.name}.`;
+													}}
+													className={`mt-4 w-full py-2 rounded-xl text-xs font-medium transition-colors ${focusRing} ${
+														plan.highlight
+															? "bg-indigo-600 text-white hover:bg-indigo-700"
+															: "border border-slate-200 text-slate-700 hover:bg-slate-50"
+													}`}
+												>
+													Upgrade
+												</button>
+											)}
+										</div>
+									))}
+								</div>
+								<p className='text-xs text-slate-400 mt-4 text-center'>
+									Untuk upgrade atau pertanyaan, hubungi{" "}
+									<a href='mailto:sales@zync.chat' className='text-indigo-600 hover:underline'>
+										sales@zync.chat
+									</a>
+								</p>
+							</section>
+						</div>
 					)}
 				</div>
 			</div>

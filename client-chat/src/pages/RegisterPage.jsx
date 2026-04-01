@@ -82,14 +82,16 @@ const RegisterPage = () => {
 		try {
 			await register(form.email.trim(), form.password, form.name.trim());
 			toast.success("Akun berhasil dibuat!");
-			// Ensure workspace is selected even if register response doesn't provide it reliably.
 			const wsRes = await workspaceService.listMine();
 			const wsList = wsRes?.data?.data?.workspaces || [];
 			if (Array.isArray(wsList) && wsList.length > 0) {
 				dispatch(setWorkspaceList(wsList));
 				dispatch(setWorkspace(wsList[0]));
+				navigate("/dashboard");
+			} else {
+				// No workspace yet — force user to create or join one
+				navigate("/onboarding");
 			}
-			navigate("/dashboard");
 		} catch (err) {
 			const msg = err?.message || err?.response?.data?.error?.message;
 			toast.error(msg || "Gagal membuat akun, coba lagi");

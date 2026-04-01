@@ -7,6 +7,7 @@ import {
 	useEffect,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import toast from "react-hot-toast";
 import { WS_BASE } from "../lib/api";
 import {
 	receiveWsMessage,
@@ -212,6 +213,11 @@ export const SocketProvider = ({ children }) => {
 							emitEvent("room_deleted", { roomId: msg.room_id });
 						} else if (msg.type === "call_started" || msg.type === "call_ended") {
 							emitEvent(msg.type, msg);
+						} else if (msg.type === "task_reminder") {
+							toast(`⏰ Deadline: "${msg.title}" jatuh tempo dalam 24 jam`, {
+								duration: 6000,
+								icon: "📋",
+							});
 						}
 					} catch {
 						/* ignore */

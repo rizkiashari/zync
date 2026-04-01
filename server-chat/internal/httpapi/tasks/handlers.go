@@ -10,6 +10,7 @@ import (
 	"zync-server/internal/hub"
 	"zync-server/internal/httpapi/middleware"
 	"zync-server/internal/httpapi/response"
+	"zync-server/internal/mailer"
 	"zync-server/internal/repository"
 )
 
@@ -383,7 +384,7 @@ func handleDeleteTask(h *hub.Hub, tasksRepo *repository.TaskRepository, roomsRep
 	}
 }
 
-func handleAddAssignee(h *hub.Hub, tasksRepo *repository.TaskRepository, roomsRepo *repository.RoomRepository) gin.HandlerFunc {
+func handleAddAssignee(h *hub.Hub, tasksRepo *repository.TaskRepository, roomsRepo *repository.RoomRepository, usersRepo *repository.UserRepository, mailSvc *mailer.Mailer) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, ok := middleware.UserID(c)
 		if !ok {
@@ -420,6 +421,27 @@ func handleAddAssignee(h *hub.Hub, tasksRepo *repository.TaskRepository, roomsRe
 		}
 		task, _ := tasksRepo.GetTaskWithDetails(taskID)
 		_ = h.BroadcastToRoom(boardRoomKey(roomID), gin.H{"type": "task_updated", "task": task})
+
+		// Send email notification to assignee (non-blocking)
+		if mailSvc != nil && usersRepo != nil {
+			go func() {
+				u, err2 := usersRepo.GetByID(req.UserID)
+				if err2 != nil || u == nil || !u.EmailNotifications {
+					return
+				}
+				room, err3 := roomsRepo.GetByID(roomID)
+				roomName := ""
+				if err3 == nil && room != nil {
+					roomName = room.Name
+				}
+				taskTitle := ""
+				if task != nil {
+					taskTitle = task.Title
+				}
+				_ = mailSvc.SendTaskAssigned(u.Email, u.Username, taskTitle, roomName)
+			}()
+		}
+
 		response.OK(c, task)
 	}
 }

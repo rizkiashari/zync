@@ -48,6 +48,7 @@ func handleWebSocket(
 	msgRepo *repository.MessageRepository,
 	roomsRepo *repository.RoomRepository,
 	usersRepo *repository.UserRepository,
+	wsRepo *repository.WorkspaceRepository,
 	jwtSvc *auth.Service,
 	allowedOrigins []string,
 ) gin.HandlerFunc {
@@ -90,6 +91,17 @@ func handleWebSocket(
 		if !member {
 			response.Error(c, http.StatusForbidden, response.CodeForbidden, "You are not a member of this room")
 			return
+		}
+		// Workspace isolation: user must be a workspace member unless superadmin.
+		if room.WorkspaceID != 0 {
+			wsMember, err2 := wsRepo.IsMember(room.WorkspaceID, userID)
+			if err2 != nil || !wsMember {
+				u2, _ := usersRepo.GetByID(userID)
+				if u2 == nil || !u2.IsSystemAdmin {
+					response.Error(c, http.StatusForbidden, response.CodeForbidden, "Access denied: workspace mismatch")
+					return
+				}
+			}
 		}
 		statusMessage := ""
 		if u, err2 := usersRepo.GetByID(userID); err2 == nil && u != nil {
