@@ -6,6 +6,7 @@ import {
 	useCallback,
 	useEffect,
 } from "react";
+import { usePushNotification } from "../hooks/usePushNotification";
 import { useDispatch, useSelector } from "react-redux";
 import toast from "react-hot-toast";
 import { WS_BASE } from "../lib/api";
@@ -16,6 +17,7 @@ import {
 	removeRoom,
 } from "../store/roomsSlice";
 import { receiveWsMessageInMessages } from "../store/messagesSlice";
+import { fetchNotifications } from "../store/notificationsSlice";
 
 const SocketContext = createContext(null);
 
@@ -35,6 +37,7 @@ export const SocketProvider = ({ children }) => {
 	const listenersRef = useRef({});
 	const [isConnected, setIsConnected] = useState(false);
 	const [onlineUsers, setOnlineUsers] = useState([]);
+	usePushNotification(user);
 
 	const emitEvent = useCallback((event, data) => {
 		listenersRef.current[event]?.forEach((cb) => cb(data));
@@ -218,6 +221,24 @@ export const SocketProvider = ({ children }) => {
 								duration: 6000,
 								icon: "📋",
 							});
+						} else if (msg.type === "task_assigned") {
+							const t = msg.title ? `"${msg.title}"` : "sebuah task";
+							toast(msg.body || `Kamu ditugaskan pada ${t}`, {
+								duration: 5000,
+								icon: "📋",
+							});
+							reduxDispatch(fetchNotifications());
+						} else if (msg.type === "notification_refresh") {
+							if (msg.body) {
+								toast(msg.body, { duration: 5000, icon: "👤" });
+							}
+							reduxDispatch(fetchNotifications());
+						} else if (msg.type === "workspace_members_refresh") {
+							emitEvent("workspace_members_refresh", msg);
+						} else if (msg.type === "workspace_subscription_refresh") {
+							emitEvent("workspace_subscription_refresh", msg);
+						} else if (msg.type === "removed_from_workspace") {
+							emitEvent("removed_from_workspace", msg);
 						}
 					} catch {
 						/* ignore */

@@ -29,27 +29,9 @@ import { recentTaskService } from "../services/recentTaskService";
 import { buildTaskColumnSections, priorityMeta } from "../lib/taskOverview";
 import { useGroupTaskBoards } from "../hooks/useGroupTaskBoards";
 import { cardClean, focusRing } from "../lib/uiClasses";
+import { formatChatListTime } from "../lib/chatTime";
+import { formatChatListMessagePreview } from "../lib/messagePreview";
 import AdOnboarding from "../components/onboarding/AdOnboarding";
-
-/* ─── Helpers ──────────────────────────────────────────── */
-const formatTime = (dateStr) => {
-	if (!dateStr) return "";
-	const d = new Date(dateStr);
-	const now = new Date();
-	const diff = now - d;
-	const min = Math.floor(diff / 60000);
-	const hr = Math.floor(diff / 3600000);
-	const day = Math.floor(diff / 86400000);
-	if (min < 1) return "Baru saja";
-	if (min < 60) return `${min} mnt lalu`;
-	if (hr < 24)
-		return d.toLocaleTimeString("id-ID", {
-			hour: "2-digit",
-			minute: "2-digit",
-		});
-	if (day === 1) return "Kemarin";
-	return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
-};
 
 /* ─── Stat card ────────────────────────────────────────── */
 const StatCard = ({ icon: Icon, label, value, gradient, iconBg }) => (
@@ -81,32 +63,39 @@ const ChatRow = ({ room, isOnline, onClick }) => {
 			onClick={onClick}
 			className={`w-full flex items-center gap-3 mx-0.5 px-5 py-3.5 rounded-xl hover:bg-slate-50/90 transition-colors duration-200 text-left group ${focusRing}`}
 		>
-			{isGroup ?
+			{isGroup ? (
 				<div className='w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-clean ring-1 ring-black/5'>
 					<Users className='w-5 h-5 text-white' />
 				</div>
-			:	<Avatar name={displayName} size='md' online={isOnline} />}
+			) : (
+				<Avatar name={displayName} size='md' online={isOnline} />
+			)}
 			<div className='flex-1 min-w-0'>
 				<div className='flex justify-between items-baseline gap-2'>
 					<p className='text-sm font-semibold text-slate-800 truncate'>
 						{displayName}
 					</p>
 					<span className='text-[11px] text-slate-400 flex-shrink-0'>
-						{formatTime(room.last_message_at)}
+						{formatChatListTime(room.last_message_at, room.last_message, {
+							minuteSuffix: " lalu",
+						})}
 					</span>
 				</div>
 				<p
-					className={`text-xs truncate mt-0.5 ${unread > 0 ? "text-slate-700 font-medium" : "text-slate-400"}`}
+					className={`text-xs truncate mt-0.5 ${
+						unread > 0 ? "text-slate-700 font-medium" : "text-slate-400"
+					}`}
 				>
-					{room.last_message || "Belum ada pesan"}
+					{formatChatListMessagePreview(room.last_message) || "Belum ada pesan"}
 				</p>
 			</div>
-			{unread > 0 ?
+			{unread > 0 ? (
 				<span className='flex-shrink-0 min-w-[20px] h-5 bg-indigo-600 text-white text-[11px] font-bold rounded-full flex items-center justify-center px-1.5'>
 					{unread > 9 ? "9+" : unread}
 				</span>
-			:	<ArrowRight className='w-4 h-4 text-slate-200 group-hover:text-slate-400 transition-colors flex-shrink-0' />
-			}
+			) : (
+				<ArrowRight className='w-4 h-4 text-slate-200 group-hover:text-slate-400 transition-colors flex-shrink-0' />
+			)}
 		</button>
 	);
 };
@@ -251,11 +240,13 @@ const DashboardPage = () => {
 								Ringkasan workspace
 							</p>
 							<p className='text-sm text-slate-600 mt-1'>
-								{workspace?.custom_name || workspace?.name ?
+								{workspace?.custom_name || workspace?.name ? (
 									<span className='font-semibold text-slate-800'>
 										{workspace?.custom_name || workspace?.name}
 									</span>
-								:	<span className='text-slate-500'>Workspace aktif</span>}
+								) : (
+									<span className='text-slate-500'>Workspace aktif</span>
+								)}
 								<span className='text-slate-400 mx-2' aria-hidden>
 									·
 								</span>
@@ -429,11 +420,12 @@ const DashboardPage = () => {
 														{section.tasks.length} task
 													</span>
 												</div>
-												{section.tasks.length === 0 ?
+												{section.tasks.length === 0 ? (
 													<p className='text-sm text-slate-500 font-medium pl-1 py-2 border border-dashed border-slate-200 rounded-xl text-center bg-slate-50/80'>
 														Tidak ada task di kolom ini
 													</p>
-												:	<ul className='space-y-2.5'>
+												) : (
+													<ul className='space-y-2.5'>
 														{section.tasks.map((t) => {
 															const pr =
 																priorityMeta[t.priority] || priorityMeta.medium;
@@ -471,7 +463,7 @@ const DashboardPage = () => {
 															);
 														})}
 													</ul>
-												}
+												)}
 											</div>
 										))}
 									</div>

@@ -1,7 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
 import {
 	ArrowLeft,
+	Building2,
 	Camera,
 	User,
 	Mail,
@@ -10,13 +12,25 @@ import {
 	LogOut,
 	ChevronRight,
 	Bell,
+	Trash2,
+	Plus,
 } from "lucide-react";
 import MainShell from "../components/layout/MainShell";
 import Avatar from "../components/ui/Avatar";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
+import ConfirmModal from "../components/ui/ConfirmModal";
 import { useAuth } from "../context/AuthContext";
+import { useBranding } from "../hooks/useBranding";
+import { useCanCreateWorkspace } from "../hooks/useCanCreateWorkspace";
 import { profileService } from "../services/profileService";
+import { workspaceService } from "../services/workspaceService";
+import {
+	clearWorkspace,
+	setWorkspace,
+	setWorkspaceList,
+} from "../store/workspaceSlice";
+import { clearRooms, fetchDashboard } from "../store/roomsSlice";
 import toast from "react-hot-toast";
 import { cardClean, focusRing } from "../lib/uiClasses";
 
@@ -54,6 +68,17 @@ const ActionRow = ({
 const ProfilePage = () => {
 	const { user, updateUser, logout } = useAuth();
 	const navigate = useNavigate();
+	const dispatch = useDispatch();
+	const { displayName, workspace } = useBranding();
+	const workspaceList = useSelector((s) => s.workspace.list);
+	const { canCreateWorkspace, roleReady } = useCanCreateWorkspace();
+
+	const [wsLoaded, setWsLoaded] = useState(false);
+	const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+	const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+	const [leavingWorkspace, setLeavingWorkspace] = useState(false);
+	const [deletingWorkspace, setDeletingWorkspace] = useState(false);
+	const [switchingWorkspace, setSwitchingWorkspace] = useState(false);
 	const [form, setForm] = useState({
 		name: user?.username || user?.name || "",
 		email: user?.email || "",
@@ -68,6 +93,113 @@ const ProfilePage = () => {
 	);
 	const [savingEmailNotif, setSavingEmailNotif] = useState(false);
 	const avatarInputRef = useRef(null);
+
+	const uid = user?.id != null ? Number(user.id) : null;
+	const ownerId =
+		workspace?.owner_id != null ? Number(workspace.owner_id) : null;
+	const isWorkspaceOwner = uid != null && ownerId != null && uid === ownerId;
+	const isSystemAdmin = !!user?.is_system_admin;
+	const canDeleteWorkspace = workspace && (isWorkspaceOwner || isSystemAdmin);
+	const canLeaveWorkspace = workspace && !isWorkspaceOwner;
+
+	useEffect(() => {
+		let cancelled = false;
+		(async () => {
+			try {
+				const res = await workspaceService.listMine();
+				const list = res?.data?.data?.workspaces ?? [];
+				if (!cancelled) {
+					dispatch(setWorkspaceList(Array.isArray(list) ? list : []));
+				}
+			} catch {
+				if (!cancelled) dispatch(setWorkspaceList([]));
+			} finally {
+				if (!cancelled) setWsLoaded(true);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [dispatch]);
+
+	const refreshWorkspaceList = async () => {
+		try {
+			const res = await workspaceService.listMine();
+			const list = res?.data?.data?.workspaces ?? [];
+			dispatch(setWorkspaceList(Array.isArray(list) ? list : []));
+			return Array.isArray(list) ? list : [];
+		} catch {
+			dispatch(setWorkspaceList([]));
+			return [];
+		}
+	};
+
+	const handleSwitchWorkspace = async (slug) => {
+		if (!slug || slug === workspace?.slug) return;
+		const next = workspaceList.find((w) => w.slug === slug);
+		if (!next) return;
+		setSwitchingWorkspace(true);
+		try {
+			dispatch(setWorkspace(next));
+			dispatch(clearRooms());
+			await dispatch(fetchDashboard());
+			toast.success("Workspace berhasil diganti");
+		} catch {
+			toast.error("Gagal memuat workspace");
+		} finally {
+			setSwitchingWorkspace(false);
+		}
+	};
+
+	const handleLeaveWorkspace = async () => {
+		if (!canLeaveWorkspace) return;
+		setLeaveConfirmOpen(false);
+		setLeavingWorkspace(true);
+		try {
+			await workspaceService.leave();
+			toast.success("Berhasil keluar dari workspace");
+			dispatch(clearRooms());
+			const wsList = await refreshWorkspaceList();
+			if (wsList.length > 0) {
+				dispatch(setWorkspace(wsList[0]));
+				await dispatch(fetchDashboard());
+				navigate("/dashboard");
+			} else {
+				dispatch(clearWorkspace());
+				navigate("/onboarding");
+			}
+		} catch (err) {
+			const msg = err?.response?.data?.error?.message;
+			toast.error(msg || "Gagal keluar dari workspace");
+		} finally {
+			setLeavingWorkspace(false);
+		}
+	};
+
+	const handleDeleteWorkspace = async () => {
+		if (!canDeleteWorkspace) return;
+		setDeleteConfirmOpen(false);
+		setDeletingWorkspace(true);
+		try {
+			await workspaceService.deleteWorkspace();
+			toast.success("Workspace dihapus");
+			dispatch(clearRooms());
+			const wsList = await refreshWorkspaceList();
+			if (wsList.length > 0) {
+				dispatch(setWorkspace(wsList[0]));
+				await dispatch(fetchDashboard());
+				navigate("/dashboard");
+			} else {
+				dispatch(clearWorkspace());
+				navigate("/onboarding");
+			}
+		} catch (err) {
+			const msg = err?.response?.data?.error?.message;
+			toast.error(msg || "Gagal menghapus workspace");
+		} finally {
+			setDeletingWorkspace(false);
+		}
+	};
 
 	const set = (field) => (e) => {
 		setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -156,14 +288,13 @@ const ProfilePage = () => {
 		}
 	};
 
-	const joinDate =
-		user?.createdAt ?
-			new Date(user.createdAt).toLocaleDateString("id-ID", {
+	const joinDate = user?.createdAt
+		? new Date(user.createdAt).toLocaleDateString("id-ID", {
 				day: "numeric",
 				month: "long",
 				year: "numeric",
-			})
-		:	"Maret 2026";
+		  })
+		: "Maret 2026";
 
 	return (
 		<MainShell>
@@ -235,6 +366,113 @@ const ProfilePage = () => {
 					</div>
 
 					{/* ── Edit form ─────────────────────────── */}
+					{/* ── Workspace ───────────────────────────── */}
+					<div className={`${cardClean} p-5`}>
+						<p className='text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4'>
+							Workspace
+						</p>
+						{!workspace && wsLoaded ? (
+							<p className='text-sm text-slate-600 mb-4'>
+								Belum ada workspace aktif. Buat baru atau gabung dengan link
+								invite.
+							</p>
+						) : null}
+						{workspace ? (
+							<>
+								<div className='flex items-start gap-3 mb-4'>
+									<div className='w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center flex-shrink-0'>
+										<Building2 className='w-5 h-5 text-indigo-600' />
+									</div>
+									<div className='min-w-0 flex-1'>
+										<p className='text-sm font-medium text-slate-900 truncate'>
+											{displayName}
+										</p>
+										<p className='text-xs text-slate-400 truncate'>
+											@{workspace.slug}
+										</p>
+									</div>
+								</div>
+								{workspaceList.length > 1 ? (
+									<div className='mb-4'>
+										<label className='text-xs font-medium text-slate-500 block mb-1.5'>
+											Ganti workspace
+										</label>
+										<select
+											value={workspace.slug}
+											disabled={switchingWorkspace}
+											onChange={(e) => handleSwitchWorkspace(e.target.value)}
+											className='w-full text-sm rounded-xl border border-slate-200 px-3 py-2.5 bg-white text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 disabled:opacity-60'
+										>
+											{workspaceList.map((w) => (
+												<option key={w.slug} value={w.slug}>
+													{w.custom_name || w.name} ({w.slug})
+												</option>
+											))}
+										</select>
+									</div>
+								) : null}
+								<div className='flex flex-col sm:flex-row gap-2'>
+									{canCreateWorkspace ?
+										<Button
+											type='button'
+											variant='secondary'
+											className='flex-1'
+											onClick={() => navigate("/onboarding?tab=create")}
+										>
+											<Plus className='w-4 h-4 mr-1.5' />
+											Buat workspace baru
+										</Button>
+									: roleReady ?
+										<p className='text-xs text-slate-500 self-center py-2 px-1'>
+											Anggota tidak dapat membuat workspace. Gunakan undangan
+											untuk bergabung ke workspace lain.
+										</p>
+									:	null}
+									{canLeaveWorkspace ? (
+										<Button
+											type='button'
+											variant='secondary'
+											className='flex-1 text-amber-700 border-amber-200 bg-amber-50 hover:bg-amber-100'
+											onClick={() => setLeaveConfirmOpen(true)}
+										>
+											Keluar dari workspace
+										</Button>
+									) : null}
+									{canDeleteWorkspace ? (
+										<Button
+											type='button'
+											variant='secondary'
+											className='flex-1 text-red-600 border-red-200 bg-red-50 hover:bg-red-100'
+											onClick={() => setDeleteConfirmOpen(true)}
+										>
+											<Trash2 className='w-4 h-4 mr-1.5' />
+											Hapus workspace
+										</Button>
+									) : null}
+								</div>
+							</>
+						) : wsLoaded ? (
+							<div className='flex flex-col sm:flex-row gap-2'>
+								<Button
+									type='button'
+									className='flex-1'
+									onClick={() => navigate("/onboarding?tab=create")}
+								>
+									<Plus className='w-4 h-4 mr-1.5' />
+									Buat workspace
+								</Button>
+								<Button
+									type='button'
+									variant='secondary'
+									className='flex-1'
+									onClick={() => navigate("/onboarding?tab=join")}
+								>
+									Gabung pakai invite
+								</Button>
+							</div>
+						) : null}
+					</div>
+
 					<div className={`${cardClean} p-5`}>
 						<p className='text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4'>
 							Informasi Profil
@@ -314,10 +552,14 @@ const ProfilePage = () => {
 								aria-checked={emailNotif}
 								disabled={savingEmailNotif}
 								onClick={() => handleToggleEmailNotif(!emailNotif)}
-								className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${emailNotif ? "bg-indigo-600" : "bg-slate-200"} disabled:opacity-60`}
+								className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+									emailNotif ? "bg-indigo-600" : "bg-slate-200"
+								} disabled:opacity-60`}
 							>
 								<span
-									className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${emailNotif ? "translate-x-5" : "translate-x-0"}`}
+									className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+										emailNotif ? "translate-x-5" : "translate-x-0"
+									}`}
 								/>
 							</button>
 						</div>
@@ -334,6 +576,26 @@ const ProfilePage = () => {
 					</div>
 				</div>
 			</div>
+			<ConfirmModal
+				isOpen={leaveConfirmOpen}
+				onClose={() => setLeaveConfirmOpen(false)}
+				onConfirm={handleLeaveWorkspace}
+				title='Keluar dari workspace'
+				confirmLabel='Keluar'
+				confirmVariant='danger'
+				loading={leavingWorkspace}
+				message='Aksi ini menghapus kamu dari workspace ini. Kamu tidak bisa mengakses chat di sana lagi.'
+			/>
+			<ConfirmModal
+				isOpen={deleteConfirmOpen}
+				onClose={() => setDeleteConfirmOpen(false)}
+				onConfirm={handleDeleteWorkspace}
+				title='Hapus workspace'
+				confirmLabel='Hapus permanen'
+				confirmVariant='danger'
+				loading={deletingWorkspace}
+				message='Semua room, pesan, dan data workspace akan dihapus. Tidak bisa dibatalkan.'
+			/>
 		</MainShell>
 	);
 };

@@ -30,6 +30,10 @@ type Config struct {
 	// Midtrans Snap (optional — empty server key disables POST /api/payments/midtrans/snap-token)
 	MidtransServerKey    string
 	MidtransIsProduction bool
+	// Web Push VAPID keys (optional — empty disables push notifications)
+	VAPIDPublicKey  string
+	VAPIDPrivateKey string
+	VAPIDSubject    string
 }
 
 func Load() (*Config, error) {
@@ -104,6 +108,9 @@ func Load() (*Config, error) {
 		SMTPFrom:          os.Getenv("SMTP_FROM"),
 		MidtransServerKey:    strings.TrimSpace(os.Getenv("MIDTRANS_SERVER_KEY")),
 		MidtransIsProduction: strings.EqualFold(strings.TrimSpace(os.Getenv("MIDTRANS_IS_PRODUCTION")), "true"),
+		VAPIDPublicKey:  strings.TrimSpace(os.Getenv("VAPID_PUBLIC_KEY")),
+		VAPIDPrivateKey: strings.TrimSpace(os.Getenv("VAPID_PRIVATE_KEY")),
+		VAPIDSubject:    strings.TrimSpace(os.Getenv("VAPID_SUBJECT")),
 	}, nil
 }
 

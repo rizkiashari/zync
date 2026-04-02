@@ -3,6 +3,7 @@ package workspaces
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 
 	"zync-server/internal/httpapi/middleware"
 	"zync-server/internal/httpapi/response"
+	"zync-server/internal/hub"
 	"zync-server/internal/models"
 	"zync-server/internal/repository"
 )
@@ -23,6 +25,144 @@ type createWorkspaceBody struct {
 }
 
 var nonAlphaNum = regexp.MustCompile(`[^a-z0-9]+`)
+
+var inviteInStringRe = regexp.MustCompile(`(?i)[?&#]invite=([a-f0-9]+)`)
+var inviteHexRe = regexp.MustCompile(`^(?i)[a-f0-9]+$`)
+
+// normalizeInviteToken accepts a bare hex token or a URL / pasted string containing ?invite=…
+func normalizeInviteToken(raw string) string {
+	s := strings.TrimSpace(raw)
+	if s == "" {
+		return ""
+	}
+	if m := inviteInStringRe.FindStringSubmatch(s); len(m) > 1 {
+		return strings.ToLower(m[1])
+	}
+	if u, err := url.Parse(s); err == nil && u.Scheme != "" && u.Host != "" {
+		q := strings.TrimSpace(u.Query().Get("invite"))
+		if inviteHexRe.MatchString(q) {
+			return strings.ToLower(q)
+		}
+	}
+	if !strings.Contains(s, "://") {
+		if u, err := url.Parse("https://" + s); err == nil {
+			q := strings.TrimSpace(u.Query().Get("invite"))
+			if inviteHexRe.MatchString(q) {
+				return strings.ToLower(q)
+			}
+		}
+	}
+	s = strings.ReplaceAll(s, " ", "")
+	if inviteHexRe.MatchString(s) {
+		return strings.ToLower(s)
+	}
+	return ""
+}
+
+func joinRawInviteParts(c *gin.Context) string {
+	q := strings.TrimSpace(c.Query("invite"))
+	if q != "" {
+		return q
+	}
+	return strings.TrimSpace(c.Param("token"))
+}
+
+// notifyWorkspaceMembersRefresh tells every current member (notify WS) to refetch the member list.
+func notifyWorkspaceMembersRefresh(h *hub.Hub, wsRepo *repository.WorkspaceRepository, workspaceID uint, slug string) {
+	if h == nil {
+		return
+	}
+	members, err := wsRepo.ListMembers(workspaceID)
+	if err != nil {
+		return
+	}
+	payload := map[string]any{
+		"type":           "workspace_members_refresh",
+		"workspace_slug": slug,
+		"workspace_id":   workspaceID,
+	}
+	seen := make(map[uint]struct{})
+	for _, m := range members {
+		if _, ok := seen[m.UserID]; ok {
+			continue
+		}
+		seen[m.UserID] = struct{}{}
+		_ = h.NotifyUser(m.UserID, payload)
+	}
+}
+
+// NotifyWorkspaceSubscriptionRefresh tells every current member to reload workspace / subscription
+// context (e.g. after admin approves manual payment or billing changes).
+func NotifyWorkspaceSubscriptionRefresh(h *hub.Hub, wsRepo *repository.WorkspaceRepository, workspaceID uint, slug string) {
+	if h == nil {
+		return
+	}
+	members, err := wsRepo.ListMembers(workspaceID)
+	if err != nil {
+		return
+	}
+	payload := map[string]any{
+		"type":           "workspace_subscription_refresh",
+		"workspace_slug": slug,
+		"workspace_id":   workspaceID,
+	}
+	seen := make(map[uint]struct{})
+	for _, m := range members {
+		if _, ok := seen[m.UserID]; ok {
+			continue
+		}
+		seen[m.UserID] = struct{}{}
+		_ = h.NotifyUser(m.UserID, payload)
+	}
+}
+
+func joinWorkspaceForUser(c *gin.Context, wsRepo *repository.WorkspaceRepository, h *hub.Hub, userID uint, raw string) {
+	token := normalizeInviteToken(raw)
+	if token == "" {
+		response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Missing or invalid invite token")
+		return
+	}
+	ws, err := wsRepo.GetByInviteToken(token)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
+		return
+	}
+	if ws == nil {
+		response.Error(c, http.StatusNotFound, "invalid_token", "Invalid or expired invite token")
+		return
+	}
+	err = wsRepo.AddMember(ws.ID, userID, "member")
+	if err != nil {
+		if err.Error() != "already_member" {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to join workspace")
+			return
+		}
+	} else if h != nil {
+		notifyWorkspaceMembersRefresh(h, wsRepo, ws.ID, ws.Slug)
+	}
+	response.OK(c, gin.H{"workspace": ws})
+}
+
+type joinWorkspaceBody struct {
+	Invite string `json:"invite" binding:"required"`
+}
+
+// handleJoinWithBody accepts a JSON body { "invite": "<token or full URL>" } — avoids path parsing 404 when pasting links.
+func handleJoinWithBody(wsRepo *repository.WorkspaceRepository, h *hub.Hub) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, ok := middleware.UserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, response.CodeUnauthorized, "Unauthorized")
+			return
+		}
+		var body joinWorkspaceBody
+		if err := c.ShouldBindJSON(&body); err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid request body")
+			return
+		}
+		joinWorkspaceForUser(c, wsRepo, h, userID, body.Invite)
+	}
+}
 
 func slugify(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
@@ -64,12 +204,34 @@ func canWorkspaceOwner(actor *models.User, wsRepo *repository.WorkspaceRepositor
 }
 
 // handleCreate creates a new workspace owned by the requesting user.
-func handleCreate(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+// If X-Workspace-Slug is sent (typical for SPA clients), members of that workspace cannot create another.
+func handleCreate(wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, ok := middleware.UserID(c)
 		if !ok {
 			response.Error(c, http.StatusUnauthorized, response.CodeUnauthorized, "Unauthorized")
 			return
+		}
+		if slug := c.GetHeader("X-Workspace-Slug"); slug != "" {
+			ws, err := wsRepo.GetBySlug(slug)
+			if err != nil {
+				response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to resolve workspace")
+				return
+			}
+			if ws != nil {
+				actor, err := usersRepo.GetByID(userID)
+				if err != nil || actor == nil {
+					response.Error(c, http.StatusForbidden, response.CodeForbidden, "Forbidden")
+					return
+				}
+				if !actor.IsSystemAdmin {
+					role, _ := wsRepo.GetMemberRole(ws.ID, userID)
+					if role == models.WorkspaceRoleMember {
+						response.Error(c, http.StatusForbidden, "forbidden", "Anggota tidak dapat membuat workspace baru. Gunakan undangan atau hubungi admin.")
+						return
+					}
+				}
+			}
 		}
 		var req createWorkspaceBody
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -116,41 +278,31 @@ func handleListMine(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
 	}
 }
 
-// handleGetCurrent returns the workspace resolved by the Tenant middleware.
-func handleGetCurrent() gin.HandlerFunc {
+// handleGetCurrent returns the workspace resolved by the Tenant middleware and the caller's role.
+func handleGetCurrent(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ws, ok := middleware.GetWorkspace(c)
 		if !ok {
 			response.Error(c, http.StatusNotFound, "workspace_not_found", "Workspace not found")
 			return
 		}
-		response.OK(c, gin.H{"workspace": ws})
+		var myRole string
+		if uid, ok := middleware.UserID(c); ok {
+			myRole, _ = wsRepo.GetMemberRole(ws.ID, uid)
+		}
+		response.OK(c, gin.H{"workspace": ws, "my_role": myRole})
 	}
 }
 
-// handleJoin joins a workspace via invite token.
-func handleJoin(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+// handleJoin joins via path /join/:token and optional ?invite= (query wins). Token may be a full pasted URL; it is normalized.
+func handleJoin(wsRepo *repository.WorkspaceRepository, h *hub.Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, ok := middleware.UserID(c)
 		if !ok {
 			response.Error(c, http.StatusUnauthorized, response.CodeUnauthorized, "Unauthorized")
 			return
 		}
-		token := c.Param("token")
-		ws, err := wsRepo.GetByInviteToken(token)
-		if err != nil {
-			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
-			return
-		}
-		if ws == nil {
-			response.Error(c, http.StatusNotFound, "invalid_token", "Invalid or expired invite token")
-			return
-		}
-		if err := wsRepo.AddMember(ws.ID, userID, "member"); err != nil && err.Error() != "already_member" {
-			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to join workspace")
-			return
-		}
-		response.OK(c, gin.H{"workspace": ws})
+		joinWorkspaceForUser(c, wsRepo, h, userID, joinRawInviteParts(c))
 	}
 }
 
@@ -214,8 +366,10 @@ type updateMemberRoleBody struct {
 	Role string `json:"role" binding:"required,oneof=owner admin member"`
 }
 
-// handleUpdateMemberRole changes a member's role (owner only).
-func handleUpdateMemberRole(wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository) gin.HandlerFunc {
+// handleUpdateMemberRole changes a member's role.
+// Owner (or system admin): any member except self; may assign admin/member (owner row is protected).
+// Workspace admin: may promote member → admin or set member → member only; cannot change owner or other admins.
+func handleUpdateMemberRole(wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository, notifRepo *repository.NotificationRepository, h *hub.Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ws, ok := middleware.GetWorkspace(c)
 		if !ok {
@@ -228,8 +382,9 @@ func handleUpdateMemberRole(wsRepo *repository.WorkspaceRepository, usersRepo *r
 			response.Error(c, http.StatusForbidden, response.CodeForbidden, "Forbidden")
 			return
 		}
-		if !canWorkspaceOwner(actor, wsRepo, ws.ID) {
-			response.Error(c, http.StatusForbidden, "forbidden", "Only workspace owner can change member roles")
+		actorRole, _ := wsRepo.GetMemberRole(ws.ID, userID)
+		if !actor.IsSystemAdmin && actorRole != models.WorkspaceRoleOwner && actorRole != models.WorkspaceRoleAdmin {
+			response.Error(c, http.StatusForbidden, "forbidden", "Only workspace owner or admin can change member roles")
 			return
 		}
 		targetID64, err := strconv.ParseUint(c.Param("userId"), 10, 64)
@@ -247,16 +402,65 @@ func handleUpdateMemberRole(wsRepo *repository.WorkspaceRepository, usersRepo *r
 			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid request body")
 			return
 		}
+		targetRole, _ := wsRepo.GetMemberRole(ws.ID, targetID)
+		if targetRole == "" {
+			response.Error(c, http.StatusNotFound, "not_found", "User is not a member of this workspace")
+			return
+		}
+		if !actor.IsSystemAdmin && actorRole == models.WorkspaceRoleAdmin {
+			if targetRole == models.WorkspaceRoleOwner {
+				response.Error(c, http.StatusForbidden, "forbidden", "Admin cannot change the workspace owner")
+				return
+			}
+			if targetRole == models.WorkspaceRoleAdmin {
+				response.Error(c, http.StatusForbidden, "forbidden", "Admin cannot change another admin; ask the owner")
+				return
+			}
+			if req.Role == models.WorkspaceRoleOwner {
+				response.Error(c, http.StatusForbidden, "forbidden", "Only the owner can assign the owner role")
+				return
+			}
+			if req.Role != models.WorkspaceRoleAdmin && req.Role != models.WorkspaceRoleMember {
+				response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid role")
+				return
+			}
+		}
+		if targetRole == models.WorkspaceRoleOwner && req.Role != models.WorkspaceRoleOwner {
+			response.Error(c, http.StatusForbidden, "forbidden", "Cannot change the workspace owner role here")
+			return
+		}
 		if err := wsRepo.UpdateMemberRole(ws.ID, targetID, req.Role); err != nil {
 			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to update member role")
 			return
+		}
+		roleLabel := req.Role
+		switch req.Role {
+		case models.WorkspaceRoleOwner:
+			roleLabel = "pemilik"
+		case models.WorkspaceRoleAdmin:
+			roleLabel = "admin"
+		case models.WorkspaceRoleMember:
+			roleLabel = "anggota"
+		}
+		body := fmt.Sprintf("Peranmu di workspace \"%s\" diubah menjadi %s", ws.Name, roleLabel)
+		if notifRepo != nil {
+			_ = notifRepo.CreateIfNotDND(targetID, models.NotificationTypeSystem, 0, 0, userID, body)
+		}
+		if h != nil {
+			_ = h.NotifyUser(targetID, map[string]any{
+				"type":           "notification_refresh",
+				"workspace_slug": ws.Slug,
+				"role":           req.Role,
+				"body":           body,
+			})
+			notifyWorkspaceMembersRefresh(h, wsRepo, ws.ID, ws.Slug)
 		}
 		response.OK(c, gin.H{"message": "Role updated"})
 	}
 }
 
 // handleRemoveMember removes a member from the workspace (owner/admin only).
-func handleRemoveMember(wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository) gin.HandlerFunc {
+func handleRemoveMember(wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository, h *hub.Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ws, ok := middleware.GetWorkspace(c)
 		if !ok {
@@ -292,17 +496,62 @@ func handleRemoveMember(wsRepo *repository.WorkspaceRepository, usersRepo *repos
 			response.Error(c, http.StatusForbidden, "forbidden", "Cannot remove the workspace owner")
 			return
 		}
+		actorRole, _ := wsRepo.GetMemberRole(ws.ID, userID)
+		if !u.IsSystemAdmin && actorRole == models.WorkspaceRoleAdmin {
+			if targetRole == models.WorkspaceRoleAdmin {
+				response.Error(c, http.StatusForbidden, "forbidden", "Admin cannot remove another admin")
+				return
+			}
+		}
 		if err := wsRepo.RemoveMember(ws.ID, targetID); err != nil {
 			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to remove member")
 			return
+		}
+		if h != nil {
+			_ = h.NotifyUser(targetID, map[string]any{
+				"type":           "removed_from_workspace",
+				"workspace_slug": ws.Slug,
+				"workspace_id":   ws.ID,
+			})
+			notifyWorkspaceMembersRefresh(h, wsRepo, ws.ID, ws.Slug)
 		}
 		response.OK(c, gin.H{"message": "Member removed"})
 	}
 }
 
+// handleDeleteWorkspace permanently deletes the workspace (owner or system admin only).
+func handleDeleteWorkspace(wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ws, ok := middleware.GetWorkspace(c)
+		if !ok {
+			response.Error(c, http.StatusNotFound, "workspace_not_found", "Workspace not found")
+			return
+		}
+		userID, ok := middleware.UserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, response.CodeUnauthorized, "Unauthorized")
+			return
+		}
+		actor, err := usersRepo.GetByID(userID)
+		if err != nil || actor == nil {
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "Forbidden")
+			return
+		}
+		if !actor.IsSystemAdmin && ws.OwnerID != userID {
+			response.Error(c, http.StatusForbidden, "forbidden", "Only the workspace owner can delete this workspace")
+			return
+		}
+		if err := wsRepo.DeleteWorkspace(ws.ID); err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to delete workspace")
+			return
+		}
+		response.OK(c, gin.H{"message": "Workspace deleted"})
+	}
+}
+
 // handleLeaveMe removes the current user from the active workspace and all rooms in that workspace.
 // Owners cannot leave (to avoid orphaned workspaces without an owner).
-func handleLeaveMe(wsRepo *repository.WorkspaceRepository, roomsRepo *repository.RoomRepository) gin.HandlerFunc {
+func handleLeaveMe(wsRepo *repository.WorkspaceRepository, roomsRepo *repository.RoomRepository, h *hub.Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ws, ok := middleware.GetWorkspace(c)
 		if !ok {
@@ -322,6 +571,9 @@ func handleLeaveMe(wsRepo *repository.WorkspaceRepository, roomsRepo *repository
 		if err := wsRepo.LeaveWorkspace(ws.ID, userID, roomsRepo); err != nil {
 			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to leave workspace")
 			return
+		}
+		if h != nil {
+			notifyWorkspaceMembersRefresh(h, wsRepo, ws.ID, ws.Slug)
 		}
 		response.OK(c, gin.H{"message": "Left workspace"})
 	}

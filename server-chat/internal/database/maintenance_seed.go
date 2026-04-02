@@ -11,9 +11,7 @@ import (
 	"zync-server/internal/repository"
 )
 
-// Baked-in system maintenance account (persisted only in PostgreSQL via seed below).
-// Default login (change password after first login in production): MaintenanceZync!2026
-const (
+  const (
 	maintenanceEmail        = "maintenance@zync.local"
 	maintenanceUsername     = "MaintenanceAdmin"
 	maintenancePasswordHash = "$2a$10$XQSFVlJns7.7Ci6LjVmA8.MhSnwBN5qlH1X16PnePab7davyrxrc6"

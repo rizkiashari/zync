@@ -11,6 +11,7 @@ import (
 	"zync-server/internal/config"
 	"zync-server/internal/httpapi/middleware"
 	"zync-server/internal/httpapi/response"
+	"zync-server/internal/models"
 	"zync-server/internal/repository"
 )
 
@@ -34,7 +35,7 @@ func enabledPaymentsForMethod(m string) ([]string, bool) {
 	}
 }
 
-func postSnapToken(cfg *config.Config, plans *repository.OnboardingPricingRepository, users *repository.UserRepository) gin.HandlerFunc {
+func postSnapToken(cfg *config.Config, plans *repository.OnboardingPricingRepository, users *repository.UserRepository, txns *repository.PaymentTransactionRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if strings.TrimSpace(cfg.MidtransServerKey) == "" {
 			response.Error(c, http.StatusServiceUnavailable, "payment_unavailable", "Midtrans is not configured on the server")
@@ -106,8 +107,25 @@ func postSnapToken(cfg *config.Config, plans *repository.OnboardingPricingReposi
 			}
 		}
 
-		orderID := fmt.Sprintf("zync-w%u-%s-%d", wsID, planKey, time.Now().UnixNano())
+		orderID := fmt.Sprintf("zync-w%d-%s-%d", wsID, planKey, time.Now().UnixNano())
 		gross := int64(plan.PriceIDR)
+
+		rec := &models.PaymentTransaction{
+			WorkspaceID:   wsID,
+			UserID:        uid,
+			OrderID:       orderID,
+			PlanKey:       planKey,
+			AmountIDR:     gross,
+			Currency:      "IDR",
+			PaymentMethod: strings.ToLower(strings.TrimSpace(body.PaymentMethod)),
+			Channel:       models.PayChannelMidtrans,
+			Status:        models.PayTxnPending,
+		}
+		if err := txns.Create(rec); err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to record payment transaction")
+			return
+		}
+
 		payload := snapTransactionPayload{
 			TransactionDetails: map[string]any{
 				"order_id":     orderID,

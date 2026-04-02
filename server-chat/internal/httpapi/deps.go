@@ -21,8 +21,10 @@ type Deps struct {
 	RefreshTokens *repository.RefreshTokenRepository
 	Notifications *repository.NotificationRepository
 	Tasks         *repository.TaskRepository
-	Bookmarks     *repository.BookmarkRepository
-	Subscriptions *repository.SubscriptionRepository
+	Bookmarks         *repository.BookmarkRepository
+	Subscriptions        *repository.SubscriptionRepository
+	PaymentTransactions  *repository.PaymentTransactionRepository
+	PushSubscriptions *repository.PushSubscriptionRepository
 	Auth          *auth.Service
 	Mailer        *mailer.Mailer
 	Config        *config.Config

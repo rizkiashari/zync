@@ -17,7 +17,9 @@ import TasksPage from "./pages/TasksPage";
 import CallPage from "./pages/CallPage";
 import WorkspaceSettingsPage from "./pages/WorkspaceSettingsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
+import AdminTransactionsPage from "./pages/AdminTransactionsPage";
 import BookmarksPage from "./pages/BookmarksPage";
+import FilesPage from "./pages/FilesPage";
 import PricingPage from "./pages/PricingPage";
 import PaymentDetailPage from "./pages/PaymentDetailPage";
 import IncomingCallModal from "./components/call/IncomingCallModal";
@@ -80,32 +82,167 @@ function App() {
 			<IncomingCallModal />
 			<Routes>
 				{/* Public routes */}
-				<Route path='/login' element={<PublicRoute><LoginPage /></PublicRoute>} />
-				<Route path='/register' element={<PublicRoute><RegisterPage /></PublicRoute>} />
-				<Route path='/forgot-password' element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+				<Route
+					path='/login'
+					element={
+						<PublicRoute>
+							<LoginPage />
+						</PublicRoute>
+					}
+				/>
+				<Route
+					path='/register'
+					element={
+						<PublicRoute>
+							<RegisterPage />
+						</PublicRoute>
+					}
+				/>
+				<Route
+					path='/forgot-password'
+					element={
+						<PublicRoute>
+							<ForgotPasswordPage />
+						</PublicRoute>
+					}
+				/>
 
 				{/* Onboarding — needs auth but no workspace yet */}
-				<Route path='/onboarding' element={<AuthRoute><OnboardingPage /></AuthRoute>} />
+				<Route
+					path='/onboarding'
+					element={
+						<AuthRoute>
+							<OnboardingPage />
+						</AuthRoute>
+					}
+				/>
 
 				{/* Workspace-scoped protected routes */}
-				<Route path='/dashboard' element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-				<Route path='/tasks' element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
-				<Route path='/chat/:roomId' element={<ProtectedRoute><ChatPage /></ProtectedRoute>} />
-				<Route path='/group/:groupId' element={<ProtectedRoute><GroupChatPage /></ProtectedRoute>} />
-				<Route path='/group/:groupId/kanban' element={<ProtectedRoute><KanbanPage /></ProtectedRoute>} />
-				<Route path='/call/:roomId' element={<ProtectedRoute><CallPage /></ProtectedRoute>} />
+				<Route
+					path='/dashboard'
+					element={
+						<ProtectedRoute>
+							<DashboardPage />
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path='/tasks'
+					element={
+						<ProtectedRoute>
+							<TasksPage />
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path='/chat/:roomId'
+					element={
+						<ProtectedRoute>
+							<ChatPage />
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path='/group/:groupId'
+					element={
+						<ProtectedRoute>
+							<GroupChatPage />
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path='/group/:groupId/kanban'
+					element={
+						<ProtectedRoute>
+							<KanbanPage />
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path='/call/:roomId'
+					element={
+						<ProtectedRoute>
+							<CallPage />
+						</ProtectedRoute>
+					}
+				/>
 
 				{/* Auth-only routes (no workspace required) */}
-				<Route path='/profile' element={<AuthRoute><ProfilePage /></AuthRoute>} />
-				<Route path='/change-password' element={<AuthRoute><ChangePasswordPage /></AuthRoute>} />
+				<Route
+					path='/profile'
+					element={
+						<AuthRoute>
+							<ProfilePage />
+						</AuthRoute>
+					}
+				/>
+				<Route
+					path='/change-password'
+					element={
+						<AuthRoute>
+							<ChangePasswordPage />
+						</AuthRoute>
+					}
+				/>
 
 				{/* Workspace settings */}
-				<Route path='/workspace/settings' element={<ProtectedRoute><WorkspaceSettingsPage /></ProtectedRoute>} />
+				<Route
+					path='/workspace/settings'
+					element={
+						<ProtectedRoute>
+							<WorkspaceSettingsPage />
+						</ProtectedRoute>
+					}
+				/>
 
-				<Route path='/admin/users' element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
-				<Route path='/bookmarks' element={<ProtectedRoute><BookmarksPage /></ProtectedRoute>} />
-				<Route path='/pricing' element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
-				<Route path='/payment' element={<ProtectedRoute><PaymentDetailPage /></ProtectedRoute>} />
+				<Route
+					path='/admin/users'
+					element={
+						<AdminRoute>
+							<AdminUsersPage />
+						</AdminRoute>
+					}
+				/>
+				<Route
+					path='/admin/transactions'
+					element={
+						<AdminRoute>
+							<AdminTransactionsPage />
+						</AdminRoute>
+					}
+				/>
+				<Route
+					path='/bookmarks'
+					element={
+						<ProtectedRoute>
+							<BookmarksPage />
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path='/files'
+					element={
+						<ProtectedRoute>
+							<FilesPage />
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path='/pricing'
+					element={
+						<ProtectedRoute>
+							<PricingPage />
+						</ProtectedRoute>
+					}
+				/>
+				<Route
+					path='/payment'
+					element={
+						<ProtectedRoute>
+							<PaymentDetailPage />
+						</ProtectedRoute>
+					}
+				/>
 
 				{/* Redirects */}
 				<Route

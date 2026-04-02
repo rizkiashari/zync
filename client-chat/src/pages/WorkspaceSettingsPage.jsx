@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
 	ArrowLeft,
@@ -6,18 +6,22 @@ import {
 	Palette,
 	Image,
 	Link2,
+	Copy,
 	RefreshCw,
 	Save,
 	Upload,
 	Users,
 	Shield,
 	Crown,
-	Trash2,
 	Search,
 	BarChart2,
 	CreditCard,
 	CheckCircle2,
 	Zap,
+	History,
+	UserPlus,
+	UserCog,
+	UserX,
 } from "lucide-react";
 import { useDispatch } from "react-redux";
 import MainShell from "../components/layout/MainShell";
@@ -26,8 +30,10 @@ import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import Avatar from "../components/ui/Avatar";
 import ConfirmModal from "../components/ui/ConfirmModal";
+import { API_BASE } from "../lib/api";
 import { useBranding } from "../hooks/useBranding";
 import { workspaceService } from "../services/workspaceService";
+import { onboardingPricingService } from "../services/onboardingPricingService";
 import {
 	clearWorkspace,
 	setWorkspace,
@@ -35,8 +41,8 @@ import {
 } from "../store/workspaceSlice";
 import { clearRooms, fetchDashboard } from "../store/roomsSlice";
 import { useAuth } from "../context/AuthContext";
+import { useSocket } from "../context/SocketContext";
 import toast from "react-hot-toast";
-import { API_BASE } from "../lib/api";
 import { cardClean, focusRing } from "../lib/uiClasses";
 import AnalyticsCharts from "../components/workspace/AnalyticsCharts";
 
@@ -47,7 +53,141 @@ const ROLE_COLORS = {
 	member: "bg-slate-100 text-slate-600",
 };
 
+/**
+ * Normalizes workspace role from API.
+ * Use defaultMember for list rows (unknown → anggota). Omit for current user so null = belum dimuat.
+ */
+function normalizeWorkspaceRole(role, { defaultMember = false } = {}) {
+	const s = String(role ?? "")
+		.trim()
+		.toLowerCase();
+	if (s === "owner" || s === "admin" || s === "member") return s;
+	return defaultMember ? "member" : null;
+}
+
+const MEMBER_PREVIEW_COUNT = 8;
+
+function WorkspaceMemberRow({
+	member: m,
+	currentUserId,
+	myRoleNorm,
+	isSystemAdminUser,
+	onPromoteAdmin,
+	onDemoteMember,
+	onRevokeAccess,
+}) {
+	const isMe = Number(m.user_id) === Number(currentUserId);
+	const isSuperAdmin = !!isSystemAdminUser;
+	const r = normalizeWorkspaceRole(m.role, { defaultMember: true });
+	const isOwner = r === "owner";
+
+	const canPromoteFromMember =
+		!isMe &&
+		!isOwner &&
+		r === "member" &&
+		(isSuperAdmin || myRoleNorm === "owner" || myRoleNorm === "admin");
+
+	const canDemoteAdmin =
+		!isMe &&
+		!isOwner &&
+		r === "admin" &&
+		(isSuperAdmin || myRoleNorm === "owner");
+
+	const canRevoke =
+		!isMe &&
+		!isOwner &&
+		(isSuperAdmin ||
+			myRoleNorm === "owner" ||
+			(myRoleNorm === "admin" && r === "member"));
+
+	return (
+		<div className='flex flex-col gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors sm:flex-row sm:items-center sm:gap-3'>
+			<div className='flex items-center gap-3 min-w-0 flex-1'>
+				<Avatar name={m.username || m.email} size='md' />
+				<div className='min-w-0 flex-1'>
+					<div className='flex items-center gap-2 flex-wrap'>
+						<p className='text-sm font-medium text-slate-800 truncate'>
+							{m.username || m.email}
+						</p>
+						{isMe && (
+							<span className='text-xs text-slate-400 shrink-0'>(Kamu)</span>
+						)}
+					</div>
+					<p className='text-xs text-slate-400 truncate'>{m.email}</p>
+				</div>
+			</div>
+
+			<div className='flex flex-col gap-2 border-t border-slate-100 pt-3 sm:border-t-0 sm:pt-0 sm:items-end sm:shrink-0'>
+				<div className='flex flex-wrap items-center justify-end gap-2'>
+					{isOwner ? (
+						<span className='flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-700'>
+							<Crown className='w-3 h-3' />
+							Pemilik
+						</span>
+					) : (
+						<span
+							className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
+								ROLE_COLORS[r] || ROLE_COLORS.member
+							}`}
+						>
+							{r === "admin" && <Shield className='w-3 h-3' />}
+							{ROLE_LABELS[r] || r}
+						</span>
+					)}
+				</div>
+				{(canPromoteFromMember || canDemoteAdmin || canRevoke) && (
+					<div className='flex flex-wrap items-stretch sm:justify-end gap-2'>
+						{canPromoteFromMember && (
+							<Button
+								type='button'
+								variant='outline'
+								size='sm'
+								onClick={() => onPromoteAdmin(m.user_id)}
+								className='flex-1 sm:flex-none min-h-10'
+							>
+								<Shield className='w-3.5 h-3.5 shrink-0' />
+								Jadikan admin
+							</Button>
+						)}
+						{canDemoteAdmin && (
+							<Button
+								type='button'
+								variant='outline'
+								size='sm'
+								onClick={() => onDemoteMember(m.user_id)}
+								className='flex-1 sm:flex-none min-h-10'
+							>
+								Turunkan ke anggota
+							</Button>
+						)}
+						{canRevoke && (
+							<Button
+								type='button'
+								variant='outline'
+								size='sm'
+								onClick={() => onRevokeAccess(m.user_id)}
+								className='flex-1 sm:flex-none min-h-10 border-rose-200 text-rose-700 hover:bg-rose-50'
+							>
+								<UserX className='w-3.5 h-3.5 shrink-0' />
+								Cabut akses
+							</Button>
+						)}
+					</div>
+				)}
+			</div>
+		</div>
+	);
+}
+
 const SETTINGS_TABS = ["branding", "members", "analytics", "subscription"];
+const MEMBER_SUB_VIEWS = ["list", "invite"];
+
+const ALL_WORKSPACE_TAB_DEFS = [
+	{ id: "branding", label: "Branding", icon: Building2 },
+	{ id: "members", label: "Anggota", icon: Users },
+	{ id: "analytics", label: "Analitik", icon: BarChart2 },
+	{ id: "subscription", label: "Langganan", icon: CreditCard },
+];
 
 function initialSettingsTab() {
 	try {
@@ -60,9 +200,10 @@ function initialSettingsTab() {
 
 export default function WorkspaceSettingsPage() {
 	const navigate = useNavigate();
-	const [searchParams] = useSearchParams();
+	const [searchParams, setSearchParams] = useSearchParams();
 	const dispatch = useDispatch();
 	const { user } = useAuth();
+	const { on } = useSocket();
 	const { logoURL, workspace } = useBranding();
 
 	const [activeTab, setActiveTab] = useState(initialSettingsTab);
@@ -87,15 +228,44 @@ export default function WorkspaceSettingsPage() {
 	// Subscription
 	const [subscription, setSubscription] = useState(null);
 	const [loadingSubscription, setLoadingSubscription] = useState(false);
+	const [pricingPlans, setPricingPlans] = useState([]);
+	const [paymentTransactions, setPaymentTransactions] = useState([]);
+	const [loadingPaymentTx, setLoadingPaymentTx] = useState(false);
 
 	// Members
 	const [members, setMembers] = useState([]);
 	const [loadingMembers, setLoadingMembers] = useState(false);
 	const [memberSearch, setMemberSearch] = useState("");
+	const [memberRoleFilter, setMemberRoleFilter] = useState("all");
+	const [membersSubView, setMembersSubView] = useState("list");
 	const [removingId, setRemovingId] = useState(null);
 	const [myRole, setMyRole] = useState(null); // null until we fetch my role
+	const [roleLoading, setRoleLoading] = useState(true);
 	const [leavingWorkspace, setLeavingWorkspace] = useState(false);
 	const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+
+	const isSystemAdminUser = !!user?.is_system_admin;
+	const myRoleNorm = normalizeWorkspaceRole(myRole);
+	const canManageWorkspace =
+		isSystemAdminUser || myRoleNorm === "owner" || myRoleNorm === "admin";
+
+	useEffect(() => {
+		let cancelled = false;
+		(async () => {
+			try {
+				const res = await workspaceService.getCurrent();
+				const r = res?.data?.data?.my_role;
+				if (!cancelled) setMyRole(r && String(r).trim() ? r : null);
+			} catch {
+				if (!cancelled) setMyRole(null);
+			} finally {
+				if (!cancelled) setRoleLoading(false);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	useEffect(() => {
 		const t = searchParams.get("tab");
@@ -103,10 +273,30 @@ export default function WorkspaceSettingsPage() {
 	}, [searchParams]);
 
 	useEffect(() => {
+		if (activeTab !== "members") return;
+		const v = searchParams.get("memberView");
+		if (canManageWorkspace && v === "invite" && MEMBER_SUB_VIEWS.includes(v)) {
+			setMembersSubView("invite");
+		} else {
+			setMembersSubView("list");
+		}
+	}, [activeTab, searchParams, canManageWorkspace]);
+
+	// Anggota biasa: hanya tab Anggota (tanpa branding / analitik / langganan)
+	useEffect(() => {
+		if (roleLoading || canManageWorkspace) return;
+		if (activeTab !== "members") setActiveTab("members");
+	}, [roleLoading, canManageWorkspace, activeTab]);
+
+	useEffect(() => {
 		if (activeTab === "members") loadMembers();
+		else if (activeTab === "branding" && canManageWorkspace) loadMembers();
 		if (activeTab === "analytics") loadAnalytics();
-		if (activeTab === "subscription") loadSubscription();
-	}, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
+		if (activeTab === "subscription") {
+			loadSubscription({ refresh: true });
+			loadPaymentTransactions();
+		}
+	}, [activeTab, canManageWorkspace]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const loadAnalytics = async () => {
 		if (analytics) return; // already loaded
@@ -121,12 +311,21 @@ export default function WorkspaceSettingsPage() {
 		}
 	};
 
-	const loadSubscription = async () => {
-		if (subscription) return;
+	const loadSubscription = async ({ refresh = false } = {}) => {
+		if (!refresh && subscription != null) return;
 		setLoadingSubscription(true);
 		try {
-			const res = await workspaceService.getSubscription();
-			setSubscription(res.data.data.subscription);
+			const [subRes, plansRes] = await Promise.all([
+				workspaceService.getSubscription(),
+				pricingPlans.length === 0
+					? onboardingPricingService.list()
+					: Promise.resolve(null),
+			]);
+			setSubscription(subRes.data.data.subscription);
+			if (plansRes) {
+				const items = plansRes?.data?.data;
+				setPricingPlans(Array.isArray(items) ? items : []);
+			}
 		} catch {
 			toast.error("Gagal memuat informasi langganan");
 		} finally {
@@ -134,21 +333,60 @@ export default function WorkspaceSettingsPage() {
 		}
 	};
 
-	const loadMembers = async () => {
-		setLoadingMembers(true);
+	const loadPaymentTransactions = useCallback(async () => {
+		setLoadingPaymentTx(true);
 		try {
-			const res = await workspaceService.listMembers();
-			const list = res.data.data.members || [];
-			setMembers(list);
-			const me = list.find((m) => Number(m.user_id) === Number(user?.id));
-			if (me) setMyRole(me.role);
-			else setMyRole(null);
+			const res = await workspaceService.listPaymentTransactions();
+			setPaymentTransactions(res?.data?.data?.transactions || []);
 		} catch {
-			toast.error("Gagal memuat anggota");
+			toast.error("Gagal memuat riwayat transaksi");
+			setPaymentTransactions([]);
 		} finally {
-			setLoadingMembers(false);
+			setLoadingPaymentTx(false);
 		}
-	};
+	}, []);
+
+	const loadMembers = useCallback(
+		async ({ silent } = {}) => {
+			if (!silent) setLoadingMembers(true);
+			try {
+				const res = await workspaceService.listMembers();
+				const list = res.data.data.members || [];
+				setMembers(list);
+				const me = list.find((m) => Number(m.user_id) === Number(user?.id));
+				if (me) setMyRole(me.role);
+				else setMyRole(null);
+			} catch {
+				if (!silent) toast.error("Gagal memuat anggota");
+			} finally {
+				if (!silent) setLoadingMembers(false);
+			}
+		},
+		[user?.id],
+	);
+
+	useEffect(() => {
+		return on("workspace_members_refresh", (msg) => {
+			if (!workspace?.slug || msg.workspace_slug !== workspace.slug) return;
+			loadMembers({ silent: true });
+		});
+	}, [on, workspace?.slug, loadMembers]);
+
+	useEffect(() => {
+		return on("workspace_subscription_refresh", async (msg) => {
+			if (!workspace?.slug || msg.workspace_slug !== workspace.slug) return;
+			setLoadingSubscription(true);
+			try {
+				const subRes = await workspaceService.getSubscription();
+				setSubscription(subRes.data.data.subscription);
+			} catch {
+				toast.error("Gagal memuat informasi langganan");
+			} finally {
+				setLoadingSubscription(false);
+			}
+			await loadPaymentTransactions();
+		});
+	}, [on, workspace?.slug, loadPaymentTransactions]);
 
 	const handleRoleChange = async (userId, newRole) => {
 		try {
@@ -181,7 +419,7 @@ export default function WorkspaceSettingsPage() {
 
 	const handleLeaveWorkspace = async () => {
 		// Owner cannot leave from backend.
-		if (!myRole || myRole === "owner") return;
+		if (myRoleNorm !== "admin" && myRoleNorm !== "member") return;
 		setLeaveConfirmOpen(false);
 		setLeavingWorkspace(true);
 		try {
@@ -211,11 +449,42 @@ export default function WorkspaceSettingsPage() {
 
 	const filteredMembers = members.filter((m) => {
 		const q = memberSearch.toLowerCase();
-		return (
+		const matchesSearch =
+			!q ||
 			m.username?.toLowerCase().includes(q) ||
-			m.email?.toLowerCase().includes(q)
-		);
+			m.email?.toLowerCase().includes(q);
+		const role = normalizeWorkspaceRole(m.role, { defaultMember: true });
+		const matchesRole = memberRoleFilter === "all" || role === memberRoleFilter;
+		return matchesSearch && matchesRole;
 	});
+
+	const membersPreviewList = useMemo(
+		() =>
+			[...members]
+				.sort((a, b) =>
+					String(a.username || a.email || "").localeCompare(
+						String(b.username || b.email || ""),
+						"id",
+					),
+				)
+				.slice(0, MEMBER_PREVIEW_COUNT),
+		[members],
+	);
+
+	const memberSubTabs = [
+		{
+			id: "list",
+			label: "Kelola anggota",
+			short: "Kelola",
+			Icon: UserCog,
+		},
+		{
+			id: "invite",
+			label: "Undangan",
+			short: "Undangan",
+			Icon: UserPlus,
+		},
+	];
 
 	// Branding handlers
 	const handleChange = (e) => {
@@ -267,20 +536,95 @@ export default function WorkspaceSettingsPage() {
 		}
 	};
 
+	useEffect(() => {
+		if (workspace?.invite_token) setInvite(workspace.invite_token);
+	}, [workspace?.invite_token]);
+
+	useEffect(() => {
+		if (
+			activeTab !== "members" ||
+			membersSubView !== "invite" ||
+			!canManageWorkspace
+		)
+			return;
+		if (invite) return;
+		let cancelled = false;
+		(async () => {
+			try {
+				const res = await workspaceService.getInvite();
+				const t = res?.data?.data?.invite_token;
+				if (!cancelled && t) setInvite(t);
+			} catch {
+				/* ignore */
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [activeTab, membersSubView, canManageWorkspace, invite]);
+
 	const inviteLink = `${window.location.origin}/onboarding?invite=${invite}`;
+
+	const handleCopyInviteLink = async () => {
+		if (!invite) {
+			toast.error("Belum ada token undangan");
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(inviteLink);
+			toast.success("Link undangan disalin");
+		} catch {
+			toast.error("Gagal menyalin link");
+		}
+	};
+
+	const goMembersSubView = (sub) => {
+		if (!MEMBER_SUB_VIEWS.includes(sub)) return;
+		if (!canManageWorkspace) {
+			setMembersSubView("list");
+			return;
+		}
+		setMembersSubView(sub);
+		setSearchParams(
+			(prev) => {
+				const p = new URLSearchParams(prev);
+				p.set("tab", "members");
+				if (sub === "list") p.delete("memberView");
+				else p.set("memberView", sub);
+				return p;
+			},
+			{ replace: true },
+		);
+	};
+
+	const goToMembersTab = useCallback(() => {
+		setActiveTab("members");
+		setMembersSubView("list");
+		setSearchParams(
+			(prev) => {
+				const p = new URLSearchParams(prev);
+				p.set("tab", "members");
+				p.delete("memberView");
+				return p;
+			},
+			{ replace: true },
+		);
+	}, [setSearchParams]);
+
+	const membersTabOnly = useMemo(
+		() => ALL_WORKSPACE_TAB_DEFS.filter((t) => t.id === "members"),
+		[],
+	);
+	const visibleTabs = useMemo(() => {
+		if (roleLoading || !canManageWorkspace) return membersTabOnly;
+		return ALL_WORKSPACE_TAB_DEFS;
+	}, [roleLoading, canManageWorkspace, membersTabOnly]);
 
 	const resolvedLogo = logoPreview
 		? logoPreview.startsWith("blob:") || logoPreview.startsWith("http")
 			? logoPreview
 			: `${API_BASE}${logoPreview}`
 		: null;
-
-	const tabs = [
-		{ id: "branding", label: "Branding", icon: Building2 },
-		{ id: "members", label: "Anggota", icon: Users },
-		{ id: "analytics", label: "Analitik", icon: BarChart2 },
-		{ id: "subscription", label: "Langganan", icon: CreditCard },
-	];
 
 	return (
 		<MainShell>
@@ -310,7 +654,7 @@ export default function WorkspaceSettingsPage() {
 						role='tablist'
 						aria-label='Bagian pengaturan'
 					>
-						{tabs.map((tab) => {
+						{visibleTabs.map((tab) => {
 							const Icon = tab.icon;
 							return (
 								<button
@@ -318,7 +662,18 @@ export default function WorkspaceSettingsPage() {
 									key={tab.id}
 									role='tab'
 									aria-selected={activeTab === tab.id}
-									onClick={() => setActiveTab(tab.id)}
+									onClick={() => {
+										setActiveTab(tab.id);
+										setSearchParams(
+											(prev) => {
+												const p = new URLSearchParams(prev);
+												p.set("tab", tab.id);
+												if (tab.id !== "members") p.delete("memberView");
+												return p;
+											},
+											{ replace: true },
+										);
+									}}
 									className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors ${focusRing} rounded-t-lg ${
 										activeTab === tab.id
 											? "border-indigo-600 text-indigo-600"
@@ -505,55 +860,79 @@ export default function WorkspaceSettingsPage() {
 								</div>
 							</section>
 
-							{/* Invite link */}
-							<section className={`${cardClean} p-4 sm:p-6 space-y-4`}>
-								<div className='flex items-center gap-3'>
-									<div className='w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center'>
-										<Link2 className='w-5 h-5 text-emerald-600' />
+							{canManageWorkspace && (
+								<section className={`${cardClean} p-4 sm:p-6`}>
+									<div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 mb-4'>
+										<div className='flex items-center gap-3 min-w-0'>
+											<div className='w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0'>
+												<Users className='w-5 h-5 text-indigo-600' />
+											</div>
+											<div className='min-w-0'>
+												<h2 className='text-sm font-semibold text-slate-800'>
+													Anggota workspace
+												</h2>
+												<p className='text-xs text-slate-400'>
+													{members.length} orang · jadikan admin atau cabut
+													akses
+												</p>
+											</div>
+										</div>
+										<Button
+											type='button'
+											variant='outline'
+											size='sm'
+											onClick={goToMembersTab}
+											className='w-full shrink-0 sm:w-auto'
+										>
+											Kelola semua
+										</Button>
 									</div>
-									<div>
-										<h2 className='text-sm font-semibold text-slate-800'>
-											Link Invite
-										</h2>
-										<p className='text-xs text-slate-400'>
-											Bagikan link ini agar anggota baru bisa bergabung.
+
+									{loadingMembers ? (
+										<div className='flex justify-center py-8'>
+											<div className='w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin' />
+										</div>
+									) : membersPreviewList.length === 0 ? (
+										<p className='text-sm text-slate-400 text-center py-6'>
+											Belum ada anggota
 										</p>
-									</div>
-								</div>
+									) : (
+										<div className='space-y-1 rounded-xl border border-slate-100 bg-slate-50/50 p-1'>
+											{membersPreviewList.map((m) => (
+												<WorkspaceMemberRow
+													key={m.user_id}
+													member={m}
+													currentUserId={user?.id}
+													myRoleNorm={myRoleNorm}
+													isSystemAdminUser={isSystemAdminUser}
+													onPromoteAdmin={(userId) =>
+														handleRoleChange(userId, "admin")
+													}
+													onDemoteMember={(userId) =>
+														handleRoleChange(userId, "member")
+													}
+													onRevokeAccess={(userId) => setRemovingId(userId)}
+												/>
+											))}
+										</div>
+									)}
 
-								<div className='flex flex-col gap-2 sm:flex-row sm:items-stretch'>
-									<input
-										readOnly
-										value={inviteLink}
-										onClick={(e) => e.target.select()}
-										className='min-w-0 flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm text-slate-600 bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer font-mono'
-									/>
-									<button
-										type='button'
-										onClick={() => {
-											navigator.clipboard.writeText(inviteLink);
-											toast.success("Link disalin!");
-										}}
-										className={`shrink-0 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors font-medium sm:min-w-[5.5rem] ${focusRing}`}
-									>
-										Salin
-									</button>
-								</div>
-
-								<Button
-									variant='outline'
-									size='sm'
-									onClick={handleRegenerateInvite}
-									disabled={regenerating}
-									className='flex items-center gap-2 text-rose-600 border-rose-200 hover:bg-rose-50'
-								>
-									<RefreshCw className='w-4 h-4' />
-									{regenerating ? "Memperbarui..." : "Buat Link Baru"}
-								</Button>
-								<p className='text-xs text-slate-400'>
-									Membuat link baru akan menonaktifkan link lama.
-								</p>
-							</section>
+									{members.length > MEMBER_PREVIEW_COUNT && (
+										<p className='text-xs text-slate-400 mt-3 text-center'>
+											Menampilkan {MEMBER_PREVIEW_COUNT} dari {members.length}{" "}
+											anggota.{" "}
+											<button
+												type='button'
+												onClick={goToMembersTab}
+												className={`font-medium text-indigo-600 hover:text-indigo-700 ${focusRing} rounded`}
+											>
+												Buka tab Anggota
+											</button>{" "}
+											untuk daftar lengkap.
+										</p>
+									)}
+								</section>
+							)}
 						</>
 					)}
 
@@ -573,7 +952,7 @@ export default function WorkspaceSettingsPage() {
 										</p>
 									</div>
 								</div>
-								{myRole && myRole !== "owner" && (
+								{myRoleNorm && myRoleNorm !== "owner" && (
 									<Button
 										type='button'
 										variant='secondary'
@@ -587,115 +966,155 @@ export default function WorkspaceSettingsPage() {
 								)}
 							</div>
 
-							{/* Search */}
-							<div className='relative mb-4'>
-								<Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400' />
-								<input
-									type='text'
-									placeholder='Cari anggota...'
-									value={memberSearch}
-									onChange={(e) => setMemberSearch(e.target.value)}
-									className='w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 bg-slate-50'
-								/>
-							</div>
-
-							{loadingMembers ? (
-								<div className='flex justify-center py-8'>
-									<div className='w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin' />
-								</div>
-							) : (
-								<div className='space-y-2'>
-									{filteredMembers.map((m) => {
-										const isMe = Number(m.user_id) === Number(user?.id);
-										const isSuperAdmin = !!user?.is_system_admin;
-										const isOwner = m.role === "owner";
-										const canChangeRole =
-											(isSuperAdmin || myRole === "owner") && !isMe && !isOwner;
-										const canRemove =
-											(isSuperAdmin ||
-												myRole === "owner" ||
-												myRole === "admin") &&
-											!isMe &&
-											!isOwner;
-
+							{canManageWorkspace && (
+								<div
+									className='flex rounded-xl bg-slate-100/90 p-1 gap-1 mb-5'
+									role='tablist'
+									aria-label='Sub bagian anggota'
+								>
+									{memberSubTabs.map(({ id, label, short, Icon }) => {
+										const active = membersSubView === id;
 										return (
-											<div
-												key={m.user_id}
-												className='flex flex-col gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors sm:flex-row sm:items-center sm:gap-3'
+											<button
+												key={id}
+												type='button'
+												role='tab'
+												aria-selected={active}
+												onClick={() => goMembersSubView(id)}
+												className={`flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-xs sm:text-sm font-medium transition-colors ${focusRing} ${
+													active
+														? "bg-white text-indigo-700 shadow-sm"
+														: "text-slate-600 hover:text-slate-800"
+												}`}
 											>
-												<div className='flex items-center gap-3 min-w-0 flex-1'>
-													<Avatar name={m.username || m.email} size='md' />
-													<div className='min-w-0 flex-1'>
-														<div className='flex items-center gap-2 flex-wrap'>
-															<p className='text-sm font-medium text-slate-800 truncate'>
-																{m.username || m.email}
-															</p>
-															{isMe && (
-																<span className='text-xs text-slate-400 shrink-0'>
-																	(Kamu)
-																</span>
-															)}
-														</div>
-														<p className='text-xs text-slate-400 truncate'>
-															{m.email}
-														</p>
-													</div>
-												</div>
-
-												<div className='flex items-center justify-end gap-2 flex-wrap border-t border-slate-100 pt-3 sm:border-t-0 sm:pt-0 sm:shrink-0'>
-													{isOwner ? (
-														<span className='flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-700'>
-															<Crown className='w-3 h-3' />
-															Pemilik
-														</span>
-													) : canChangeRole ? (
-														<select
-															value={m.role}
-															onChange={(e) =>
-																handleRoleChange(m.user_id, e.target.value)
-															}
-															className='text-xs border border-slate-200 rounded-lg px-2 py-1 text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500'
-														>
-															<option value='admin'>Admin</option>
-															<option value='member'>Anggota</option>
-														</select>
-													) : (
-														<span
-															className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
-																ROLE_COLORS[m.role]
-															}`}
-														>
-															{m.role === "admin" && (
-																<Shield className='w-3 h-3' />
-															)}
-															{ROLE_LABELS[m.role] || m.role}
-														</span>
-													)}
-
-													{canRemove && (
-														<button
-															type='button'
-															onClick={() => setRemovingId(m.user_id)}
-															aria-label={`Hapus ${
-																m.username || m.email
-															} dari workspace`}
-															className={`p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors ${focusRing}`}
-														>
-															<Trash2 className='w-4 h-4' />
-														</button>
-													)}
-												</div>
-											</div>
+												<Icon className='w-4 h-4 shrink-0' />
+												<span className='truncate sm:hidden'>{short}</span>
+												<span className='truncate hidden sm:inline'>
+													{label}
+												</span>
+											</button>
 										);
 									})}
-									{filteredMembers.length === 0 && (
-										<p className='text-sm text-slate-400 text-center py-6'>
-											{memberSearch
-												? "Anggota tidak ditemukan"
-												: "Belum ada anggota"}
-										</p>
-									)}
 								</div>
+							)}
+
+							{canManageWorkspace && membersSubView === "invite" ? (
+								<div className='space-y-4'>
+									<div className='rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 space-y-3'>
+										<div className='flex items-start gap-2'>
+											<Link2 className='w-4 h-4 text-indigo-600 shrink-0 mt-0.5' />
+											<div className='min-w-0 flex-1'>
+												<p className='text-sm font-medium text-slate-800'>
+													Link undangan
+												</p>
+												<p className='text-xs text-slate-500 mt-0.5'>
+													Bagikan ke calon anggota. Mereka akan bergabung lewat
+													halaman onboarding.
+												</p>
+											</div>
+										</div>
+										<div className='flex flex-col gap-2 sm:flex-row sm:items-stretch'>
+											<input
+												readOnly
+												value={invite ? inviteLink : "Memuat token…"}
+												className='flex-1 min-w-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs sm:text-sm font-mono text-slate-700'
+											/>
+											<div className='flex gap-2 shrink-0'>
+												<Button
+													type='button'
+													variant='outline'
+													size='sm'
+													onClick={handleCopyInviteLink}
+													disabled={!invite}
+													className='flex-1 sm:flex-none items-center justify-center gap-1.5'
+												>
+													<Copy className='w-4 h-4' />
+													Salin
+												</Button>
+												<Button
+													type='button'
+													variant='secondary'
+													size='sm'
+													loading={regenerating}
+													disabled={regenerating}
+													onClick={handleRegenerateInvite}
+													className='flex-1 sm:flex-none items-center justify-center gap-1.5'
+												>
+													<RefreshCw className='w-4 h-4' />
+													Baru
+												</Button>
+											</div>
+										</div>
+									</div>
+								</div>
+							) : (
+								<>
+									{/* Search */}
+									<div className='relative mb-3'>
+										<Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400' />
+										<input
+											type='text'
+											placeholder='Cari anggota...'
+											value={memberSearch}
+											onChange={(e) => setMemberSearch(e.target.value)}
+											className='w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 bg-slate-50'
+										/>
+									</div>
+
+									<div className='flex flex-wrap gap-2 mb-4'>
+										{[
+											{ id: "all", label: "Semua" },
+											{ id: "owner", label: "Pemilik" },
+											{ id: "admin", label: "Admin" },
+											{ id: "member", label: "Anggota" },
+										].map(({ id, label }) => (
+											<button
+												key={id}
+												type='button'
+												onClick={() => setMemberRoleFilter(id)}
+												className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-colors ${focusRing} ${
+													memberRoleFilter === id
+														? "border-indigo-600 bg-indigo-50 text-indigo-800"
+														: "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+												}`}
+											>
+												{label}
+											</button>
+										))}
+									</div>
+
+									{loadingMembers ? (
+										<div className='flex justify-center py-8'>
+											<div className='w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin' />
+										</div>
+									) : (
+										<div className='space-y-2'>
+											{filteredMembers.map((m) => (
+												<WorkspaceMemberRow
+													key={m.user_id}
+													member={m}
+													currentUserId={user?.id}
+													myRoleNorm={myRoleNorm}
+													isSystemAdminUser={isSystemAdminUser}
+													onPromoteAdmin={(userId) =>
+														handleRoleChange(userId, "admin")
+													}
+													onDemoteMember={(userId) =>
+														handleRoleChange(userId, "member")
+													}
+													onRevokeAccess={(userId) => setRemovingId(userId)}
+												/>
+											))}
+											{filteredMembers.length === 0 && (
+												<p className='text-sm text-slate-400 text-center py-6'>
+													{memberSearch || memberRoleFilter !== "all"
+														? "Anggota tidak ditemukan"
+														: "Belum ada anggota"}
+												</p>
+											)}
+										</div>
+									)}
+								</>
 							)}
 						</section>
 					)}
@@ -798,110 +1217,236 @@ export default function WorkspaceSettingsPage() {
 								)}
 							</section>
 
-							{/* Plan comparison */}
 							<section className={`${cardClean} p-4 sm:p-6`}>
-								<h3 className='text-sm font-semibold text-slate-800 mb-4'>
-									Perbandingan Paket
-								</h3>
-								<div className='grid w-full grid-cols-1 gap-4'>
-									{[
-										{
-											id: "free",
-											name: "Free",
-											price: "Gratis",
-											features: [
-												"5 anggota",
-												"100 MB storage",
-												"Basic chat",
-												"Kanban board",
-											],
-										},
-										{
-											id: "pro",
-											name: "Pro",
-											price: "Hubungi kami",
-											features: [
-												"Anggota tak terbatas",
-												"10 GB storage",
-												"Semua fitur",
-												"Prioritas support",
-											],
-											highlight: true,
-										},
-										{
-											id: "enterprise",
-											name: "Enterprise",
-											price: "Custom",
-											features: [
-												"Custom anggota",
-												"Storage custom",
-												"Fitur custom",
-												"Dedicated support",
-											],
-										},
-									].map((plan) => (
-										<div
-											key={plan.id}
-											className={`p-4 rounded-2xl border-2 transition-all ${
-												subscription?.plan === plan.id
-													? "border-indigo-500 bg-indigo-50/50"
-													: plan.highlight
-													? "border-indigo-200 bg-white"
-													: "border-slate-200 bg-white"
-											}`}
-										>
-											{subscription?.plan === plan.id && (
-												<span className='text-xs font-semibold text-indigo-600 flex items-center gap-1 mb-2'>
-													<CheckCircle2 className='w-3.5 h-3.5' />
-													Paket kamu
-												</span>
-											)}
-											<p className='font-bold text-slate-800'>{plan.name}</p>
-											<p className='text-xs text-slate-500 mb-3'>
-												{plan.price}
-											</p>
-											<ul className='space-y-1.5'>
-												{plan.features.map((f) => (
-													<li
-														key={f}
-														className='flex items-start gap-1.5 text-xs text-slate-600'
+								<div className='flex items-center gap-3 mb-4'>
+									<div className='w-9 h-9 bg-slate-100 rounded-xl flex items-center justify-center shrink-0'>
+										<History className='w-5 h-5 text-slate-600' />
+									</div>
+									<div className='min-w-0'>
+										<h2 className='text-sm font-semibold text-slate-800'>
+											Riwayat transaksi
+										</h2>
+										<p className='text-xs text-slate-400'>
+											Midtrans otomatis disetujui setelah pembayaran sukses;
+											manual menunggu admin.
+										</p>
+									</div>
+								</div>
+								{loadingPaymentTx ? (
+									<div className='flex justify-center py-8'>
+										<div className='w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin' />
+									</div>
+								) : paymentTransactions.length === 0 ? (
+									<p className='text-sm text-slate-400 text-center py-4'>
+										Belum ada transaksi.
+									</p>
+								) : (
+									<div className='overflow-x-auto rounded-xl border border-slate-100'>
+										<table className='w-full text-xs sm:text-sm text-left min-w-[640px]'>
+											<thead>
+												<tr className='border-b border-slate-200 bg-slate-50 text-slate-500'>
+													<th className='px-3 py-2 font-medium'>Order</th>
+													<th className='px-3 py-2 font-medium'>Paket</th>
+													<th className='px-3 py-2 font-medium'>Nominal</th>
+													<th className='px-3 py-2 font-medium'>Saluran</th>
+													<th className='px-3 py-2 font-medium'>Bukti / bank</th>
+													<th className='px-3 py-2 font-medium'>Status</th>
+												</tr>
+											</thead>
+											<tbody>
+												{paymentTransactions.map((t) => (
+													<tr
+														key={t.id}
+														className='border-b border-slate-100 last:border-0'
 													>
-														<CheckCircle2 className='w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5' />
-														{f}
-													</li>
+														<td className='px-3 py-2 font-mono text-[10px] sm:text-xs text-slate-500 max-w-[120px] truncate'>
+															{t.order_id}
+														</td>
+														<td className='px-3 py-2 capitalize'>
+															{t.plan_key}
+														</td>
+														<td className='px-3 py-2'>
+															Rp{" "}
+															{new Intl.NumberFormat("id-ID").format(
+																t.amount_idr,
+															)}
+														</td>
+														<td className='px-3 py-2'>
+															{t.channel === "midtrans" ? "Midtrans" : "Manual"}
+														</td>
+														<td className='px-3 py-2 text-slate-600 max-w-[200px]'>
+															{t.channel === "manual" &&
+															(t.manual_proof_image_url ||
+																t.manual_payer_bank_name) ? (
+																<div className='space-y-0.5'>
+																	{t.manual_payer_bank_name && (
+																		<p className='text-[10px] sm:text-xs truncate'>
+																			{t.manual_payer_bank_name}
+																		</p>
+																	)}
+																	{t.manual_payer_account_digits && (
+																		<p
+																			className='font-mono text-[10px] sm:text-xs text-slate-500 truncate'
+																			title={t.manual_payer_account_digits}
+																		>
+																			Rek: {t.manual_payer_account_digits}
+																		</p>
+																	)}
+																	{t.manual_proof_image_url && (
+																		<a
+																			href={`${API_BASE}${t.manual_proof_image_url}`}
+																			target='_blank'
+																			rel='noopener noreferrer'
+																			className={`text-indigo-600 hover:underline text-[10px] sm:text-xs font-medium ${focusRing} rounded`}
+																		>
+																			Lihat bukti
+																		</a>
+																	)}
+																</div>
+															) : (
+																<span className='text-slate-400'>—</span>
+															)}
+														</td>
+														<td className='px-3 py-2'>
+															<span
+																className={`font-medium px-2 py-0.5 rounded-full text-[10px] sm:text-xs ${
+																	t.status === "pending"
+																		? "bg-amber-100 text-amber-800"
+																		: t.status === "approved"
+																		? "bg-emerald-100 text-emerald-800"
+																		: "bg-slate-100 text-slate-600"
+																}`}
+															>
+																{t.status === "pending"
+																	? "Menunggu"
+																	: t.status === "approved"
+																	? "Disetujui"
+																	: t.status === "rejected"
+																	? "Ditolak"
+																	: t.status === "expired"
+																	? "Kedaluwarsa"
+																	: t.status === "canceled"
+																	? "Dibatalkan"
+																	: t.status}
+															</span>
+														</td>
+													</tr>
 												))}
-											</ul>
-											{plan.id !== "free" && subscription?.plan !== plan.id && (
-												<button
-													type='button'
-													onClick={() =>
-														navigate(
-															`/payment?plan=${encodeURIComponent(plan.id)}`,
-														)
-													}
-													className={`mt-4 w-full py-2 rounded-xl text-xs font-medium transition-colors ${focusRing} ${
-														plan.highlight
-															? "bg-indigo-600 text-white hover:bg-indigo-700"
-															: "border border-slate-200 text-slate-700 hover:bg-slate-50"
+											</tbody>
+										</table>
+									</div>
+								)}
+							</section>
+
+							{/* Plan comparison — from onboarding pricing API */}
+							{pricingPlans.length > 0 && (
+								<section className={`${cardClean} p-4 sm:p-6`}>
+									<h3 className='text-sm font-semibold text-slate-800 mb-4'>
+										Perbandingan Paket
+									</h3>
+									<div className='grid w-full grid-cols-1 gap-4'>
+										{pricingPlans.map((plan, idx) => {
+											const isCurrent = subscription?.plan === plan.key;
+											const isFree =
+												plan.price_idr === 0 || plan.key === "free";
+											const isHighlight = !isFree && idx === 1;
+											const priceLabel = isFree
+												? "Gratis"
+												: plan.price_idr > 0
+												? `Rp ${new Intl.NumberFormat("id-ID").format(
+														plan.price_idr,
+												  )}${plan.interval ? ` / ${plan.interval}` : ""}`
+												: "Hubungi kami";
+											return (
+												<div
+													key={plan.key}
+													className={`p-4 rounded-2xl border-2 transition-all ${
+														isCurrent
+															? "border-indigo-500 bg-indigo-50/50"
+															: isHighlight
+															? "border-indigo-200 bg-white"
+															: "border-slate-200 bg-white"
 													}`}
 												>
-													Upgrade
-												</button>
-											)}
-										</div>
-									))}
-								</div>
-								<p className='text-xs text-slate-400 mt-4 text-center'>
-									Tombol Upgrade membuka halaman detail pembayaran. Pertanyaan
-									billing:{" "}
-									<a
-										href='mailto:sales@zync.chat'
-										className='text-indigo-600 hover:underline'
-									>
-										sales@zync.chat
-									</a>
-								</p>
-							</section>
+													{isCurrent && (
+														<span className='text-xs font-semibold text-indigo-600 flex items-center gap-1 mb-2'>
+															<CheckCircle2 className='w-3.5 h-3.5' />
+															Paket kamu
+														</span>
+													)}
+													<p className='font-bold text-slate-800'>
+														{plan.title}
+													</p>
+													{plan.description && (
+														<p className='text-xs text-slate-500 mt-0.5'>
+															{plan.description}
+														</p>
+													)}
+													<p className='text-xs font-medium text-indigo-600 mt-1 mb-3'>
+														{priceLabel}
+													</p>
+													{Array.isArray(plan.features) &&
+														plan.features.length > 0 && (
+															<ul className='space-y-1.5'>
+																{plan.features.map((f) => (
+																	<li
+																		key={f}
+																		className='flex items-start gap-1.5 text-xs text-slate-600'
+																	>
+																		<CheckCircle2 className='w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5' />
+																		{f}
+																	</li>
+																))}
+															</ul>
+														)}
+													{!isFree && !isCurrent && (
+														<div className='mt-4 space-y-2'>
+															<button
+																type='button'
+																onClick={() =>
+																	navigate(
+																		`/payment?plan=${encodeURIComponent(plan.key)}&channel=midtrans`,
+																	)
+																}
+																className={`w-full py-2 rounded-xl text-xs font-medium transition-colors ${focusRing} ${
+																	isHighlight
+																		? "bg-indigo-600 text-white hover:bg-indigo-700"
+																		: "border border-slate-200 text-slate-700 hover:bg-slate-50"
+																}`}
+															>
+																Upgrade (Midtrans)
+															</button>
+															{canManageWorkspace && (
+																<button
+																	type='button'
+																	onClick={() =>
+																		navigate(
+																			`/payment?plan=${encodeURIComponent(plan.key)}&channel=manual`,
+																		)
+																	}
+																	className={`w-full py-2 rounded-xl text-xs font-medium border border-dashed border-slate-300 text-slate-600 hover:bg-slate-50 transition-colors ${focusRing}`}
+																>
+																	Ajukan bayar manual (transfer)
+																</button>
+															)}
+														</div>
+													)}
+												</div>
+											);
+										})}
+									</div>
+									<p className='text-xs text-slate-400 mt-4 text-center'>
+										Upgrade dan bayar manual membuka halaman detail pembayaran
+										(form manual & Midtrans di sana). Pertanyaan billing:{" "}
+										<a
+											href='mailto:sales@zync.chat'
+											className='text-indigo-600 hover:underline'
+										>
+											sales@zync.chat
+										</a>
+									</p>
+								</section>
+							)}
 						</div>
 					)}
 				</div>
@@ -911,8 +1456,9 @@ export default function WorkspaceSettingsPage() {
 				isOpen={!!removingId}
 				onClose={() => setRemovingId(null)}
 				onConfirm={handleRemoveMember}
-				title='Hapus Anggota'
-				message='Yakin ingin menghapus anggota ini dari workspace?'
+				title='Cabut akses'
+				confirmLabel='Cabut akses'
+				message='Anggota ini akan dikeluarkan dari workspace dan tidak bisa mengakses chat, file, atau board di sini.'
 			/>
 			<ConfirmModal
 				isOpen={leaveConfirmOpen}

@@ -3,9 +3,10 @@ package models
 import "time"
 
 const (
-	NotificationTypeMention  = "mention"
-	NotificationTypeSystem   = "system"
-	NotificationTypeDeadline = "deadline"
+	NotificationTypeMention     = "mention"
+	NotificationTypeSystem      = "system"
+	NotificationTypeDeadline    = "deadline"
+	NotificationTypeTaskAssigned = "task_assigned"
 )
 
 // Notification stores in-app notifications (e.g. @mentions).

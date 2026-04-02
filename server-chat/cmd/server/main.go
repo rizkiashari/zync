@@ -79,8 +79,10 @@ func main() {
 	taskRepo := repository.NewTaskRepository(db)
 	recentRepo := repository.NewRecentTaskRepository(db)
 	bookmarkRepo := repository.NewBookmarkRepository(db)
+	pushSubRepo := repository.NewPushSubscriptionRepository(db)
 	onboardingPricingRepo := repository.NewOnboardingPricingRepository(db)
 	subscriptionRepo := repository.NewSubscriptionRepository(db)
+	paymentTxnRepo := repository.NewPaymentTransactionRepository(db)
 	mailSvc := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
 	h := hub.New()
@@ -99,9 +101,11 @@ func main() {
 		RefreshTokens: rtRepo,
 		Notifications: notifRepo,
 		Tasks:         taskRepo,
-		Bookmarks:     bookmarkRepo,
-		Subscriptions: subscriptionRepo,
-		Mailer:        mailSvc,
+		Bookmarks:         bookmarkRepo,
+		PushSubscriptions: pushSubRepo,
+		Subscriptions:       subscriptionRepo,
+		PaymentTransactions: paymentTxnRepo,
+		Mailer:              mailSvc,
 		OnboardingPricingPlans: onboardingPricingRepo,
 		Auth:          jwtSvc,
 		Config:        cfg,

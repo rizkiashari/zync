@@ -1,10 +1,22 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { notificationService } from '../services/notificationService';
 
+function unreadFromItems(items) {
+  return items.filter((n) => !n.read_at).length;
+}
+
 export const fetchNotifications = createAsyncThunk('notifications/fetch', async (_, { rejectWithValue }) => {
   try {
     const res = await notificationService.list(50);
-    return res.data.data || [];
+    const d = res.data?.data ?? {};
+    const items = Array.isArray(d.notifications)
+      ? d.notifications
+      : Array.isArray(d)
+        ? d
+        : [];
+    const unreadCount =
+      typeof d.unread_count === 'number' ? d.unread_count : unreadFromItems(items);
+    return { items, unreadCount };
   } catch (err) {
     return rejectWithValue(err.response?.data?.error?.message || 'Failed to load notifications');
   }
@@ -45,18 +57,19 @@ const notificationsSlice = createSlice({
       .addCase(fetchNotifications.pending, (state) => { state.status = 'loading'; })
       .addCase(fetchNotifications.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        state.items = action.payload;
-        state.unreadCount = action.payload.filter(n => !n.is_read).length;
+        state.items = action.payload.items;
+        state.unreadCount = action.payload.unreadCount;
       })
       .addCase(fetchNotifications.rejected, (state) => { state.status = 'failed'; })
       .addCase(markAllNotificationsRead.fulfilled, (state) => {
-        state.items = state.items.map(n => ({ ...n, is_read: true }));
+        const now = new Date().toISOString();
+        state.items = state.items.map((n) => ({ ...n, read_at: n.read_at || now }));
         state.unreadCount = 0;
       })
       .addCase(markNotificationRead.fulfilled, (state, action) => {
-        const item = state.items.find(n => n.id === action.payload);
-        if (item && !item.is_read) {
-          item.is_read = true;
+        const item = state.items.find((n) => n.id === action.payload);
+        if (item && !item.read_at) {
+          item.read_at = new Date().toISOString();
           state.unreadCount = Math.max(0, state.unreadCount - 1);
         }
       });

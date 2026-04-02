@@ -181,6 +181,78 @@ func (r *WorkspaceRepository) RemoveMember(workspaceID, userID uint) error {
 		Delete(&models.WorkspaceMember{}).Error
 }
 
+// DeleteWorkspace permanently removes a workspace and all tenant-scoped data (rooms, messages, tasks, etc.).
+func (r *WorkspaceRepository) DeleteWorkspace(workspaceID uint) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("workspace_id = ?", workspaceID).Delete(&models.RecentTask{}).Error; err != nil {
+			return err
+		}
+
+		var roomIDs []uint
+		if err := tx.Model(&models.Room{}).Where("workspace_id = ?", workspaceID).Pluck("id", &roomIDs).Error; err != nil {
+			return err
+		}
+
+		if len(roomIDs) > 0 {
+			if err := tx.Where("room_id IN ?", roomIDs).Delete(&models.MessageBookmark{}).Error; err != nil {
+				return err
+			}
+			msgSub := tx.Model(&models.Message{}).Select("id").Where("room_id IN ?", roomIDs)
+			if err := tx.Where("message_id IN (?)", msgSub).Delete(&models.MessageReaction{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("room_id IN ?", roomIDs).Delete(&models.Message{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("room_id IN ?", roomIDs).Delete(&models.Notification{}).Error; err != nil {
+				return err
+			}
+
+			var boardIDs []uint
+			if err := tx.Model(&models.TaskBoard{}).Where("room_id IN ?", roomIDs).Pluck("id", &boardIDs).Error; err != nil {
+				return err
+			}
+			if len(boardIDs) > 0 {
+				var taskIDs []uint
+				if err := tx.Model(&models.Task{}).Where("board_id IN ?", boardIDs).Pluck("id", &taskIDs).Error; err != nil {
+					return err
+				}
+				if len(taskIDs) > 0 {
+					if err := tx.Where("task_id IN ?", taskIDs).Delete(&models.TaskAssignee{}).Error; err != nil {
+						return err
+					}
+				}
+				if err := tx.Where("board_id IN ?", boardIDs).Delete(&models.Task{}).Error; err != nil {
+					return err
+				}
+				if err := tx.Where("board_id IN ?", boardIDs).Delete(&models.TaskColumn{}).Error; err != nil {
+					return err
+				}
+			}
+			if err := tx.Where("room_id IN ?", roomIDs).Delete(&models.TaskBoard{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("room_id IN ?", roomIDs).Delete(&models.RoomRead{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("room_id IN ?", roomIDs).Delete(&models.RoomMember{}).Error; err != nil {
+				return err
+			}
+			if err := tx.Where("id IN ?", roomIDs).Delete(&models.Room{}).Error; err != nil {
+				return err
+			}
+		}
+
+		if err := tx.Where("workspace_id = ?", workspaceID).Delete(&models.WorkspaceMember{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("workspace_id = ?", workspaceID).Delete(&models.WorkspaceSubscription{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&models.Workspace{}, workspaceID).Error
+	})
+}
+
 // LeaveWorkspace removes the user from the workspace and drops their room memberships, read cursors, and recent-task shortcuts for that tenant (transactional).
 func (r *WorkspaceRepository) LeaveWorkspace(workspaceID, userID uint, rooms *RoomRepository) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {

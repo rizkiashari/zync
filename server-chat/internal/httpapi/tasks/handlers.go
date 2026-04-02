@@ -1,6 +1,7 @@
 package tasks
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"zync-server/internal/httpapi/middleware"
 	"zync-server/internal/httpapi/response"
 	"zync-server/internal/mailer"
+	"zync-server/internal/models"
 	"zync-server/internal/repository"
 )
 
@@ -384,7 +386,7 @@ func handleDeleteTask(h *hub.Hub, tasksRepo *repository.TaskRepository, roomsRep
 	}
 }
 
-func handleAddAssignee(h *hub.Hub, tasksRepo *repository.TaskRepository, roomsRepo *repository.RoomRepository, usersRepo *repository.UserRepository, mailSvc *mailer.Mailer) gin.HandlerFunc {
+func handleAddAssignee(h *hub.Hub, tasksRepo *repository.TaskRepository, roomsRepo *repository.RoomRepository, usersRepo *repository.UserRepository, mailSvc *mailer.Mailer, notifRepo *repository.NotificationRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, ok := middleware.UserID(c)
 		if !ok {
@@ -421,6 +423,29 @@ func handleAddAssignee(h *hub.Hub, tasksRepo *repository.TaskRepository, roomsRe
 		}
 		task, _ := tasksRepo.GetTaskWithDetails(taskID)
 		_ = h.BroadcastToRoom(boardRoomKey(roomID), gin.H{"type": "task_updated", "task": task})
+
+		taskTitle := ""
+		if task != nil {
+			taskTitle = task.Title
+		}
+		if req.UserID != userID {
+			body := "Kamu ditugaskan pada sebuah task"
+			if taskTitle != "" {
+				body = fmt.Sprintf("Kamu ditugaskan pada task \"%s\"", taskTitle)
+			}
+			if notifRepo != nil {
+				_ = notifRepo.CreateIfNotDND(req.UserID, models.NotificationTypeTaskAssigned, roomID, 0, userID, body)
+			}
+			if h != nil {
+				_ = h.NotifyUser(req.UserID, map[string]any{
+					"type":    "task_assigned",
+					"task_id": taskID,
+					"room_id": roomID,
+					"title":   taskTitle,
+					"body":    body,
+				})
+			}
+		}
 
 		// Send email notification to assignee (non-blocking)
 		if mailSvc != nil && usersRepo != nil {

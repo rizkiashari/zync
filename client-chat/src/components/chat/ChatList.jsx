@@ -5,25 +5,11 @@ import Avatar from "../ui/Avatar";
 import Badge from "../ui/Badge";
 import { useSocket } from "../../context/SocketContext";
 import { Users } from "lucide-react";
-
-const formatTime = (dateStr) => {
-	if (!dateStr) return "";
-	const d = new Date(dateStr);
-	const now = new Date();
-	const diff = now - d;
-	const min = Math.floor(diff / 60000);
-	const hr = Math.floor(diff / 3600000);
-	const day = Math.floor(diff / 86400000);
-	if (min < 1) return "Baru saja";
-	if (min < 60) return `${min} mnt`;
-	if (hr < 24)
-		return d.toLocaleTimeString("id-ID", {
-			hour: "2-digit",
-			minute: "2-digit",
-		});
-	if (day === 1) return "Kemarin";
-	return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
-};
+import { formatChatListTime } from "../../lib/chatTime";
+import {
+	chatListMessageSearchText,
+	formatChatListMessagePreview,
+} from "../../lib/messagePreview";
 
 const ChatListItem = ({ room, isActive, onClick }) => {
 	const { onlineUsers } = useSocket();
@@ -59,7 +45,7 @@ const ChatListItem = ({ room, isActive, onClick }) => {
 					<span
 						className={`text-xs flex-shrink-0 ml-2 ${unread > 0 ? "text-indigo-300" : "text-slate-500"}`}
 					>
-						{formatTime(room.last_message_at)}
+						{formatChatListTime(room.last_message_at, room.last_message)}
 					</span>
 				</div>
 				<div className='flex items-center justify-between'>
@@ -71,7 +57,8 @@ const ChatListItem = ({ room, isActive, onClick }) => {
 								{room.member_count} anggota ·{" "}
 							</span>
 						)}
-						{room.last_message || "Belum ada pesan"}
+						{formatChatListMessagePreview(room.last_message) ||
+							"Belum ada pesan"}
 					</p>
 					{unread > 0 && (
 						<Badge count={unread} className='ml-2 flex-shrink-0' />
@@ -92,7 +79,7 @@ const ChatList = ({ rooms, activeTab, searchQuery }) => {
 	const allRooms = rooms || [];
 	const filtered = allRooms.filter((r) => {
 		const name = (r.name || "").toLowerCase();
-		const msg = (r.last_message || "").toLowerCase();
+		const msg = chatListMessageSearchText(r.last_message);
 		const q = (searchQuery || "").toLowerCase();
 		const matchesSearch = !q || name.includes(q) || msg.includes(q);
 		const matchesTab =

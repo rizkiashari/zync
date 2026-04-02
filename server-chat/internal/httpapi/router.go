@@ -19,6 +19,7 @@ import (
 	"zync-server/internal/httpapi/onboardingpricing"
 	"zync-server/internal/httpapi/payments"
 	"zync-server/internal/httpapi/profile"
+	pushroute "zync-server/internal/httpapi/push"
 	"zync-server/internal/httpapi/realtime"
 	"zync-server/internal/httpapi/recenttasks"
 	"zync-server/internal/httpapi/rooms"
@@ -65,17 +66,21 @@ func NewRouter(d Deps) *gin.Engine {
 	// ── Public endpoints (no Bearer auth) ────────────────────────────
 	publicAPI := r.Group("/api")
 	onboardingpricing.RegisterPublic(publicAPI, d.OnboardingPricingPlans)
+	payments.RegisterPublic(publicAPI, d.Config, d.PaymentTransactions)
 
 	// ── Bearer-only routes (no workspace context required) ─────────────
 	api := r.Group("/api")
 	api.Use(middleware.Bearer(d.Auth))
 
 	profile.Register(api, d.Users, "./uploads")
-	workspaces.Register(api, d.Workspaces, d.Users, "./uploads", d.Subscriptions, d.Rooms)
+	if d.PushSubscriptions != nil {
+		pushroute.Register(api, d.PushSubscriptions, d.Config.VAPIDPublicKey)
+	}
+	workspaces.Register(api, d.Workspaces, d.Users, "./uploads", d.Subscriptions, d.Rooms, d.OnboardingPricingPlans, d.PaymentTransactions, d.Notifications, d.Hub)
 
 	adminAPI := api.Group("/admin")
 	adminAPI.Use(middleware.SystemAdmin(d.Users))
-	admin.Register(adminAPI, d.Users, d.Subscriptions)
+	admin.Register(adminAPI, d.Users, d.Subscriptions, d.PaymentTransactions, d.Hub, d.Workspaces)
 	onboardingpricing.RegisterAdmin(adminAPI, d.OnboardingPricingPlans)
 
 	// ── Workspace-scoped routes (Bearer + Tenant middleware) ────────────
@@ -88,12 +93,12 @@ func NewRouter(d Deps) *gin.Engine {
 	messages.Register(wsGroup, d.Messages, d.Rooms)
 	upload.Register(wsGroup, d.Rooms, "./uploads")
 	notifications.Register(wsGroup, d.Notifications)
-	tasks.Register(wsGroup, d.Hub, d.Tasks, d.Rooms, d.Users, d.Mailer)
+	tasks.Register(wsGroup, d.Hub, d.Tasks, d.Rooms, d.Users, d.Mailer, d.Notifications)
 	calls.Register(wsGroup, d.Hub, d.Rooms, d.Users, d.Config)
 	recenttasks.Register(wsGroup, d.RecentTasks)
 	bookmarks.Register(wsGroup, d.Bookmarks, d.Messages)
 	workspacefiles.Register(wsGroup, d.Messages, d.Workspaces)
-	payments.Register(wsGroup, d.Config, d.OnboardingPricingPlans, d.Users)
+	payments.Register(wsGroup, d.Config, d.OnboardingPricingPlans, d.Users, d.PaymentTransactions)
 
 	return r
 }

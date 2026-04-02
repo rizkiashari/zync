@@ -14,14 +14,17 @@ import {
 	ChevronDown,
 	Bookmark,
 	CreditCard,
+	Wallet,
 	BellOff,
 	Bell,
+	FolderOpen,
 } from "lucide-react";
 import Logo from "../ui/Logo";
 import Avatar from "../ui/Avatar";
 import ChatList from "../chat/ChatList";
 import CreateGroupModal from "../group/CreateGroupModal";
 import NewChatModal from "../chat/NewChatModal";
+import toast from "react-hot-toast";
 import { useAuth } from "../../context/AuthContext";
 import { useSocket } from "../../context/SocketContext";
 import { useAppDispatch, useAppSelector } from "../../store/index";
@@ -33,6 +36,13 @@ import {
 } from "../../store/uiSlice";
 import { useBranding } from "../../hooks/useBranding";
 import { profileService } from "../../services/profileService";
+import { workspaceService } from "../../services/workspaceService";
+import {
+	clearWorkspace,
+	setWorkspace,
+	setWorkspaceList,
+} from "../../store/workspaceSlice";
+import { clearRooms, fetchDashboard } from "../../store/roomsSlice";
 
 const STATUS_PRESETS = [
 	{ emoji: "🟢", label: "Aktif", value: "" },
@@ -44,14 +54,14 @@ const STATUS_PRESETS = [
 
 const Sidebar = () => {
 	const { user } = useAuth();
-	const { isConnected } = useSocket();
+	const { isConnected, on } = useSocket();
 	const navigate = useNavigate();
 	const { pathname } = useLocation();
 	const sidebarOpen = useAppSelector((s) => s.ui.sidebarOpen);
 	const dispatch = useAppDispatch();
 	const rooms = useAppSelector(selectAllRooms);
 	const showCreateGroup = useAppSelector((s) => s.ui.showCreateGroup);
-	const { displayName, primaryColor, logoURL } = useBranding();
+	const { displayName, primaryColor, logoURL, workspace } = useBranding();
 	const [search, setSearch] = useState("");
 	const [activeTab, setActiveTab] = useState("all");
 	const [showNewMenu, setShowNewMenu] = useState(false);
@@ -101,6 +111,46 @@ const Sidebar = () => {
 	}, [dispatch]);
 
 	useEffect(() => {
+		return on("removed_from_workspace", async (msg) => {
+			if (!workspace?.slug || msg.workspace_slug !== workspace.slug) return;
+			toast.error("Akses ke workspace ini telah dicabut.");
+			dispatch(clearRooms());
+			try {
+				const res = await workspaceService.listMine();
+				const wsList = res?.data?.data?.workspaces || [];
+				if (wsList.length > 0) {
+					dispatch(setWorkspace(wsList[0]));
+					dispatch(setWorkspaceList(wsList));
+					await dispatch(fetchDashboard());
+					navigate("/dashboard");
+				} else {
+					dispatch(clearWorkspace());
+					navigate("/onboarding");
+				}
+			} catch {
+				dispatch(clearWorkspace());
+				navigate("/onboarding");
+			}
+			dispatch(setSidebarOpen(false));
+		});
+	}, [workspace?.slug, on, dispatch, navigate]);
+
+	useEffect(() => {
+		return on("workspace_subscription_refresh", async (msg) => {
+			if (!workspace?.slug || msg.workspace_slug !== workspace.slug) return;
+			toast.success("Langganan workspace diperbarui.");
+			try {
+				const res = await workspaceService.getCurrent();
+				const w = res?.data?.data?.workspace;
+				if (w) dispatch(setWorkspace(w));
+				await dispatch(fetchDashboard());
+			} catch {
+				/* ignore */
+			}
+		});
+	}, [workspace?.slug, on, dispatch]);
+
+	useEffect(() => {
 		dispatch(setSidebarOpen(false));
 	}, [pathname, dispatch]);
 
@@ -141,13 +191,15 @@ const Sidebar = () => {
 								className='w-8 h-8 rounded-xl flex items-center justify-center shadow-lg overflow-hidden flex-shrink-0'
 								style={{ backgroundColor: primaryColor }}
 							>
-								{logoURL ?
+								{logoURL ? (
 									<img
 										src={logoURL}
 										alt='logo'
 										className='w-full h-full object-cover'
 									/>
-								:	<Logo size={18} variant='white' />}
+								) : (
+									<Logo size={18} variant='white' />
+								)}
 							</div>
 							<div>
 								<span className='text-white font-bold text-lg leading-none'>
@@ -165,14 +217,16 @@ const Sidebar = () => {
 							<div
 								title={isConnected ? "Terhubung" : "Tidak terhubung"}
 								className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all ${
-									isConnected ?
-										"bg-emerald-900/40 text-emerald-400"
-									:	"bg-slate-700/60 text-slate-500"
+									isConnected
+										? "bg-emerald-900/40 text-emerald-400"
+										: "bg-slate-700/60 text-slate-500"
 								}`}
 							>
-								{isConnected ?
+								{isConnected ? (
 									<Wifi className='w-3 h-3' />
-								:	<WifiOff className='w-3 h-3' />}
+								) : (
+									<WifiOff className='w-3 h-3' />
+								)}
 							</div>
 
 							<div className='relative'>
@@ -240,9 +294,9 @@ const Sidebar = () => {
 								key={tab.id}
 								onClick={() => setActiveTab(tab.id)}
 								className={`flex-1 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
-									activeTab === tab.id ?
-										"bg-indigo-600 text-white shadow-sm"
-									:	"text-slate-400 hover:text-slate-200"
+									activeTab === tab.id
+										? "bg-indigo-600 text-white shadow-sm"
+										: "text-slate-400 hover:text-slate-200"
 								}`}
 							>
 								{tab.label}
@@ -257,9 +311,9 @@ const Sidebar = () => {
 						onClick={() => navigate("/bookmarks")}
 						aria-current={pathname === "/bookmarks" ? "page" : undefined}
 						className={`w-full min-h-11 flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ease-out active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
-							pathname === "/bookmarks" ?
-								"bg-indigo-600 text-white shadow-md"
-							:	"bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
+							pathname === "/bookmarks"
+								? "bg-indigo-600 text-white shadow-md"
+								: "bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
 						}`}
 					>
 						<Bookmark
@@ -270,12 +324,28 @@ const Sidebar = () => {
 					</button>
 					<button
 						type='button'
+						onClick={() => navigate("/files")}
+						aria-current={pathname === "/files" ? "page" : undefined}
+						className={`w-full min-h-11 flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ease-out active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+							pathname === "/files"
+								? "bg-indigo-600 text-white shadow-md"
+								: "bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
+						}`}
+					>
+						<FolderOpen
+							className='w-4 h-4 flex-shrink-0 opacity-90'
+							aria-hidden='true'
+						/>
+						File
+					</button>
+					<button
+						type='button'
 						onClick={() => navigate("/tasks")}
 						aria-current={pathname === "/tasks" ? "page" : undefined}
 						className={`w-full min-h-11 flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ease-out active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
-							pathname === "/tasks" ?
-								"bg-indigo-600 text-white shadow-md"
-							:	"bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
+							pathname === "/tasks"
+								? "bg-indigo-600 text-white shadow-md"
+								: "bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
 						}`}
 					>
 						<ClipboardList
@@ -289,9 +359,9 @@ const Sidebar = () => {
 						onClick={() => navigate("/pricing")}
 						aria-current={pathname === "/pricing" ? "page" : undefined}
 						className={`w-full min-h-11 flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ease-out active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
-							pathname === "/pricing" ?
-								"bg-indigo-600 text-white shadow-md"
-							:	"bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
+							pathname === "/pricing"
+								? "bg-indigo-600 text-white shadow-md"
+								: "bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
 						}`}
 					>
 						<CreditCard
@@ -301,22 +371,42 @@ const Sidebar = () => {
 						Subscription
 					</button>
 					{user?.is_system_admin && (
-						<button
-							type='button'
-							onClick={() => navigate("/admin/users")}
-							aria-current={pathname === "/admin/users" ? "page" : undefined}
-							className={`w-full min-h-11 flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ease-out active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
-								pathname === "/admin/users" ?
-									"bg-amber-600 text-white shadow-md"
-								:	"bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
-							}`}
-						>
-							<Shield
-								className='w-4 h-4 flex-shrink-0 opacity-90'
-								aria-hidden='true'
-							/>
-							Maintenance user
-						</button>
+						<>
+							<button
+								type='button'
+								onClick={() => navigate("/admin/users")}
+								aria-current={pathname === "/admin/users" ? "page" : undefined}
+								className={`w-full min-h-11 flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ease-out active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+									pathname === "/admin/users"
+										? "bg-amber-600 text-white shadow-md"
+										: "bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
+								}`}
+							>
+								<Shield
+									className='w-4 h-4 flex-shrink-0 opacity-90'
+									aria-hidden='true'
+								/>
+								Maintenance user
+							</button>
+							<button
+								type='button'
+								onClick={() => navigate("/admin/transactions")}
+								aria-current={
+									pathname === "/admin/transactions" ? "page" : undefined
+								}
+								className={`w-full min-h-11 flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ease-out active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+									pathname === "/admin/transactions"
+										? "bg-amber-600 text-white shadow-md"
+										: "bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
+								}`}
+							>
+								<Wallet
+									className='w-4 h-4 flex-shrink-0 opacity-90'
+									aria-hidden='true'
+								/>
+								Transaksi billing
+							</button>
+						</>
 					)}
 				</div>
 
@@ -333,7 +423,10 @@ const Sidebar = () => {
 								online={true}
 							/>
 							{isDND && (
-								<div className='absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center' title='Mode Jangan Ganggu aktif'>
+								<div
+									className='absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center'
+									title='Mode Jangan Ganggu aktif'
+								>
 									<BellOff className='w-2.5 h-2.5 text-white' />
 								</div>
 							)}
@@ -362,9 +455,9 @@ const Sidebar = () => {
 												type='button'
 												onClick={() => handleSetStatus(preset.value)}
 												className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
-													statusMessage === preset.value ?
-														"text-indigo-400 bg-slate-700"
-													:	"text-slate-300 hover:bg-slate-700"
+													statusMessage === preset.value
+														? "text-indigo-400 bg-slate-700"
+														: "text-slate-300 hover:bg-slate-700"
 												}`}
 											>
 												<span>{preset.emoji}</span>
@@ -376,13 +469,21 @@ const Sidebar = () => {
 											type='button'
 											onClick={handleToggleDND}
 											className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
-												isDND ?
-													"text-rose-400 bg-slate-700"
-												:	"text-slate-300 hover:bg-slate-700"
+												isDND
+													? "text-rose-400 bg-slate-700"
+													: "text-slate-300 hover:bg-slate-700"
 											}`}
 										>
-											{isDND ? <BellOff className='w-4 h-4' /> : <Bell className='w-4 h-4' />}
-											<span>{isDND ? "Notifikasi Dimatikan" : "Matikan Notifikasi (DND)"}</span>
+											{isDND ? (
+												<BellOff className='w-4 h-4' />
+											) : (
+												<Bell className='w-4 h-4' />
+											)}
+											<span>
+												{isDND
+													? "Notifikasi Dimatikan"
+													: "Matikan Notifikasi (DND)"}
+											</span>
 										</button>
 									</div>
 								)}

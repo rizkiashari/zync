@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -9,6 +10,8 @@ import (
 
 	"zync-server/internal/httpapi/middleware"
 	"zync-server/internal/httpapi/response"
+	"zync-server/internal/httpapi/workspaces"
+	"zync-server/internal/hub"
 	"zync-server/internal/models"
 	"zync-server/internal/repository"
 )
@@ -136,9 +139,9 @@ func handleUpdateUser(usersRepo *repository.UserRepository) gin.HandlerFunc {
 }
 
 type setSubscriptionBody struct {
-	Plan        string  `json:"plan" binding:"required,oneof=free pro enterprise"`
-	Status      string  `json:"status" binding:"required,oneof=active expired canceled"`
-	MemberLimit int     `json:"member_limit" binding:"required,min=1"`
+	Plan        string `json:"plan" binding:"required,oneof=free pro enterprise"`
+	Status      string `json:"status" binding:"required,oneof=active expired canceled"`
+	MemberLimit int    `json:"member_limit" binding:"required,min=1"`
 }
 
 func handleSetSubscription(subRepo *repository.SubscriptionRepository) gin.HandlerFunc {
@@ -159,5 +162,80 @@ func handleSetSubscription(subRepo *repository.SubscriptionRepository) gin.Handl
 			return
 		}
 		response.OK(c, gin.H{"subscription": sub})
+	}
+}
+
+func handleAdminListPaymentTransactions(txnRepo *repository.PaymentTransactionRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		status := strings.TrimSpace(c.Query("status"))
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+		offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+		list, err := txnRepo.ListForAdmin(status, limit, offset)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to load transactions")
+			return
+		}
+		response.OK(c, gin.H{"transactions": list})
+	}
+}
+
+func handleAdminApprovePaymentTransaction(txnRepo *repository.PaymentTransactionRepository, h *hub.Hub, wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid transaction ID")
+			return
+		}
+		adminID, ok := middleware.UserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, response.CodeUnauthorized, "Unauthorized")
+			return
+		}
+		if err := txnRepo.ApproveByAdmin(uint(id64), adminID); err != nil {
+			if errors.Is(err, repository.ErrPaymentTxnNotPending) {
+				response.Error(c, http.StatusConflict, "not_pending", "Transaction is not pending")
+				return
+			}
+			response.Error(c, http.StatusBadRequest, "approve_failed", err.Error())
+			return
+		}
+		tx, _ := txnRepo.GetByID(uint(id64))
+		if tx != nil && tx.WorkspaceID != 0 && h != nil && wsRepo != nil {
+			if ws, werr := wsRepo.GetByID(tx.WorkspaceID); werr == nil && ws != nil {
+				workspaces.NotifyWorkspaceSubscriptionRefresh(h, wsRepo, tx.WorkspaceID, ws.Slug)
+			}
+		}
+		response.OK(c, gin.H{"transaction": tx})
+	}
+}
+
+type adminRejectPaymentBody struct {
+	Note string `json:"note"`
+}
+
+func handleAdminRejectPaymentTransaction(txnRepo *repository.PaymentTransactionRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id64, err := strconv.ParseUint(c.Param("id"), 10, 64)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid transaction ID")
+			return
+		}
+		adminID, ok := middleware.UserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, response.CodeUnauthorized, "Unauthorized")
+			return
+		}
+		var body adminRejectPaymentBody
+		_ = c.ShouldBindJSON(&body)
+		if err := txnRepo.RejectByAdmin(uint(id64), adminID, body.Note); err != nil {
+			if errors.Is(err, repository.ErrPaymentTxnNotPending) {
+				response.Error(c, http.StatusConflict, "not_pending", "Transaction is not pending")
+				return
+			}
+			response.Error(c, http.StatusBadRequest, "reject_failed", err.Error())
+			return
+		}
+		tx, _ := txnRepo.GetByID(uint(id64))
+		response.OK(c, gin.H{"transaction": tx})
 	}
 }

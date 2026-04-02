@@ -62,6 +62,8 @@ func Connect(dsn string, pool PoolConfig) (*gorm.DB, error) {
 		&models.MessageBookmark{},
 		&models.OnboardingPricingPlan{},
 		&models.WorkspaceSubscription{},
+		&models.PaymentTransaction{},
+		&models.PushSubscription{},
 	); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
