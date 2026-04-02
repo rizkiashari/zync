@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Lock, ShieldCheck } from "lucide-react";
-import Sidebar from "../components/layout/Sidebar";
+import MainShell from "../components/layout/MainShell";
 import Input from "../components/ui/Input";
 import { profileService } from "../services/profileService";
 import Button from "../components/ui/Button";
@@ -88,11 +88,10 @@ const ChangePasswordPage = () => {
 	};
 
 	return (
-		<div className='flex h-screen bg-slate-50 overflow-hidden'>
-			<Sidebar />
-			<div className='flex-1 overflow-y-auto'>
+		<MainShell>
+			<div className='min-h-0 flex-1 overflow-y-auto'>
 				{/* Header */}
-				<div className='sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-6 py-4 flex items-center gap-4 shadow-clean'>
+				<div className='sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-clean backdrop-blur-md sm:gap-4 sm:px-6 sm:py-4'>
 					<button
 						type='button'
 						onClick={() => navigate("/profile")}
@@ -111,7 +110,7 @@ const ChangePasswordPage = () => {
 					</div>
 				</div>
 
-				<div className='max-w-lg mx-auto px-6 py-8 space-y-5'>
+				<div className='mx-auto max-w-lg space-y-5 px-4 py-8 sm:px-6'>
 					{/* Security tip */}
 					<div className='flex items-start gap-4 p-4 bg-indigo-50 border border-indigo-100 rounded-2xl'>
 						<div className='w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center flex-shrink-0'>
@@ -190,7 +189,7 @@ const ChangePasswordPage = () => {
 					</div>
 				</div>
 			</div>
-		</div>
+		</MainShell>
 	);
 };
 

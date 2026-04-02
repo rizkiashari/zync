@@ -6,7 +6,14 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores([
+    'dist/**',
+    'node_modules/**',
+    'android/**',
+    'ios/**',
+    'coverage/**',
+    '.turbo/**',
+  ]),
   react.configs.flat['jsx-runtime'],
   {
     files: ['**/*.{js,jsx}'],

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
 	ArrowLeft,
 	Building2,
@@ -20,7 +20,7 @@ import {
 	Zap,
 } from "lucide-react";
 import { useDispatch } from "react-redux";
-import Sidebar from "../components/layout/Sidebar";
+import MainShell from "../components/layout/MainShell";
 import Logo from "../components/ui/Logo";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -46,13 +46,25 @@ const ROLE_COLORS = {
 	member: "bg-slate-100 text-slate-600",
 };
 
+const SETTINGS_TABS = ["branding", "members", "analytics", "subscription"];
+
+function initialSettingsTab() {
+	try {
+		const t = new URLSearchParams(window.location.search).get("tab");
+		return SETTINGS_TABS.includes(t) ? t : "branding";
+	} catch {
+		return "branding";
+	}
+}
+
 export default function WorkspaceSettingsPage() {
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
 	const dispatch = useDispatch();
 	const { user } = useAuth();
 	const { logoURL, workspace } = useBranding();
 
-	const [activeTab, setActiveTab] = useState("branding");
+	const [activeTab, setActiveTab] = useState(initialSettingsTab);
 
 	// Branding
 	const [form, setForm] = useState({
@@ -83,6 +95,11 @@ export default function WorkspaceSettingsPage() {
 	const [myRole, setMyRole] = useState(null); // null until we fetch my role
 	const [leavingWorkspace, setLeavingWorkspace] = useState(false);
 	const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+
+	useEffect(() => {
+		const t = searchParams.get("tab");
+		if (t && SETTINGS_TABS.includes(t)) setActiveTab(t);
+	}, [searchParams]);
 
 	useEffect(() => {
 		if (activeTab === "members") loadMembers();
@@ -263,10 +280,9 @@ export default function WorkspaceSettingsPage() {
 	];
 
 	return (
-		<div className='flex h-screen bg-slate-50 overflow-hidden'>
-			<Sidebar />
-			<div className='flex-1 flex flex-col min-w-0 overflow-y-auto'>
-				<div className='sticky top-0 z-10 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-6 py-4 flex items-center gap-4 shadow-clean'>
+		<MainShell>
+			<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto'>
+				<div className='sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-clean backdrop-blur-md sm:gap-4 sm:px-6 sm:py-4'>
 					<button
 						type='button'
 						onClick={() => navigate(-1)}
@@ -283,7 +299,7 @@ export default function WorkspaceSettingsPage() {
 					</div>
 				</div>
 
-				<div className='border-b border-slate-200/80 bg-white/95 backdrop-blur-sm px-6'>
+				<div className='overflow-x-auto border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-sm sm:px-6'>
 					<div
 						className='flex gap-1'
 						role='tablist'
@@ -312,7 +328,7 @@ export default function WorkspaceSettingsPage() {
 					</div>
 				</div>
 
-				<div className='flex-1 max-w-3xl mx-auto w-full px-6 py-8 space-y-8'>
+				<div className='mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-6 sm:px-6 sm:py-8'>
 					{activeTab === "branding" && (
 						<>
 							{/* Logo */}
@@ -728,32 +744,40 @@ export default function WorkspaceSettingsPage() {
 													{subscription.plan}
 												</p>
 											</div>
-											<span className={`ml-auto text-xs font-medium px-2.5 py-1 rounded-full ${
-												subscription.status === "active"
-													? "bg-emerald-100 text-emerald-700"
-													: "bg-rose-100 text-rose-700"
-											}`}>
-												{subscription.status === "active" ? "Aktif" : subscription.status}
+											<span
+												className={`ml-auto text-xs font-medium px-2.5 py-1 rounded-full ${
+													subscription.status === "active" ?
+														"bg-emerald-100 text-emerald-700"
+													:	"bg-rose-100 text-rose-700"
+												}`}
+											>
+												{subscription.status === "active" ?
+													"Aktif"
+												:	subscription.status}
 											</span>
 										</div>
 										<div className='flex items-center justify-between text-sm'>
 											<span className='text-slate-500'>Batas Anggota</span>
 											<span className='font-medium text-slate-800'>
-												{subscription.member_limit === -1
-													? "Tidak terbatas"
-													: `${subscription.member_limit} anggota`}
+												{subscription.member_limit === -1 ?
+													"Tidak terbatas"
+												:	`${subscription.member_limit} anggota`}
 											</span>
 										</div>
 										{subscription.expires_at && (
 											<div className='flex items-center justify-between text-sm'>
 												<span className='text-slate-500'>Berakhir</span>
 												<span className='font-medium text-slate-800'>
-													{new Date(subscription.expires_at).toLocaleDateString("id-ID")}
+													{new Date(subscription.expires_at).toLocaleDateString(
+														"id-ID",
+													)}
 												</span>
 											</div>
 										)}
 									</div>
-								:	<p className='text-sm text-slate-400 text-center py-4'>Tidak ada data langganan</p>
+								:	<p className='text-sm text-slate-400 text-center py-4'>
+										Tidak ada data langganan
+									</p>
 								}
 							</section>
 
@@ -768,30 +792,44 @@ export default function WorkspaceSettingsPage() {
 											id: "free",
 											name: "Free",
 											price: "Gratis",
-											features: ["5 anggota", "100 MB storage", "Basic chat", "Kanban board"],
+											features: [
+												"5 anggota",
+												"100 MB storage",
+												"Basic chat",
+												"Kanban board",
+											],
 										},
 										{
 											id: "pro",
 											name: "Pro",
 											price: "Hubungi kami",
-											features: ["Anggota tak terbatas", "10 GB storage", "Semua fitur", "Prioritas support"],
+											features: [
+												"Anggota tak terbatas",
+												"10 GB storage",
+												"Semua fitur",
+												"Prioritas support",
+											],
 											highlight: true,
 										},
 										{
 											id: "enterprise",
 											name: "Enterprise",
 											price: "Custom",
-											features: ["Custom anggota", "Storage custom", "Fitur custom", "Dedicated support"],
+											features: [
+												"Custom anggota",
+												"Storage custom",
+												"Fitur custom",
+												"Dedicated support",
+											],
 										},
 									].map((plan) => (
 										<div
 											key={plan.id}
 											className={`p-4 rounded-2xl border-2 transition-all ${
-												subscription?.plan === plan.id
-													? "border-indigo-500 bg-indigo-50/50"
-													: plan.highlight
-														? "border-indigo-200 bg-white"
-														: "border-slate-200 bg-white"
+												subscription?.plan === plan.id ?
+													"border-indigo-500 bg-indigo-50/50"
+												: plan.highlight ? "border-indigo-200 bg-white"
+												: "border-slate-200 bg-white"
 											}`}
 										>
 											{subscription?.plan === plan.id && (
@@ -801,10 +839,15 @@ export default function WorkspaceSettingsPage() {
 												</span>
 											)}
 											<p className='font-bold text-slate-800'>{plan.name}</p>
-											<p className='text-xs text-slate-500 mb-3'>{plan.price}</p>
+											<p className='text-xs text-slate-500 mb-3'>
+												{plan.price}
+											</p>
 											<ul className='space-y-1.5'>
 												{plan.features.map((f) => (
-													<li key={f} className='flex items-start gap-1.5 text-xs text-slate-600'>
+													<li
+														key={f}
+														className='flex items-start gap-1.5 text-xs text-slate-600'
+													>
 														<CheckCircle2 className='w-3.5 h-3.5 text-emerald-500 flex-shrink-0 mt-0.5' />
 														{f}
 													</li>
@@ -818,9 +861,9 @@ export default function WorkspaceSettingsPage() {
 														window.location.href = `mailto:${email}?subject=Upgrade ke paket ${plan.name}&body=Halo, saya ingin upgrade workspace saya ke paket ${plan.name}.`;
 													}}
 													className={`mt-4 w-full py-2 rounded-xl text-xs font-medium transition-colors ${focusRing} ${
-														plan.highlight
-															? "bg-indigo-600 text-white hover:bg-indigo-700"
-															: "border border-slate-200 text-slate-700 hover:bg-slate-50"
+														plan.highlight ?
+															"bg-indigo-600 text-white hover:bg-indigo-700"
+														:	"border border-slate-200 text-slate-700 hover:bg-slate-50"
 													}`}
 												>
 													Upgrade
@@ -831,7 +874,10 @@ export default function WorkspaceSettingsPage() {
 								</div>
 								<p className='text-xs text-slate-400 mt-4 text-center'>
 									Untuk upgrade atau pertanyaan, hubungi{" "}
-									<a href='mailto:sales@zync.chat' className='text-indigo-600 hover:underline'>
+									<a
+										href='mailto:sales@zync.chat'
+										className='text-indigo-600 hover:underline'
+									>
 										sales@zync.chat
 									</a>
 								</p>
@@ -858,6 +904,6 @@ export default function WorkspaceSettingsPage() {
 				loading={leavingWorkspace}
 				message='Aksi ini akan menghapus akun kamu dari workspace ini. Kamu tidak bisa chat di workspace tersebut.'
 			/>
-		</div>
+		</MainShell>
 	);
 }

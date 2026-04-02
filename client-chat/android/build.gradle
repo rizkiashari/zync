@@ -24,6 +24,19 @@ allprojects {
     }
 }
 
+// Path proyek dengan ':' (contoh folder Apps:Web) membuat AGP gagal menulis R untuk
+// :capacitor-android — javac lalu error "package com.getcapacitor.android does not exist".
+// Keluarkan intermediates & output modul ini ke direktori tmp (tanpa ':').
+def capacitorAndroidSafeBuildDir =
+    new File(System.getProperty("java.io.tmpdir"), "zync-capacitor-android-build")
+
+gradle.beforeProject { Project p ->
+    if (p.name == "capacitor-android") {
+        p.layout.buildDirectory.set(capacitorAndroidSafeBuildDir)
+    }
+}
+
 task clean(type: Delete) {
     delete rootProject.buildDir
+    delete capacitorAndroidSafeBuildDir
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../components/layout/Sidebar";
+import MainShell from "../components/layout/MainShell";
 import { bookmarkService } from "../services/bookmarkService";
 import { messageService } from "../services/messageService";
 import { useAuth } from "../context/AuthContext";
@@ -24,17 +24,22 @@ const BookmarksPage = () => {
 	const [bookmarks, setBookmarks] = useState([]);
 	const [loading, setLoading] = useState(true);
 
-	const fetchBookmarks = () => {
-		setLoading(true);
+	useEffect(() => {
+		let cancelled = false;
 		bookmarkService
 			.list()
-			.then((res) => setBookmarks(res.data.data || []))
-			.catch(() => setBookmarks([]))
-			.finally(() => setLoading(false));
-	};
-
-	useEffect(() => {
-		fetchBookmarks();
+			.then((res) => {
+				if (!cancelled) setBookmarks(res.data.data || []);
+			})
+			.catch(() => {
+				if (!cancelled) setBookmarks([]);
+			})
+			.finally(() => {
+				if (!cancelled) setLoading(false);
+			});
+		return () => {
+			cancelled = true;
+		};
 	}, []);
 
 	const handleRemove = async (bmId, msgId) => {
@@ -59,21 +64,24 @@ const BookmarksPage = () => {
 	}, {});
 
 	return (
-		<div className='flex h-screen bg-slate-50 overflow-hidden'>
-			<Sidebar />
-			<div className='flex-1 flex flex-col min-w-0 overflow-hidden'>
+		<MainShell>
+			<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'>
 				{/* Header */}
-				<div className='flex items-center gap-3 px-6 py-4 bg-white border-b border-slate-200/80 flex-shrink-0'>
+				<div className='flex flex-shrink-0 items-center gap-3 border-b border-slate-200/80 bg-white px-4 py-3 sm:px-6 sm:py-4'>
 					<div className='w-9 h-9 flex items-center justify-center bg-indigo-50 rounded-xl'>
 						<Bookmark className='w-5 h-5 text-indigo-600' />
 					</div>
 					<div>
-						<h1 className='text-base font-semibold text-slate-900'>Tersimpan</h1>
-						<p className='text-xs text-slate-400'>{bookmarks.length} pesan tersimpan</p>
+						<h1 className='text-base font-semibold text-slate-900'>
+							Tersimpan
+						</h1>
+						<p className='text-xs text-slate-400'>
+							{bookmarks.length} pesan tersimpan
+						</p>
 					</div>
 				</div>
 
-				<div className='flex-1 overflow-y-auto px-6 py-4'>
+				<div className='flex-1 overflow-y-auto px-4 py-4 sm:px-6'>
 					{loading ?
 						<div className='flex items-center justify-center h-32'>
 							<div className='w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin' />
@@ -83,7 +91,8 @@ const BookmarksPage = () => {
 							<Bookmark className='w-10 h-10' />
 							<p className='text-sm font-medium'>Belum ada pesan tersimpan</p>
 							<p className='text-xs text-center max-w-xs'>
-								Klik kanan pada pesan lalu pilih "Simpan" untuk menyimpan pesan penting.
+								Klik kanan pada pesan lalu pilih "Simpan" untuk menyimpan pesan
+								penting.
 							</p>
 						</div>
 					:	<div className='max-w-2xl mx-auto space-y-6'>
@@ -117,12 +126,15 @@ const BookmarksPage = () => {
 															</span>
 															<span className='text-xs text-slate-400'>·</span>
 															<span className='text-xs text-slate-400'>
-																{new Date(bm.created_at).toLocaleDateString("id-ID", {
-																	day: "numeric",
-																	month: "short",
-																	hour: "2-digit",
-																	minute: "2-digit",
-																})}
+																{new Date(bm.created_at).toLocaleDateString(
+																	"id-ID",
+																	{
+																		day: "numeric",
+																		month: "short",
+																		hour: "2-digit",
+																		minute: "2-digit",
+																	},
+																)}
 															</span>
 														</div>
 														{fileMeta ?
@@ -135,14 +147,22 @@ const BookmarksPage = () => {
 																	/>
 																:	<div className='w-10 h-10 flex items-center justify-center bg-slate-100 rounded-lg'>
 																		<FileText className='w-5 h-5 text-slate-500' />
-																	</div>}
-																<span className='text-sm text-slate-700 truncate'>{fileMeta.name}</span>
+																	</div>
+																}
+																<span className='text-sm text-slate-700 truncate'>
+																	{fileMeta.name}
+																</span>
 															</div>
-														:	<p className='text-sm text-slate-800 line-clamp-3'>{bm.body}</p>}
+														:	<p className='text-sm text-slate-800 line-clamp-3'>
+																{bm.body}
+															</p>
+														}
 													</div>
 													<button
 														type='button'
-														onClick={() => handleRemove(bm.bookmark_id, bm.message_id)}
+														onClick={() =>
+															handleRemove(bm.bookmark_id, bm.message_id)
+														}
 														className='opacity-0 group-hover:opacity-100 w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0'
 														aria-label='Hapus bookmark'
 													>
@@ -158,7 +178,7 @@ const BookmarksPage = () => {
 					}
 				</div>
 			</div>
-		</div>
+		</MainShell>
 	);
 };
 

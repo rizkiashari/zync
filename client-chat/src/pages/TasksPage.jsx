@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../components/layout/Sidebar";
+import MainShell from "../components/layout/MainShell";
 import { useTasksHub } from "../hooks/useTasksHub";
 import TasksHubWorkspaceSidebar from "../components/tasks/TasksHubWorkspaceSidebar";
 import TasksHubToolbar from "../components/tasks/TasksHubToolbar";
@@ -15,17 +15,15 @@ const TasksPage = () => {
 	const goGroupChat = (groupId) => navigate(`/group/${groupId}`);
 
 	return (
-		<div className='flex h-screen bg-slate-50 overflow-hidden'>
-			<Sidebar />
-
-			<div className='flex-1 flex min-w-0'>
+		<MainShell>
+			<div className='flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row'>
 				<TasksHubWorkspaceSidebar
 					groupRooms={hub.groupRooms}
 					workspaceId={hub.workspaceId}
 					onSelectWorkspace={hub.setWorkspaceId}
 				/>
 
-				<main className='flex-1 flex flex-col min-w-0 overflow-hidden'>
+				<main className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'>
 					<TasksHubToolbar
 						mainTab={hub.mainTab}
 						onMainTab={hub.setMainTab}
@@ -35,7 +33,7 @@ const TasksPage = () => {
 						onShowDone={hub.setShowDone}
 					/>
 
-					<div className='flex-1 overflow-y-auto p-6'>
+					<div className='flex-1 overflow-y-auto p-4 sm:p-6'>
 						{hub.loading && (
 							<div className='flex justify-center py-20'>
 								<div className='w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin' />
@@ -81,7 +79,7 @@ const TasksPage = () => {
 					</div>
 				</main>
 			</div>
-		</div>
+		</MainShell>
 	);
 };
 

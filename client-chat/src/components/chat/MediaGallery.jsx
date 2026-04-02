@@ -26,17 +26,29 @@ const MediaGallery = ({ roomId, onClose }) => {
 	const [lightbox, setLightbox] = useState(null);
 
 	useEffect(() => {
-		setLoading(true);
+		let cancelled = false;
 		messageService
 			.listFiles(roomId)
 			.then((res) => {
+				if (cancelled) return;
 				const parsed = (res.data.data || [])
-					.map((msg) => ({ ...parseFileMeta(msg.body), msgId: msg.id, createdAt: msg.created_at }))
+					.map((msg) => ({
+						...parseFileMeta(msg.body),
+						msgId: msg.id,
+						createdAt: msg.created_at,
+					}))
 					.filter(Boolean);
 				setFiles(parsed);
 			})
-			.catch(() => setFiles([]))
-			.finally(() => setLoading(false));
+			.catch(() => {
+				if (!cancelled) setFiles([]);
+			})
+			.finally(() => {
+				if (!cancelled) setLoading(false);
+			});
+		return () => {
+			cancelled = true;
+		};
 	}, [roomId]);
 
 	const filtered = files.filter((f) => {

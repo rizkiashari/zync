@@ -41,3 +41,11 @@ _bmad-output/
 *.njsproj
 *.sln
 *.sw?
+
+# Cursor
+.cursor/
+_bmad/
+_bmad-output/
+
+(output_folder)
+tmp/

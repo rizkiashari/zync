@@ -10,13 +10,13 @@ const TasksHubToolbar = ({
 	showDone,
 	onShowDone,
 }) => (
-	<header className='flex-shrink-0 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 px-6 py-4 shadow-clean'>
-		<div className='flex flex-wrap items-center justify-between gap-4'>
-			<div>
-				<h1 className='text-lg font-bold text-slate-900 tracking-tight'>
+	<header className='flex-shrink-0 border-b border-slate-200/80 bg-white/95 px-4 py-3 shadow-clean backdrop-blur-sm sm:px-6 sm:py-4'>
+		<div className='flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4'>
+			<div className='min-w-0'>
+				<h1 className='text-base font-bold tracking-tight text-slate-900 sm:text-lg'>
 					Task
 				</h1>
-				<p className='text-xs text-slate-500 mt-0.5 leading-relaxed'>
+				<p className='mt-0.5 text-xs leading-relaxed text-slate-500'>
 					Backlog, daftar isu, dan akses papan — pola mirip Jira
 				</p>
 			</div>
@@ -32,23 +32,25 @@ const TasksHubToolbar = ({
 			</div>
 		</div>
 
-		<div className='flex flex-wrap items-center gap-2 mt-4'>
-			{TASKS_HUB_TABS.map(({ id, label, icon: Icon }) => (
-				<button
-					key={id}
-					type='button'
-					onClick={() => onMainTab(id)}
-					className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${focusRing} ${
-						mainTab === id ?
-							"bg-indigo-600 text-white shadow-clean"
-						:	"bg-slate-100 text-slate-600 hover:bg-slate-200"
-					}`}
-				>
-					<Icon className='w-3.5 h-3.5' />
-					{label}
-				</button>
-			))}
-			<label className='ml-auto flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none'>
+		<div className='mt-3 flex flex-col gap-3 sm:mt-4 sm:flex-row sm:flex-wrap sm:items-center'>
+			<div className='flex flex-wrap items-center gap-2'>
+				{TASKS_HUB_TABS.map(({ id, label, icon: Icon }) => (
+					<button
+						key={id}
+						type='button'
+						onClick={() => onMainTab(id)}
+						className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${focusRing} ${
+							mainTab === id ?
+								"bg-indigo-600 text-white shadow-clean"
+							:	"bg-slate-100 text-slate-600 hover:bg-slate-200"
+						}`}
+					>
+						<Icon className='w-3.5 h-3.5' />
+						{label}
+					</button>
+				))}
+			</div>
+			<label className='flex cursor-pointer select-none items-center gap-2 text-xs text-slate-600 sm:ml-auto'>
 				<input
 					type='checkbox'
 					checked={showDone}

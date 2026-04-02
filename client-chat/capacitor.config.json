@@ -2,15 +2,18 @@
 	"appId": "com.zync.chat",
 	"appName": "Zync",
 	"webDir": "dist",
+	"backgroundColor": "#0f172a",
 	"server": {
 		"androidScheme": "http",
 		"cleartext": true
 	},
 	"android": {
-		"allowMixedContent": true
+		"allowMixedContent": true,
+		"backgroundColor": "#0f172a"
 	},
 	"ios": {
 		"contentInset": "automatic",
-		"scheme": "Zync"
+		"scheme": "Zync",
+		"backgroundColor": "#0f172a"
 	}
 }

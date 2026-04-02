@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Search, Shield } from "lucide-react";
-import Sidebar from "../components/layout/Sidebar";
+import MainShell from "../components/layout/MainShell";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
 import { adminService } from "../services/adminService";
@@ -66,10 +66,9 @@ const AdminUsersPage = () => {
 	};
 
 	return (
-		<div className='flex h-screen bg-slate-50 overflow-hidden'>
-			<Sidebar />
-			<div className='flex-1 flex flex-col min-w-0 overflow-hidden'>
-				<div className='sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-6 py-3.5 flex items-center gap-3 shadow-clean'>
+		<MainShell>
+			<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'>
+				<div className='sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-clean backdrop-blur-md sm:px-6 sm:py-3.5'>
 					<button
 						type='button'
 						onClick={() => navigate("/dashboard")}
@@ -86,8 +85,8 @@ const AdminUsersPage = () => {
 					</div>
 				</div>
 
-				<div className='flex-1 overflow-y-auto p-6'>
-					<div className='max-w-4xl mx-auto space-y-4'>
+				<div className='flex-1 overflow-y-auto p-4 sm:p-6'>
+					<div className='mx-auto max-w-4xl space-y-4'>
 						<p className='text-sm text-slate-500'>
 							Akun maintenance (system admin) dapat melihat dan mengedit profil
 							semua pengguna. Ubah sandi lewat alur profil per pengguna jika
@@ -226,7 +225,7 @@ const AdminUsersPage = () => {
 					</div>
 				)}
 			</div>
-		</div>
+		</MainShell>
 	);
 };
 

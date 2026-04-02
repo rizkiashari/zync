@@ -13,6 +13,9 @@ import {
 	Shield,
 	ChevronDown,
 	Bookmark,
+	CreditCard,
+	BellOff,
+	Bell,
 } from "lucide-react";
 import Logo from "../ui/Logo";
 import Avatar from "../ui/Avatar";
@@ -23,7 +26,11 @@ import { useAuth } from "../../context/AuthContext";
 import { useSocket } from "../../context/SocketContext";
 import { useAppDispatch, useAppSelector } from "../../store/index";
 import { fetchRooms, selectAllRooms } from "../../store/roomsSlice";
-import { openCreateGroup, closeCreateGroup } from "../../store/uiSlice";
+import {
+	openCreateGroup,
+	closeCreateGroup,
+	setSidebarOpen,
+} from "../../store/uiSlice";
 import { useBranding } from "../../hooks/useBranding";
 import { profileService } from "../../services/profileService";
 
@@ -40,6 +47,7 @@ const Sidebar = () => {
 	const { isConnected } = useSocket();
 	const navigate = useNavigate();
 	const { pathname } = useLocation();
+	const sidebarOpen = useAppSelector((s) => s.ui.sidebarOpen);
 	const dispatch = useAppDispatch();
 	const rooms = useAppSelector(selectAllRooms);
 	const showCreateGroup = useAppSelector((s) => s.ui.showCreateGroup);
@@ -48,7 +56,10 @@ const Sidebar = () => {
 	const [activeTab, setActiveTab] = useState("all");
 	const [showNewMenu, setShowNewMenu] = useState(false);
 	const [showNewChat, setShowNewChat] = useState(false);
-	const [statusMessage, setStatusMessage] = useState(user?.status_message || "");
+	const [statusMessage, setStatusMessage] = useState(
+		user?.status_message || "",
+	);
+	const [isDND, setIsDND] = useState(user?.is_dnd || false);
 	const [showStatusMenu, setShowStatusMenu] = useState(false);
 	const statusMenuRef = useRef(null);
 
@@ -59,6 +70,17 @@ const Sidebar = () => {
 			await profileService.updateStatus(value);
 		} catch {
 			/* ignore */
+		}
+	};
+
+	const handleToggleDND = async () => {
+		const next = !isDND;
+		setIsDND(next);
+		setShowStatusMenu(false);
+		try {
+			await profileService.updateDND(next);
+		} catch {
+			setIsDND(!next);
 		}
 	};
 
@@ -78,6 +100,10 @@ const Sidebar = () => {
 		dispatch(fetchRooms());
 	}, [dispatch]);
 
+	useEffect(() => {
+		dispatch(setSidebarOpen(false));
+	}, [pathname, dispatch]);
+
 	const tabs = [
 		{ id: "all", label: "Semua" },
 		{ id: "messages", label: "Pesan" },
@@ -88,13 +114,28 @@ const Sidebar = () => {
 
 	return (
 		<>
-			<div className='w-80 flex-shrink-0 bg-slate-900 flex flex-col h-full border-r border-slate-800'>
+			{sidebarOpen && (
+				<button
+					type='button'
+					className='fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-[1px] lg:hidden'
+					aria-label='Tutup menu'
+					onClick={() => dispatch(setSidebarOpen(false))}
+				/>
+			)}
+			<div
+				className={`flex h-full w-80 max-w-[min(22rem,92vw)] flex-shrink-0 flex-col border-r border-slate-800 bg-slate-900 transition-transform duration-300 ease-out lg:relative lg:z-auto lg:max-w-none lg:translate-x-0 ${
+					sidebarOpen ? "max-lg:translate-x-0" : "max-lg:-translate-x-full"
+				} max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-50 max-lg:shadow-2xl`}
+			>
 				{/* Brand */}
-				<div className='px-4 pt-5 pb-3'>
+				<div className='px-4 pb-3 pt-[max(1.25rem,env(safe-area-inset-top))] lg:pt-5'>
 					<div className='flex items-center justify-between'>
 						<button
-							onClick={() => navigate("/dashboard")}
-							className='flex items-center gap-2.5 hover:opacity-80 transition-opacity'
+							onClick={() => {
+								navigate("/dashboard");
+								dispatch(setSidebarOpen(false));
+							}}
+							className='flex items-center gap-2.5 transition-opacity hover:opacity-80'
 						>
 							<div
 								className='w-8 h-8 rounded-xl flex items-center justify-center shadow-lg overflow-hidden flex-shrink-0'
@@ -243,6 +284,22 @@ const Sidebar = () => {
 						/>
 						Task
 					</button>
+					<button
+						type='button'
+						onClick={() => navigate("/pricing")}
+						aria-current={pathname === "/pricing" ? "page" : undefined}
+						className={`w-full min-h-11 flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ease-out active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+							pathname === "/pricing" ?
+								"bg-indigo-600 text-white shadow-md"
+							:	"bg-slate-800 text-slate-300 hover:bg-slate-700/80 border border-slate-700/80"
+						}`}
+					>
+						<CreditCard
+							className='w-4 h-4 flex-shrink-0 opacity-90'
+							aria-hidden='true'
+						/>
+						Subscription
+					</button>
 					{user?.is_system_admin && (
 						<button
 							type='button'
@@ -268,12 +325,19 @@ const Sidebar = () => {
 				{/* Bottom: User Profile */}
 				<div className='border-t border-slate-800 p-3'>
 					<div className='flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800 transition-colors group'>
-						<Avatar
-							name={user?.username || user?.name}
-							avatar={user?.avatar}
-							size='md'
-							online={true}
-						/>
+						<div className='relative flex-shrink-0'>
+							<Avatar
+								name={user?.username || user?.name}
+								avatar={user?.avatar}
+								size='md'
+								online={true}
+							/>
+							{isDND && (
+								<div className='absolute -top-1 -right-1 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center' title='Mode Jangan Ganggu aktif'>
+									<BellOff className='w-2.5 h-2.5 text-white' />
+								</div>
+							)}
+						</div>
 						<div className='flex-1 min-w-0'>
 							<p className='text-sm font-medium text-slate-100 truncate'>
 								{user?.username || user?.name || user?.email}
@@ -291,7 +355,7 @@ const Sidebar = () => {
 									<ChevronDown className='w-3 h-3 flex-shrink-0' />
 								</button>
 								{showStatusMenu && (
-									<div className='absolute bottom-6 left-0 z-50 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 w-48'>
+									<div className='absolute bottom-6 left-0 z-50 bg-slate-800 border border-slate-700 rounded-xl shadow-xl py-1 w-52'>
 										{STATUS_PRESETS.map((preset) => (
 											<button
 												key={preset.value}
@@ -307,6 +371,19 @@ const Sidebar = () => {
 												<span>{preset.label}</span>
 											</button>
 										))}
+										<div className='h-px bg-slate-700 my-1' />
+										<button
+											type='button'
+											onClick={handleToggleDND}
+											className={`w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors ${
+												isDND ?
+													"text-rose-400 bg-slate-700"
+												:	"text-slate-300 hover:bg-slate-700"
+											}`}
+										>
+											{isDND ? <BellOff className='w-4 h-4' /> : <Bell className='w-4 h-4' />}
+											<span>{isDND ? "Notifikasi Dimatikan" : "Matikan Notifikasi (DND)"}</span>
+										</button>
 									</div>
 								)}
 							</div>

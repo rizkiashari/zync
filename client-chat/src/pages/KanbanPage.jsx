@@ -13,7 +13,7 @@ import { useSocket } from "../context/SocketContext";
 import KanbanColumn from "../components/kanban/KanbanColumn";
 import TaskModal from "../components/kanban/TaskModal";
 import ColumnModal from "../components/kanban/ColumnModal";
-import Sidebar from "../components/layout/Sidebar";
+import MainShell from "../components/layout/MainShell";
 import { taskService } from "../services/taskService";
 import { deadlineForTaskUpdate } from "../lib/tasksHubLogic";
 import { recentTaskService } from "../services/recentTaskService";
@@ -103,18 +103,14 @@ const KanbanPage = () => {
 	const handleTaskClick = useCallback(
 		(task) => {
 			if (!task) return;
-			const columnName = board?.columns?.find(
-				(col) => col.id === task.column_id,
-			)?.name;
 			// Persist recents to DB (source of truth) for Dashboard.
 			recentTaskService.upsert(task.id).catch(() => {
 				// Non-blocking: user should still be able to open the task.
-				// eslint-disable-next-line no-console
 				console.error("Failed to save recent task");
 			});
 			setTaskModal({ task });
 		},
-		[board, groupId, room?.name],
+		[],
 	);
 
 	const handleTaskMove = useCallback(
@@ -148,12 +144,11 @@ const KanbanPage = () => {
 
 	if (loading) {
 		return (
-			<div className='flex h-screen bg-slate-50'>
-				<Sidebar />
-				<div className='flex-1 flex items-center justify-center'>
-					<div className='w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin' />
+			<MainShell>
+				<div className='flex flex-1 items-center justify-center'>
+					<div className='h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent' />
 				</div>
-			</div>
+			</MainShell>
 		);
 	}
 
@@ -162,25 +157,24 @@ const KanbanPage = () => {
 	const columns = board.columns ?? [];
 
 	return (
-		<div className='flex h-screen bg-slate-50 overflow-hidden'>
-			<Sidebar />
-			<div className='flex-1 flex flex-col min-w-0'>
+		<MainShell>
+			<div className='flex min-h-0 min-w-0 flex-1 flex-col'>
 				{/* Top bar */}
-				<div className='flex items-center justify-between px-6 py-4 bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-clean flex-shrink-0'>
-					<div className='flex items-center gap-3 min-w-0'>
+				<div className='flex flex-shrink-0 flex-col gap-3 border-b border-slate-200/80 bg-white/95 px-4 py-3 shadow-clean backdrop-blur-sm sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4'>
+					<div className='flex min-w-0 items-center gap-2 sm:gap-3'>
 						<Link
 							to={`/group/${groupId}`}
 							aria-label='Kembali ke grup'
-							className={`min-h-11 min-w-11 flex items-center justify-center rounded-xl hover:bg-slate-100 transition-colors text-slate-600 hover:text-slate-900 ${focusRing}`}
+							className={`flex h-11 min-h-11 w-11 min-w-11 flex-shrink-0 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 ${focusRing}`}
 						>
-							<ArrowLeft className='w-5 h-5' />
+							<ArrowLeft className='h-5 w-5' />
 						</Link>
-						<ClipboardList className='w-5 h-5 text-indigo-600' />
-						<div>
-							<h1 className='text-base font-semibold text-slate-900 tracking-tight'>
+						<ClipboardList className='h-5 w-5 flex-shrink-0 text-indigo-600' />
+						<div className='min-w-0'>
+							<h1 className='text-sm font-semibold tracking-tight text-slate-900 sm:text-base'>
 								Track task
 							</h1>
-							<p className='text-xs text-slate-500 mt-0.5'>
+							<p className='mt-0.5 truncate text-xs text-slate-500'>
 								{room?.name || "Group"}
 							</p>
 						</div>
@@ -188,16 +182,16 @@ const KanbanPage = () => {
 					<button
 						type='button'
 						onClick={() => setColumnModal({})}
-						className={`flex items-center gap-1.5 px-3 py-2.5 bg-indigo-600 text-white text-sm font-medium rounded-xl hover:bg-indigo-700 transition-colors shadow-clean ring-1 ring-indigo-700/20 ${focusRing}`}
+						className={`flex w-full items-center justify-center gap-1.5 rounded-xl bg-indigo-600 px-3 py-2.5 text-sm font-medium text-white shadow-clean ring-1 ring-indigo-700/20 transition-colors hover:bg-indigo-700 sm:w-auto ${focusRing}`}
 					>
-						<Plus className='w-4 h-4' />
+						<Plus className='h-4 w-4' />
 						Tambah Kolom
 					</button>
 				</div>
 
 				{/* Board */}
-				<div className='flex-1 overflow-x-auto overflow-y-hidden'>
-					<div className='flex gap-4 p-6 h-full items-start'>
+				<div className='min-h-0 flex-1 overflow-x-auto overflow-y-hidden'>
+					<div className='flex h-full items-start gap-3 p-4 sm:gap-4 sm:p-6'>
 						{columns.map((col) => (
 							<KanbanColumn
 								key={col.id}
@@ -252,7 +246,7 @@ const KanbanPage = () => {
 					onSaved={handleColumnSaved}
 				/>
 			)}
-		</div>
+		</MainShell>
 	);
 };
 

@@ -7,7 +7,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // Avoid white flash between LaunchScreen and WebView (brand = #0f172a)
+        let brand = UIColor(red: 15 / 255.0, green: 23 / 255.0, blue: 42 / 255.0, alpha: 1)
+        UIWindow.appearance().backgroundColor = brand
         return true
     }
 

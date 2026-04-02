@@ -35,6 +35,7 @@ type updateProfileBody struct {
 	Avatar             *string `json:"avatar"              binding:"omitempty,max=512"`
 	Bio                *string `json:"bio"                 binding:"omitempty,max=256"`
 	EmailNotifications *bool   `json:"email_notifications"`
+	IsDND              *bool   `json:"is_dnd"`
 }
 
 type changePasswordBody struct {
@@ -116,6 +117,9 @@ func handleUpdateProfile(usersRepo *repository.UserRepository) gin.HandlerFunc {
 		}
 		if req.EmailNotifications != nil {
 			updates["email_notifications"] = *req.EmailNotifications
+		}
+		if req.IsDND != nil {
+			updates["is_dnd"] = *req.IsDND
 		}
 		if len(updates) == 0 {
 			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "No fields to update")

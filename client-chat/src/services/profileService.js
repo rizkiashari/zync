@@ -29,4 +29,7 @@ export const profileService = {
 
 	updateEmailPreference: (enabled) =>
 		api.put("/api/profile", { email_notifications: enabled }),
+
+	updateDND: (enabled) =>
+		api.put("/api/profile", { is_dnd: enabled }),
 };

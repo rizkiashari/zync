@@ -34,7 +34,12 @@ const notificationsSlice = createSlice({
     unreadCount: 0,
     status: 'idle',
   },
-  reducers: {},
+  reducers: {
+    prependNotification(state, action) {
+      state.items.unshift(action.payload);
+      if (!action.payload.read_at) state.unreadCount += 1;
+    },
+  },
   extraReducers: (builder) => {
     builder
       .addCase(fetchNotifications.pending, (state) => { state.status = 'loading'; })

@@ -42,7 +42,7 @@ func runOnce(taskRepo *repository.TaskRepository, notifRepo *repository.Notifica
 		}
 		body := fmt.Sprintf("Task \"%s\" jatuh tempo dalam 24 jam", t.Title)
 		for _, uid := range t.AssigneeIDs {
-			if err := notifRepo.Create(uid, models.NotificationTypeDeadline, t.RoomID, 0, 0, body); err != nil {
+			if err := notifRepo.CreateIfNotDND(uid, models.NotificationTypeDeadline, t.RoomID, 0, 0, body); err != nil {
 				log.Error("task reminders: create notif", "user", uid, "error", err)
 				continue
 			}

@@ -1,37 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-	ArrowRight,
-	MessageCircle,
-	Blocks,
-	ShieldCheck,
-	Sparkles,
-} from "lucide-react";
+import { ArrowRight, MessageCircle, Blocks, Sparkles } from "lucide-react";
 import Logo from "../ui/Logo";
 import Button from "../ui/Button";
 import { cardClean, focusRing } from "../../lib/uiClasses";
 import Avatar from "../ui/Avatar";
 import { onboardingPricingService } from "../../services/onboardingPricingService";
-
-const features = [
-	{
-		key: "realtime",
-		title: "Chat real-time yang rapi",
-		desc: "Kirim pesan tanpa delay dan tetap fokus berkat layout yang clean.",
-		icon: MessageCircle,
-	},
-	{
-		key: "tenant",
-		title: "Isolasi tenant (aman)",
-		desc: "Komunikasi tetap berada di workspace yang benar, antar tenant terjaga.",
-		icon: ShieldCheck,
-	},
-	{
-		key: "tasks",
-		title: "Task Hub + recently opened",
-		desc: "Urutan task yang terakhir kamu buka tersimpan dan bisa di-reorder.",
-		icon: Blocks,
-	},
-];
+import { onboardingHighlightFeatures as features } from "../../data/onboardingHighlights";
+import { isNativeApp } from "../../lib/platform";
+import {
+	AdOnboardingDashboardNative,
+	AdOnboardingGuestNative,
+} from "./adOnboardingNativeLayouts";
 
 const getFirstName = (name) => {
 	if (!name) return "dunia";
@@ -43,6 +22,7 @@ export default function AdOnboarding({
 	user,
 	onCreateGroup,
 	onGoTasks,
+	onGoPricing,
 	onGoLogin,
 	onGoRegister,
 	onSkipToContent,
@@ -56,8 +36,15 @@ export default function AdOnboarding({
 	const [pricingPlans, setPricingPlans] = useState([]);
 	const [pricingLoading, setPricingLoading] = useState(true);
 
+	const needPricing = variant === "guest";
+
 	useEffect(() => {
 		let cancelled = false;
+		if (!needPricing) {
+			setPricingPlans([]);
+			setPricingLoading(false);
+			return;
+		}
 		const load = async () => {
 			setPricingLoading(true);
 			try {
@@ -74,7 +61,7 @@ export default function AdOnboarding({
 		return () => {
 			cancelled = true;
 		};
-	}, []);
+	}, [needPricing]);
 
 	const formatIDR = (n) => {
 		if (typeof n !== "number") return "0";
@@ -84,13 +71,24 @@ export default function AdOnboarding({
 	const isRecommended = (plan) => plan?.key === "pro";
 
 	if (variant === "dashboard") {
+		if (isNativeApp()) {
+			return (
+				<AdOnboardingDashboardNative
+					user={user}
+					onCreateGroup={onCreateGroup}
+					onGoTasks={onGoTasks}
+					onGoPricing={onGoPricing}
+					onSkipToContent={onSkipToContent}
+				/>
+			);
+		}
 		return (
-			<section className='relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 px-4 sm:px-6 pt-6 sm:pt-8 pb-8 sm:pb-10 overflow-hidden'>
+			<section className='relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 overflow-hidden'>
 				<div className='absolute -top-10 -right-10 w-56 h-56 bg-white/5 rounded-full' />
 				<div className='absolute top-4 right-32 w-20 h-20 bg-white/5 rounded-full' />
 				<div className='absolute -bottom-8 left-40 w-40 h-40 bg-white/5 rounded-full' />
 
-				<div className='relative flex flex-col gap-6'>
+				<div className='relative max-w-6xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-8 sm:pb-10 flex flex-col gap-6'>
 					<div className='flex items-start justify-between gap-6 flex-wrap'>
 						<div className='flex items-center gap-4'>
 							<div className='ring-4 ring-white/20 rounded-full'>
@@ -116,7 +114,7 @@ export default function AdOnboarding({
 								variant='primary'
 								size='md'
 								onClick={onGoTasks}
-								className='bg-white text-indigo-700 hover:bg-indigo-50'
+								className='bg-indigo-900/20 text-white hover:bg-indigo-900/30 border border-white/30 shadow-clean-md'
 							>
 								<Blocks className='w-4 h-4' />
 								Task Hub
@@ -133,6 +131,15 @@ export default function AdOnboarding({
 							</Button>
 							<button
 								type='button'
+								onClick={onGoPricing}
+								disabled={!onGoPricing}
+								className={`flex items-center gap-2 bg-white text-indigo-700 text-sm font-semibold px-4 py-2 rounded-xl border border-white/90 transition-all hover:bg-indigo-50 disabled:opacity-50 disabled:pointer-events-none ${focusRing}`}
+							>
+								Harga & langganan
+								<ArrowRight className='w-4 h-4' />
+							</button>
+							<button
+								type='button'
 								onClick={onSkipToContent}
 								className={`flex items-center gap-2 bg-white/10 text-white text-sm font-semibold px-4 py-2 rounded-xl border border-white/30 transition-all hover:bg-white/20 ${focusRing}`}
 							>
@@ -141,201 +148,39 @@ export default function AdOnboarding({
 							</button>
 						</div>
 					</div>
-
-					<div
-						className={`${cardClean} bg-white/10 border-white/20 shadow-none backdrop-blur-md`}
-					>
-						<div className='flex items-center justify-between gap-4 flex-wrap p-4 border-b border-white/15'>
-							<div>
-								<p className='text-white/90 text-sm font-semibold'>
-									Mode onboarding iklan
-								</p>
-								<p className='text-white/70 text-xs mt-0.5'>
-									Pilih highlight yang kamu peduli sekarang.
-								</p>
-							</div>
-							<div className='flex gap-2 flex-wrap'>
-								{features.map((f) => {
-									const Icon = f.icon;
-									const isActive = active === f.key;
-									return (
-										<button
-											key={f.key}
-											type='button'
-											onClick={() => setActive(f.key)}
-											className={`inline-flex items-center px-3 py-2.5 min-h-11 rounded-xl text-xs font-semibold border transition-all ${
-												isActive ?
-													"bg-white/15 border-white/30 text-white shadow-clean-md"
-												:	"bg-white/5 border-white/15 text-white/75 hover:bg-white/10"
-											}`}
-											aria-pressed={isActive}
-										>
-											<span className='inline-flex items-center gap-2'>
-												<Icon className='w-3.5 h-3.5' />
-												{f.key === "realtime" ?
-													"Real-time"
-												: f.key === "tenant" ?
-													"Aman"
-												:	"Task Hub"}
-											</span>
-										</button>
-									);
-								})}
-							</div>
-						</div>
-
-						<div className='p-4 flex gap-4 items-start'>
-							<div className='w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0'>
-								{(() => {
-									const Icon = activeFeature.icon;
-									return (
-										<Icon className='w-5 h-5 text-white' aria-hidden='true' />
-									);
-								})()}
-							</div>
-							<div>
-								<p className='text-white font-semibold'>
-									{activeFeature.title}
-								</p>
-								<p className='text-white/70 text-sm mt-0.5 leading-relaxed'>
-									{activeFeature.desc}
-								</p>
-							</div>
-						</div>
-					</div>
-
-					<div
-						className={`${cardClean} bg-white/10 border-white/20 shadow-none backdrop-blur-md overflow-hidden`}
-					>
-						<div className='flex items-start justify-between gap-4 p-4 border-b border-white/15'>
-							<div>
-								<p className='text-white/90 text-sm font-semibold'>Pricing</p>
-								<p className='text-white/70 text-xs mt-0.5'>
-									3 paket, diatur superadmin.
-								</p>
-							</div>
-							{pricingLoading ?
-								<span className='text-xs font-semibold text-white/70 bg-white/5 border border-white/10 px-3 py-1 rounded-full'>
-									Memuat...
-								</span>
-							:	<span className='text-xs font-semibold text-indigo-100 bg-indigo-500/15 border border-indigo-200/20 px-3 py-1 rounded-full'>
-									{pricingPlans.length || 0} paket
-								</span>
-							}
-						</div>
-
-						<div className='p-4'>
-							{pricingLoading ?
-								<div
-									className='grid grid-cols-1 gap-3'
-									aria-busy={pricingLoading}
-									aria-live='polite'
-								>
-									{[0, 1, 2].map((k) => (
-										<div
-											key={k}
-											className='h-[170px] rounded-2xl border border-white/10 bg-white/5 animate-pulse'
-										/>
-									))}
-								</div>
-							:	<div
-									className='grid grid-cols-1 gap-3'
-									aria-busy={pricingLoading}
-									aria-live='polite'
-								>
-									{pricingPlans.map((plan) => {
-										const feats =
-											Array.isArray(plan.features) ? plan.features : [];
-										const recommended = isRecommended(plan);
-										return (
-											<div
-												key={plan.key}
-												className={`rounded-2xl border p-3 ${
-													recommended ?
-														"border-indigo-200 bg-indigo-500/10"
-													:	"border-white/10 bg-white/5"
-												}`}
-											>
-												<div className='flex items-start justify-between gap-2'>
-													<p className='text-xs font-semibold text-white'>
-														{plan.title}
-													</p>
-													<span className='text-[10px] font-semibold text-white/70 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full truncate max-w-[55%] min-w-0'>
-														{formatIDR(plan.price_idr)} / {plan.interval}
-													</span>
-												</div>
-												<ul className='mt-2 space-y-1'>
-													{feats.slice(0, 2).map((f, idx) => (
-														<li
-															key={`${plan.key}-${idx}`}
-															className='text-[10px] text-white/80 flex gap-2 items-start'
-														>
-															<span
-																className={`mt-0.5 inline-flex w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-																	recommended ? "bg-indigo-300" : "bg-white/30"
-																}`}
-																aria-hidden='true'
-															/>
-															<span>{f}</span>
-														</li>
-													))}
-												</ul>
-												<div className='mt-3'>
-													<Button
-														type='button'
-														variant={recommended ? "primary" : "secondary"}
-														size='sm'
-														fullWidth
-														onClick={onGoTasks}
-														className='!min-h-10'
-													>
-														Lihat Task Hub
-													</Button>
-												</div>
-											</div>
-										);
-									})}
-								</div>
-							}
-							<div className='mt-4 rounded-2xl border border-white/10 bg-white/5 p-4'>
-								<div className='flex items-start gap-3'>
-									<div className='w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0'>
-										<MessageCircle
-											className='w-5 h-5 text-white'
-											aria-hidden='true'
-										/>
-									</div>
-									<div>
-										<p className='text-sm font-semibold text-white'>
-											Butuh bantuan memilih paket?
-										</p>
-										<p className='text-xs text-white/70 mt-1 leading-relaxed'>
-											Mulai dari{" "}
-											<span className='text-white font-semibold'>Pro</span>{" "}
-											untuk pengalaman paling lengkap, atau langsung ke Task Hub
-											sesuai kebutuhan.
-										</p>
-									</div>
-								</div>
-							</div>
-						</div>
-					</div>
 				</div>
 			</section>
 		);
 	}
 
 	// Guest (public marketing entry point)
+	if (isNativeApp()) {
+		return (
+			<AdOnboardingGuestNative
+				active={active}
+				setActive={setActive}
+				activeFeature={activeFeature}
+				features={features}
+				pricingPlans={pricingPlans}
+				pricingLoading={pricingLoading}
+				formatIDR={formatIDR}
+				isRecommended={isRecommended}
+				onGoLogin={onGoLogin}
+				onGoRegister={onGoRegister}
+			/>
+		);
+	}
+
 	return (
 		<div
-			className='min-h-dvh bg-slate-50 text-slate-900 flex items-stretch'
+			className='flex min-h-dvh w-full max-w-[100vw] flex-col items-stretch overflow-x-hidden bg-slate-50 pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] text-slate-900'
 			style={{
 				backgroundImage:
 					"radial-gradient(1200px 800px at 20% 5%, rgba(99,102,241,0.14), transparent 60%), radial-gradient(900px 600px at 80% 0%, rgba(236,72,153,0.10), transparent 55%), radial-gradient(800px 500px at 50% 90%, rgba(56,189,248,0.10), transparent 60%)",
 			}}
 		>
-			<div className='w-full flex flex-col'>
-				<header className='px-4 sm:px-6 pt-4 sm:pt-6'>
+			<div className='flex w-full min-w-0 flex-col'>
+				<header className='px-4 pt-4 sm:px-6 sm:pt-6'>
 					<div className='max-w-6xl mx-auto flex items-center justify-between gap-4'>
 						<div className='flex items-center gap-3'>
 							<div className='w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-clean-md ring-1 ring-black/5 flex items-center justify-center'>
@@ -364,15 +209,15 @@ export default function AdOnboarding({
 					</div>
 				</header>
 
-				<main className='flex-1 px-4 sm:px-6 py-8 sm:py-10'>
-					<div className='max-w-6xl mx-auto grid lg:grid-cols-2 gap-8 items-stretch'>
+				<main className='flex-1 px-4 py-8 sm:px-6 sm:py-10'>
+					<div className='mx-auto grid max-w-6xl grid-cols-1 items-stretch gap-8 lg:grid-cols-2'>
 						<section
 							className={`${cardClean} p-7 shadow-clean-md bg-white/70 backdrop-blur-md overflow-hidden relative flex flex-col h-full`}
 						>
 							<div className='absolute -top-10 -right-10 w-44 h-44 bg-indigo-500/10 rounded-full' />
 							<div className='absolute top-10 left-6 w-24 h-24 bg-fuchsia-500/10 rounded-full' />
 							<div className='relative'>
-								<h1 className='mt-4 text-4xl font-extrabold tracking-tight leading-[1.05]'>
+								<h1 className='mt-4 text-3xl font-extrabold leading-[1.1] tracking-tight sm:text-4xl sm:leading-[1.05]'>
 									Zync bikin chat terasa cepat,
 									<br />
 									terasa aman, terasa rapi.
@@ -489,19 +334,19 @@ export default function AdOnboarding({
 												type='button'
 												onClick={() => setActive(f.key)}
 												className={`inline-flex items-center px-3 py-2.5 min-h-11 rounded-xl text-xs font-semibold border transition-all ${
-													isActive ?
-														"bg-indigo-600 text-white border-indigo-600 shadow-clean-md"
-													:	"bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+													isActive
+														? "bg-indigo-600 text-white border-indigo-600 shadow-clean-md"
+														: "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
 												} ${focusRing}`}
 												aria-pressed={isActive}
 											>
 												<span className='inline-flex items-center gap-2'>
 													<Icon className='w-4 h-4' />
-													{f.key === "realtime" ?
-														"Real-time"
-													: f.key === "tenant" ?
-														"Aman"
-													:	"Task Hub"}
+													{f.key === "realtime"
+														? "Real-time"
+														: f.key === "tenant"
+														? "Aman"
+														: "Task Hub"}
 												</span>
 											</button>
 										);
@@ -581,17 +426,18 @@ export default function AdOnboarding({
 										Pricing
 									</p>
 								</div>
-								{pricingLoading ?
+								{pricingLoading ? (
 									<span className='text-xs font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-3 py-1 rounded-full'>
 										Memuat...
 									</span>
-								:	<span className='text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full'>
+								) : (
+									<span className='text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full'>
 										{pricingPlans.length || 0} paket
 									</span>
-								}
+								)}
 							</div>
 
-							{pricingLoading ?
+							{pricingLoading ? (
 								<div
 									className='mt-4 grid grid-cols-1 gap-3'
 									aria-busy={pricingLoading}
@@ -604,28 +450,30 @@ export default function AdOnboarding({
 										/>
 									))}
 								</div>
-							:	<div
+							) : (
+								<div
 									className='mt-4 grid grid-cols-1 gap-3'
 									aria-busy={pricingLoading}
 									aria-live='polite'
 								>
 									{pricingPlans.map((plan) => {
-										const feats =
-											Array.isArray(plan.features) ? plan.features : [];
+										const feats = Array.isArray(plan.features)
+											? plan.features
+											: [];
 										const recommended = isRecommended(plan);
 										const ctaText =
-											variant === "guest" ?
-												`Mulai ${plan.title}`
-											:	"Lihat Task Hub";
+											variant === "guest"
+												? `Mulai ${plan.title}`
+												: "Lihat Task Hub";
 										const ctaHandler =
 											variant === "guest" ? onGoLogin : onGoTasks;
 										return (
 											<div
 												key={plan.key}
 												className={`relative rounded-2xl border p-4 ${
-													recommended ?
-														"border-indigo-200 bg-indigo-50/60"
-													:	"border-slate-200 bg-white/70"
+													recommended
+														? "border-indigo-200 bg-indigo-50/60"
+														: "border-slate-200 bg-white/70"
 												}`}
 											>
 												{recommended && (
@@ -681,7 +529,7 @@ export default function AdOnboarding({
 										);
 									})}
 								</div>
-							}
+							)}
 						</div>
 					</div>
 				</main>

@@ -33,8 +33,7 @@ const LoginPage = () => {
 		else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
 			errs.email = "Format email tidak valid";
 		if (!form.password) errs.password = "Kata sandi wajib diisi";
-		else if (form.password.length < 8)
-			errs.password = "Minimal 8 karakter (sesuai kebijakan akun)";
+		else if (form.password.length < 8) errs.password = "Minimal 8 karakter";
 		setErrors(errs);
 		return Object.keys(errs).length === 0;
 	};
@@ -61,7 +60,7 @@ const LoginPage = () => {
 	};
 
 	return (
-		<div className='min-h-dvh flex'>
+		<div className='flex min-h-dvh w-full overflow-x-hidden'>
 			{/* ── Left brand panel ─────────────────────────────── */}
 			<div className='hidden lg:flex lg:w-[45%] xl:w-2/5 bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-800 flex-col items-center justify-center p-12 relative overflow-hidden'>
 				{/* Decorative circles */}
@@ -95,7 +94,7 @@ const LoginPage = () => {
 			</div>
 
 			{/* ── Right form panel ─────────────────────────────── */}
-			<main className='flex-1 flex items-center justify-center px-6 py-12 bg-slate-50 overflow-y-auto'>
+			<main className='flex flex-1 items-center justify-center overflow-y-auto bg-slate-50 px-4 py-10 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(2.5rem,env(safe-area-inset-top))] sm:px-6 sm:py-12'>
 				<div className='w-full max-w-sm'>
 					{/* Mobile logo */}
 					<div className='lg:hidden flex flex-col items-center mb-10'>

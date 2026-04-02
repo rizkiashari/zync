@@ -123,7 +123,7 @@ const VoiceLayout = ({ onEndCall }) => {
 
 			<RoomAudioRenderer />
 
-			<div className='flex items-center justify-center gap-4 py-5 bg-[#202124] border-t border-white/10'>
+			<div className='flex items-center justify-center gap-3 border-t border-white/10 bg-[#202124] px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-4 sm:py-5'>
 				<button
 					type='button'
 					onClick={toggleMic}
@@ -225,7 +225,7 @@ const VideoLayout = ({ onEndCall }) => {
 
 			<RoomAudioRenderer />
 
-			<div className='flex items-center justify-center gap-4 py-5 bg-[#202124] border-t border-white/10'>
+			<div className='flex items-center justify-center gap-3 border-t border-white/10 bg-[#202124] px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-4 sm:py-5'>
 				<button
 					type='button'
 					onClick={toggleMic}
@@ -315,8 +315,8 @@ const CallPage = () => {
 	if (!callData) return null;
 
 	return (
-		<div className='flex flex-col h-screen bg-[#202124]'>
-			<div className='flex items-center justify-between px-6 py-3 bg-[#202124] border-b border-white/10 flex-shrink-0'>
+		<div className='flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[#202124]'>
+			<div className='flex flex-shrink-0 items-center justify-between border-b border-white/10 bg-[#202124] px-4 py-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-6 sm:py-3'>
 				<div className='flex items-center gap-2 text-white'>
 					{isVideo ?
 						<Video className='w-4 h-4 text-emerald-400' />

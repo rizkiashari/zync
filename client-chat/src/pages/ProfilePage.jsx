@@ -11,7 +11,7 @@ import {
 	ChevronRight,
 	Bell,
 } from "lucide-react";
-import Sidebar from "../components/layout/Sidebar";
+import MainShell from "../components/layout/MainShell";
 import Avatar from "../components/ui/Avatar";
 import Button from "../components/ui/Button";
 import Input from "../components/ui/Input";
@@ -145,7 +145,9 @@ const ProfilePage = () => {
 		setSavingEmailNotif(true);
 		try {
 			await profileService.updateEmailPreference(val);
-			toast.success(val ? "Notifikasi email diaktifkan" : "Notifikasi email dinonaktifkan");
+			toast.success(
+				val ? "Notifikasi email diaktifkan" : "Notifikasi email dinonaktifkan",
+			);
 		} catch {
 			setEmailNotif(!val);
 			toast.error("Gagal memperbarui preferensi email");
@@ -164,12 +166,10 @@ const ProfilePage = () => {
 		:	"Maret 2026";
 
 	return (
-		<div className='flex h-screen bg-slate-50 overflow-hidden'>
-			<Sidebar />
-
-			<div className='flex-1 overflow-y-auto'>
+		<MainShell>
+			<div className='min-h-0 flex-1 overflow-y-auto'>
 				{/* ── Sticky top bar ───────────────────────── */}
-				<div className='sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-6 py-3.5 flex items-center gap-3 shadow-clean'>
+				<div className='sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-clean backdrop-blur-md sm:px-6 sm:py-3.5'>
 					<button
 						type='button'
 						onClick={() => navigate("/dashboard")}
@@ -182,13 +182,13 @@ const ProfilePage = () => {
 				</div>
 
 				{/* ── Hero banner ──────────────────────────── */}
-				<div className='relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 px-6 pt-8 pb-20 overflow-hidden'>
+				<div className='relative overflow-hidden bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 px-4 pb-20 pt-8 sm:px-6'>
 					<div className='absolute -top-8 -right-8 w-48 h-48 bg-white/5 rounded-full' />
 					<div className='absolute bottom-0 left-20 w-32 h-32 bg-white/5 rounded-full' />
 				</div>
 
 				{/* ── Profile card overlapping banner ──────── */}
-				<div className='px-6 -mt-12 pb-8 space-y-4'>
+				<div className='-mt-12 space-y-4 px-4 pb-8 sm:px-6'>
 					<div className='bg-white rounded-3xl border border-slate-200/80 shadow-clean p-6'>
 						{/* Avatar */}
 						<div className='flex items-end justify-between mb-5'>
@@ -301,8 +301,12 @@ const ProfilePage = () => {
 								<Bell className='w-5 h-5 text-amber-600' />
 							</div>
 							<div className='flex-1 min-w-0'>
-								<p className='text-sm font-medium text-slate-800'>Notifikasi Email</p>
-								<p className='text-xs text-slate-400 mt-0.5'>Terima notifikasi via email</p>
+								<p className='text-sm font-medium text-slate-800'>
+									Notifikasi Email
+								</p>
+								<p className='text-xs text-slate-400 mt-0.5'>
+									Terima notifikasi via email
+								</p>
 							</div>
 							<button
 								type='button'
@@ -312,7 +316,9 @@ const ProfilePage = () => {
 								onClick={() => handleToggleEmailNotif(!emailNotif)}
 								className={`relative w-11 h-6 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${emailNotif ? "bg-indigo-600" : "bg-slate-200"} disabled:opacity-60`}
 							>
-								<span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${emailNotif ? "translate-x-5" : "translate-x-0"}`} />
+								<span
+									className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${emailNotif ? "translate-x-5" : "translate-x-0"}`}
+								/>
 							</button>
 						</div>
 						<div className='mx-5 h-px bg-slate-50' />
@@ -328,7 +334,7 @@ const ProfilePage = () => {
 					</div>
 				</div>
 			</div>
-		</div>
+		</MainShell>
 	);
 };
 

@@ -10,7 +10,9 @@
 		"cap:sync": "./node_modules/.bin/cap sync",
 		"cap:ios": "./node_modules/.bin/cap open ios",
 		"cap:android": "./node_modules/.bin/cap open android",
-		"lint": "node ./node_modules/eslint/bin/eslint.js .",
+		"cap:assets": "node ../node_modules/@capacitor/assets/bin/capacitor-assets generate --ios --android",
+		"cap:assets:sync": "npm run cap:assets && npm run cap:sync",
+		"lint": "node ./node_modules/eslint/bin/eslint.js src --max-warnings 0",
 		"preview": "vite preview"
 	},
 	"dependencies": {
@@ -31,6 +33,7 @@
 		"recharts": "^3.8.1"
 	},
 	"devDependencies": {
+		"@capacitor/assets": "^3.0.5",
 		"@eslint/js": "^9.39.4",
 		"@types/react": "^19.2.14",
 		"@types/react-dom": "^19.2.3",

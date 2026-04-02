@@ -65,11 +65,22 @@ const processQueue = (error, token = null) => {
 	failedQueue = [];
 };
 
+/** 401 on these routes means invalid credentials / auth failure, not an expired access token. */
+function isLoginOrRegisterRequest(config) {
+	if (!config?.url) return false;
+	const path = String(config.url).split("?")[0].replace(/\/$/, "") || "";
+	return path === "/auth/login" || path === "/auth/register";
+}
+
 api.interceptors.response.use(
 	(res) => res,
 	async (error) => {
 		const original = error.config;
 		if (error.response?.status === 401 && !original._retry) {
+			// Avoid treating failed login/register as "session expired" (no hard redirect / reload).
+			if (isLoginOrRegisterRequest(original)) {
+				return Promise.reject(error);
+			}
 			if (isRefreshing) {
 				return new Promise((resolve, reject) => {
 					failedQueue.push({ resolve, reject });

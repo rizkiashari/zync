@@ -29,6 +29,18 @@ func (r *NotificationRepository) Create(userID uint, nType string, roomID, messa
 	return r.db.Create(&n).Error
 }
 
+// CreateIfNotDND stores a notification only when the target user has DND mode off.
+func (r *NotificationRepository) CreateIfNotDND(userID uint, nType string, roomID, messageID, fromID uint, body string) error {
+	var u models.User
+	if err := r.db.Select("is_dnd").First(&u, userID).Error; err != nil {
+		return err
+	}
+	if u.IsDND {
+		return nil
+	}
+	return r.Create(userID, nType, roomID, messageID, fromID, body)
+}
+
 // List returns notifications for a user, newest first.
 func (r *NotificationRepository) List(userID uint, limit int) ([]models.Notification, error) {
 	if limit <= 0 || limit > 100 {

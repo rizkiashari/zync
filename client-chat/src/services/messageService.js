@@ -38,4 +38,7 @@ export const messageService = {
 
   listFiles: (roomId, params = {}) =>
     api.get(`/api/rooms/${roomId}/files`, { params }),
+
+  getThread: (msgId, params = {}) =>
+    api.get(`/api/messages/${msgId}/thread`, { params }),
 };

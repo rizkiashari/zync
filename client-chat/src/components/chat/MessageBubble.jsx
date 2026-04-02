@@ -11,6 +11,7 @@ import {
 	PinOff,
 	Bookmark,
 	BookmarkCheck,
+	MessageSquare,
 } from "lucide-react";
 import Avatar from "../ui/Avatar";
 import { formatMessageTime } from "../../data/mockData";
@@ -74,7 +75,7 @@ const FileBubble = ({ meta, dark }) => {
 	);
 };
 
-const ContextMenu = ({ x, y, isOwn, onReply, onCopy, onDelete, onPin, isPinned, onBookmark, isBookmarked, onClose }) => {
+const ContextMenu = ({ x, y, isOwn, onReply, onCopy, onDelete, onPin, isPinned, onBookmark, isBookmarked, onOpenThread, onClose }) => {
 	const ref = useRef(null);
 
 	useEffect(() => {
@@ -105,6 +106,15 @@ const ContextMenu = ({ x, y, isOwn, onReply, onCopy, onDelete, onPin, isPinned, 
 				<Reply className='w-4 h-4 text-indigo-500' />
 				Balas
 			</button>
+			{onOpenThread && (
+				<button
+					onClick={onOpenThread}
+					className='w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 text-slate-700 transition-colors'
+				>
+					<MessageSquare className='w-4 h-4 text-indigo-500' />
+					Lihat Thread
+				</button>
+			)}
 			<button
 				onClick={onCopy}
 				className='w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 text-slate-700 transition-colors'
@@ -185,6 +195,8 @@ const MessageBubble = ({
 	pinnedMessageId,
 	onBookmark,
 	bookmarkedIds = [],
+	onOpenThread,
+	threadCount = 0,
 }) => {
 	const [menu, setMenu] = useState(null);
 	const time = formatMessageTime(message.timestamp);
@@ -222,6 +234,11 @@ const MessageBubble = ({
 
 	const handleBookmark = () => {
 		onBookmark?.(message.id, isBookmarked);
+		setMenu(null);
+	};
+
+	const handleOpenThread = () => {
+		onOpenThread?.(message);
 		setMenu(null);
 	};
 
@@ -264,6 +281,15 @@ const MessageBubble = ({
 								/>
 							)}
 						</div>
+				{threadCount > 0 && !isDeleted && (
+					<button
+						onClick={() => onOpenThread?.(message)}
+						className='flex items-center gap-1 mt-1 px-1 text-xs text-indigo-400 hover:text-indigo-600 transition-colors'
+					>
+						<MessageSquare className='w-3 h-3' />
+						<span>{threadCount} balasan</span>
+					</button>
+				)}
 					</div>
 				</div>
 				{menu && (
@@ -279,6 +305,7 @@ const MessageBubble = ({
 						onBookmark={onBookmark ? handleBookmark : undefined}
 						isBookmarked={isBookmarked}
 						onClose={() => setMenu(null)}
+						onOpenThread={onOpenThread ? handleOpenThread : undefined}
 					/>
 				)}
 			</>
@@ -332,6 +359,15 @@ const MessageBubble = ({
 					</div>
 					<span className='text-xs text-slate-400 mt-1 ml-1'>{time}</span>
 				</div>
+					{threadCount > 0 && !isDeleted && (
+						<button
+							onClick={() => onOpenThread?.(message)}
+							className='flex items-center gap-1 mt-1 text-xs text-indigo-500 hover:text-indigo-700 transition-colors'
+						>
+							<MessageSquare className='w-3 h-3' />
+							<span>{threadCount} balasan</span>
+						</button>
+					)}
 			</div>
 			{menu && (
 				<ContextMenu
@@ -345,6 +381,7 @@ const MessageBubble = ({
 					isPinned={isPinned}
 					onBookmark={onBookmark ? handleBookmark : undefined}
 					isBookmarked={isBookmarked}
+					onOpenThread={onOpenThread ? handleOpenThread : undefined}
 					onClose={() => setMenu(null)}
 				/>
 			)}

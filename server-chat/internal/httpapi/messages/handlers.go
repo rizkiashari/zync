@@ -377,6 +377,60 @@ func getReactions(msgRepo *repository.MessageRepository) gin.HandlerFunc {
 	}
 }
 
+// getThread godoc
+// @Summary      Get thread replies for a message
+// @Tags         messages
+// @Produce      json
+// @Security     BearerAuth
+// @Param        msgId    path  int  true  "Parent message ID"
+// @Param        limit    query int  false "Page size (default 50)"
+// @Param        before_id query int false "Cursor: only replies with id < before_id"
+// @Success      200 {object} apidocs.MessagesSuccess
+// @Failure      401 {object} apidocs.ErrorEnvelope
+// @Failure      404 {object} apidocs.ErrorEnvelope
+// @Router       /api/messages/{msgId}/thread [get]
+func getThread(msgRepo *repository.MessageRepository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		_, ok := middleware.UserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, response.CodeUnauthorized, "Unauthorized")
+			return
+		}
+		msgID, err := parseID(c, "msgId")
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid message ID")
+			return
+		}
+		parent, err := msgRepo.GetByID(msgID)
+		if err != nil || parent == nil {
+			response.Error(c, http.StatusNotFound, response.CodeNotFound, "Message not found")
+			return
+		}
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+		var beforeID uint
+		if v := c.Query("before_id"); v != "" {
+			u64, err := strconv.ParseUint(v, 10, 64)
+			if err != nil {
+				response.Error(c, http.StatusBadRequest, response.CodeInvalidBeforeID, "Invalid before_id parameter")
+				return
+			}
+			beforeID = uint(u64)
+		}
+		replies, err := msgRepo.GetThread(msgID, limit, beforeID)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
+			return
+		}
+		if replies == nil {
+			replies = make([]models.Message, 0)
+		}
+		response.OK(c, gin.H{
+			"parent":  parent,
+			"replies": replies,
+		})
+	}
+}
+
 func parseID(c *gin.Context, param string) (uint, error) {
 	id64, err := strconv.ParseUint(c.Param(param), 10, 64)
 	return uint(id64), err

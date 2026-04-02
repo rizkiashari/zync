@@ -195,6 +195,50 @@ func (r *MessageRepository) ListFiles(roomID uint, limit, offset int) ([]models.
 	return msgs, nil
 }
 
+// GetThread returns replies to a specific parent message (thread), ordered oldest-first.
+func (r *MessageRepository) GetThread(parentMsgID uint, limit int, beforeID uint) ([]models.Message, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	var msgs []models.Message
+	q := r.db.Where("reply_to_id = ? AND is_deleted = false", parentMsgID).Order("id ASC").Limit(limit)
+	if beforeID > 0 {
+		q = q.Where("id < ?", beforeID)
+	}
+	if err := q.Find(&msgs).Error; err != nil {
+		return nil, err
+	}
+	return msgs, nil
+}
+
+// CountReplies returns the number of direct replies for each given parent message ID.
+func (r *MessageRepository) CountReplies(parentMsgIDs []uint) (map[uint]int64, error) {
+	result := make(map[uint]int64)
+	if len(parentMsgIDs) == 0 {
+		return result, nil
+	}
+	type row struct {
+		ReplyToID uint
+		Count     int64
+	}
+	var rows []row
+	err := r.db.Model(&models.Message{}).
+		Select("reply_to_id, COUNT(*) as count").
+		Where("reply_to_id IN ? AND is_deleted = false", parentMsgIDs).
+		Group("reply_to_id").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, rw := range rows {
+		result[rw.ReplyToID] = rw.Count
+	}
+	return result, nil
+}
+
 // CountUnread returns the number of messages the user hasn't read in a room.
 func (r *MessageRepository) CountUnread(roomID, userID, lastReadMsgID uint) (int64, error) {
 	var n int64
