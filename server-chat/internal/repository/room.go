@@ -192,29 +192,33 @@ func (r *RoomRepository) GetMembers(roomID uint) ([]MemberDetail, error) {
 	return members, nil
 }
 
-// IsAdmin returns true if the user has the admin role in the room.
+// IsAdmin returns true if the user has the admin role in the room, or is a system (maintenance) admin.
 func (r *RoomRepository) IsAdmin(roomID, userID uint) (bool, error) {
-	var m models.RoomMember
+	type adminRow struct {
+		Role          string `gorm:"column:role"`
+		IsSystemAdmin bool   `gorm:"column:is_system_admin"`
+	}
+	var row adminRow
 	err := r.db.
 		Table("room_members").
-		Select("room_members.*").
+		Select("room_members.role, users.is_system_admin").
 		Joins("JOIN rooms ON rooms.id = room_members.room_id").
 		Joins("JOIN users ON users.id = room_members.user_id").
 		Joins("LEFT JOIN workspace_members ON workspace_members.workspace_id = rooms.workspace_id AND workspace_members.user_id = room_members.user_id").
 		Where(
-			"room_id = ? AND user_id = ? AND (users.is_system_admin = ? OR workspace_members.workspace_id IS NOT NULL)",
+			"room_members.room_id = ? AND room_members.user_id = ? AND (users.is_system_admin = ? OR workspace_members.workspace_id IS NOT NULL)",
 			roomID,
 			userID,
 			true,
 		).
-		First(&m).Error
+		First(&row).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil
 		}
 		return false, err
 	}
-	return m.Role == models.RoleAdmin, nil
+	return row.Role == models.RoleAdmin || row.IsSystemAdmin, nil
 }
 
 // AddMember adds a user to a group room as a regular member.

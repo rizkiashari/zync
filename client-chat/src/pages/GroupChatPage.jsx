@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import MainShell from "../components/layout/MainShell";
 import Header from "../components/layout/Header";
 import MessageBubble from "../components/chat/MessageBubble";
+import ThreadPanel from "../components/chat/ThreadPanel";
 import MessageInput from "../components/chat/MessageInput";
 import GroupInfo from "../components/group/GroupInfo";
 import MediaGallery from "../components/chat/MediaGallery";
@@ -19,6 +21,7 @@ const GroupChatPage = () => {
 	const { groupId } = useParams();
 	const dispatch = useAppDispatch();
 	const g = useGroupChatRoom(groupId);
+	const [activeThread, setActiveThread] = useState(null);
 
 	if (g.loading) {
 		return (
@@ -146,6 +149,7 @@ const GroupChatPage = () => {
 												pinnedMessageId={pinnedMessage?.id}
 												onBookmark={handleBookmark}
 												bookmarkedIds={bookmarkedIds}
+										onOpenThread={setActiveThread}
 											/>
 										</div>
 									);
@@ -175,6 +179,15 @@ const GroupChatPage = () => {
 							onCancelReply={() => setReplyTo(null)}
 							roomId={Number(groupId)}
 						/>
+			{activeThread && (
+				<ThreadPanel
+					parentMessage={activeThread}
+					currentUser={user}
+					onClose={() => setActiveThread(null)}
+					roomId={Number(groupId)}
+					onSendReply={(text, replyToId) => handleSend(text, replyToId)}
+				/>
+			)}
 					</div>
 					{showInfo && (
 						<GroupInfo

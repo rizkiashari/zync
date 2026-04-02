@@ -17,6 +17,7 @@ import (
 	"zync-server/internal/httpapi/middleware"
 	"zync-server/internal/httpapi/notifications"
 	"zync-server/internal/httpapi/onboardingpricing"
+	"zync-server/internal/httpapi/payments"
 	"zync-server/internal/httpapi/profile"
 	"zync-server/internal/httpapi/realtime"
 	"zync-server/internal/httpapi/recenttasks"
@@ -90,6 +91,7 @@ func NewRouter(d Deps) *gin.Engine {
 	calls.Register(wsGroup, d.Hub, d.Rooms, d.Users, d.Config)
 	recenttasks.Register(wsGroup, d.RecentTasks)
 	bookmarks.Register(wsGroup, d.Bookmarks, d.Messages)
+	payments.Register(wsGroup, d.Config, d.OnboardingPricingPlans, d.Users)
 
 	return r
 }

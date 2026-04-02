@@ -8,7 +8,7 @@ import (
 )
 
 func Register(api *gin.RouterGroup, h *hub.Hub, roomsRepo *repository.RoomRepository, usersRepo *repository.UserRepository, workspacesRepo *repository.WorkspaceRepository, msgRepo *repository.MessageRepository) {
-	api.POST("/rooms/group", handleCreateGroup(h, roomsRepo, workspacesRepo))
+	api.POST("/rooms/group", handleCreateGroup(h, roomsRepo, usersRepo, workspacesRepo))
 	api.POST("/rooms/direct", handleCreateDirect(h, roomsRepo, usersRepo, workspacesRepo))
 	api.GET("/rooms", handleList(roomsRepo))
 	api.GET("/rooms/:id", handleGetRoom(roomsRepo))

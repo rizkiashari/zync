@@ -27,6 +27,9 @@ type Config struct {
 	SMTPUser          string
 	SMTPPass          string
 	SMTPFrom          string
+	// Midtrans Snap (optional — empty server key disables POST /api/payments/midtrans/snap-token)
+	MidtransServerKey    string
+	MidtransIsProduction bool
 }
 
 func Load() (*Config, error) {
@@ -99,6 +102,8 @@ func Load() (*Config, error) {
 		SMTPUser:          os.Getenv("SMTP_USER"),
 		SMTPPass:          os.Getenv("SMTP_PASS"),
 		SMTPFrom:          os.Getenv("SMTP_FROM"),
+		MidtransServerKey:    strings.TrimSpace(os.Getenv("MIDTRANS_SERVER_KEY")),
+		MidtransIsProduction: strings.EqualFold(strings.TrimSpace(os.Getenv("MIDTRANS_IS_PRODUCTION")), "true"),
 	}, nil
 }
 

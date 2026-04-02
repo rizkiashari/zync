@@ -37,6 +37,32 @@ func slugify(s string) string {
 	return s
 }
 
+// canWorkspaceAdminOrOwner reports whether the actor may perform owner/admin workspace actions
+// (branding, analytics, invite). System (maintenance) admins may act on any workspace.
+func canWorkspaceAdminOrOwner(actor *models.User, wsRepo *repository.WorkspaceRepository, wsID uint) bool {
+	if actor != nil && actor.IsSystemAdmin {
+		return true
+	}
+	if actor == nil {
+		return false
+	}
+	role, _ := wsRepo.GetMemberRole(wsID, actor.ID)
+	return role == models.WorkspaceRoleOwner || role == models.WorkspaceRoleAdmin
+}
+
+// canWorkspaceOwner reports whether the actor may perform owner-only actions (e.g. change roles).
+// System admins are treated as owner-equivalent for maintenance.
+func canWorkspaceOwner(actor *models.User, wsRepo *repository.WorkspaceRepository, wsID uint) bool {
+	if actor != nil && actor.IsSystemAdmin {
+		return true
+	}
+	if actor == nil {
+		return false
+	}
+	role, _ := wsRepo.GetMemberRole(wsID, actor.ID)
+	return role == models.WorkspaceRoleOwner
+}
+
 // handleCreate creates a new workspace owned by the requesting user.
 func handleCreate(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -141,7 +167,7 @@ func handleGetInvite(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
 }
 
 // handleRegenerateInvite creates a new invite token (admin/owner only).
-func handleRegenerateInvite(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+func handleRegenerateInvite(wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ws, ok := middleware.GetWorkspace(c)
 		if !ok {
@@ -149,8 +175,12 @@ func handleRegenerateInvite(wsRepo *repository.WorkspaceRepository) gin.HandlerF
 			return
 		}
 		userID, _ := middleware.UserID(c)
-		role, _ := wsRepo.GetMemberRole(ws.ID, userID)
-		if role != "owner" && role != "admin" {
+		actor, err := usersRepo.GetByID(userID)
+		if err != nil || actor == nil {
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "Forbidden")
+			return
+		}
+		if !canWorkspaceAdminOrOwner(actor, wsRepo, ws.ID) {
 			response.Error(c, http.StatusForbidden, "forbidden", "Only admin or owner can regenerate invite link")
 			return
 		}
@@ -185,7 +215,7 @@ type updateMemberRoleBody struct {
 }
 
 // handleUpdateMemberRole changes a member's role (owner only).
-func handleUpdateMemberRole(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+func handleUpdateMemberRole(wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ws, ok := middleware.GetWorkspace(c)
 		if !ok {
@@ -193,8 +223,12 @@ func handleUpdateMemberRole(wsRepo *repository.WorkspaceRepository) gin.HandlerF
 			return
 		}
 		userID, _ := middleware.UserID(c)
-		role, _ := wsRepo.GetMemberRole(ws.ID, userID)
-		if role != "owner" {
+		actor, err := usersRepo.GetByID(userID)
+		if err != nil || actor == nil {
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "Forbidden")
+			return
+		}
+		if !canWorkspaceOwner(actor, wsRepo, ws.ID) {
 			response.Error(c, http.StatusForbidden, "forbidden", "Only workspace owner can change member roles")
 			return
 		}
@@ -300,7 +334,7 @@ type updateBrandingBody struct {
 }
 
 // handleUpdateBranding updates white-label branding fields (admin/owner only).
-func handleUpdateBranding(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+func handleUpdateBranding(wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ws, ok := middleware.GetWorkspace(c)
 		if !ok {
@@ -308,8 +342,12 @@ func handleUpdateBranding(wsRepo *repository.WorkspaceRepository) gin.HandlerFun
 			return
 		}
 		userID, _ := middleware.UserID(c)
-		role, _ := wsRepo.GetMemberRole(ws.ID, userID)
-		if role != "owner" && role != "admin" {
+		actor, err := usersRepo.GetByID(userID)
+		if err != nil || actor == nil {
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "Forbidden")
+			return
+		}
+		if !canWorkspaceAdminOrOwner(actor, wsRepo, ws.ID) {
 			response.Error(c, http.StatusForbidden, "forbidden", "Only admin or owner can update branding")
 			return
 		}
@@ -328,7 +366,7 @@ func handleUpdateBranding(wsRepo *repository.WorkspaceRepository) gin.HandlerFun
 }
 
 // handleUploadLogo handles logo file upload (admin/owner only).
-func handleUploadLogo(wsRepo *repository.WorkspaceRepository, uploadsDir string) gin.HandlerFunc {
+func handleUploadLogo(wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository, uploadsDir string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ws, ok := middleware.GetWorkspace(c)
 		if !ok {
@@ -336,8 +374,12 @@ func handleUploadLogo(wsRepo *repository.WorkspaceRepository, uploadsDir string)
 			return
 		}
 		userID, _ := middleware.UserID(c)
-		role, _ := wsRepo.GetMemberRole(ws.ID, userID)
-		if role != "owner" && role != "admin" {
+		actor, err := usersRepo.GetByID(userID)
+		if err != nil || actor == nil {
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "Forbidden")
+			return
+		}
+		if !canWorkspaceAdminOrOwner(actor, wsRepo, ws.ID) {
 			response.Error(c, http.StatusForbidden, "forbidden", "Only admin or owner can upload logo")
 			return
 		}
@@ -368,7 +410,7 @@ func handleUploadLogo(wsRepo *repository.WorkspaceRepository, uploadsDir string)
 }
 
 // handleGetAnalytics returns workspace usage analytics (admin/owner only).
-func handleGetAnalytics(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+func handleGetAnalytics(wsRepo *repository.WorkspaceRepository, usersRepo *repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ws, ok := middleware.GetWorkspace(c)
 		if !ok {
@@ -376,8 +418,12 @@ func handleGetAnalytics(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc 
 			return
 		}
 		userID, _ := middleware.UserID(c)
-		role, _ := wsRepo.GetMemberRole(ws.ID, userID)
-		if role != "owner" && role != "admin" {
+		actor, err := usersRepo.GetByID(userID)
+		if err != nil || actor == nil {
+			response.Error(c, http.StatusForbidden, response.CodeForbidden, "Forbidden")
+			return
+		}
+		if !canWorkspaceAdminOrOwner(actor, wsRepo, ws.ID) {
 			response.Error(c, http.StatusForbidden, "forbidden", "Only admin or owner can view analytics")
 			return
 		}
@@ -391,7 +437,7 @@ func handleGetAnalytics(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc 
 }
 
 // handleGetSubscription returns the subscription for the current workspace.
-func handleGetSubscription(subRepo *repository.SubscriptionRepository) gin.HandlerFunc {
+func handleGetSubscription(subRepo *repository.SubscriptionRepository, usersRepo *repository.UserRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ws, ok := middleware.GetWorkspace(c)
 		if !ok {
@@ -402,6 +448,15 @@ func handleGetSubscription(subRepo *repository.SubscriptionRepository) gin.Handl
 		if err != nil {
 			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to fetch subscription")
 			return
+		}
+		userID, ok := middleware.UserID(c)
+		if ok {
+			if u, _ := usersRepo.GetByID(userID); u != nil && u.IsSystemAdmin {
+				sub.Plan = models.PlanEnterprise
+				sub.Status = models.SubStatusActive
+				sub.ExpiresAt = nil
+				sub.MemberLimit = -1
+			}
 		}
 		response.OK(c, gin.H{"subscription": sub})
 	}

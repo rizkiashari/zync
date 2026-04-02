@@ -19,6 +19,7 @@ import WorkspaceSettingsPage from "./pages/WorkspaceSettingsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import BookmarksPage from "./pages/BookmarksPage";
 import PricingPage from "./pages/PricingPage";
+import PaymentDetailPage from "./pages/PaymentDetailPage";
 import IncomingCallModal from "./components/call/IncomingCallModal";
 
 const LoadingScreen = () => (
@@ -104,6 +105,7 @@ function App() {
 				<Route path='/admin/users' element={<AdminRoute><AdminUsersPage /></AdminRoute>} />
 				<Route path='/bookmarks' element={<ProtectedRoute><BookmarksPage /></ProtectedRoute>} />
 				<Route path='/pricing' element={<ProtectedRoute><PricingPage /></ProtectedRoute>} />
+				<Route path='/payment' element={<ProtectedRoute><PaymentDetailPage /></ProtectedRoute>} />
 
 				{/* Redirects */}
 				<Route

@@ -1,6 +1,7 @@
 package rooms
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -40,7 +41,29 @@ type pinMessageBody struct {
 	MessageID *uint `json:"message_id"` // null = unpin
 }
 
-func handleCreateGroup(h *hub.Hub, roomsRepo *repository.RoomRepository, workspacesRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+// errNotWorkspaceMember is returned when a non-member user (who is not system admin) is added to a group.
+var errNotWorkspaceMember = errors.New("not_workspace_member")
+
+// ensureGroupTargetInWorkspace allows workspace members, or auto-joins system admins as workspace members
+// so they show up in GetMembers (which joins workspace_members).
+func ensureGroupTargetInWorkspace(workspacesRepo *repository.WorkspaceRepository, target *models.User, workspaceID uint) error {
+	ok, err := workspacesRepo.IsMember(workspaceID, target.ID)
+	if err != nil {
+		return err
+	}
+	if ok {
+		return nil
+	}
+	if !target.IsSystemAdmin {
+		return errNotWorkspaceMember
+	}
+	if err := workspacesRepo.AddMember(workspaceID, target.ID, models.WorkspaceRoleMember); err != nil && err.Error() != "already_member" {
+		return err
+	}
+	return nil
+}
+
+func handleCreateGroup(h *hub.Hub, roomsRepo *repository.RoomRepository, usersRepo *repository.UserRepository, workspacesRepo *repository.WorkspaceRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, ok := middleware.UserID(c)
 		if !ok {
@@ -64,20 +87,24 @@ func handleCreateGroup(h *hub.Hub, roomsRepo *repository.RoomRepository, workspa
 		}
 		// Add additional members and notify each one
 		for _, memberID := range req.MemberIDs {
-			if memberID != userID {
-				// Tenant isolation: only allow adding users that belong to this workspace.
-				memberOK, err := workspacesRepo.IsMember(workspaceID, memberID)
-				if err != nil {
-					response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
-					return
-				}
-				if !memberOK {
+			if memberID == userID {
+				continue
+			}
+			memberUser, err := usersRepo.GetByID(memberID)
+			if err != nil || memberUser == nil {
+				response.Error(c, http.StatusNotFound, response.CodeNotFound, "User not found")
+				return
+			}
+			if err := ensureGroupTargetInWorkspace(workspacesRepo, memberUser, workspaceID); err != nil {
+				if errors.Is(err, errNotWorkspaceMember) {
 					response.Error(c, http.StatusForbidden, response.CodeForbidden, "You can only add users from this workspace")
 					return
 				}
-				_ = roomsRepo.AddMember(room.ID, memberID)
-				_ = h.NotifyUser(memberID, map[string]any{"type": "room_added", "room": room})
+				response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
+				return
 			}
+			_ = roomsRepo.AddMember(room.ID, memberID)
+			_ = h.NotifyUser(memberID, map[string]any{"type": "room_added", "room": room})
 		}
 		response.Created(c, room)
 	}
@@ -114,6 +141,22 @@ func handleCreateDirect(h *hub.Hub, roomsRepo *repository.RoomRepository, usersR
 		if !otherOK {
 			response.Error(c, http.StatusForbidden, response.CodeForbidden, "You can only chat with users from this workspace")
 			return
+		}
+		selfOK, err := workspacesRepo.IsMember(workspaceID, userID)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
+			return
+		}
+		if !selfOK {
+			me, errU := usersRepo.GetByID(userID)
+			if errU != nil || me == nil || !me.IsSystemAdmin {
+				response.Error(c, http.StatusForbidden, response.CodeForbidden, "You must be a member of this workspace")
+				return
+			}
+			if err := workspacesRepo.AddMember(workspaceID, userID, models.WorkspaceRoleMember); err != nil && err.Error() != "already_member" {
+				response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
+				return
+			}
 		}
 		room, err := roomsRepo.CreateDirect(userID, req.UserID, workspaceID)
 		if err != nil {
@@ -258,14 +301,12 @@ func handleAddMember(roomsRepo *repository.RoomRepository, usersRepo *repository
 			response.Error(c, http.StatusNotFound, response.CodeNotFound, "User not found")
 			return
 		}
-		// Tenant isolation: only allow adding users that belong to this workspace.
-		targetOK, err := workspacesRepo.IsMember(workspaceID, req.UserID)
-		if err != nil {
+		if err := ensureGroupTargetInWorkspace(workspacesRepo, target, workspaceID); err != nil {
+			if errors.Is(err, errNotWorkspaceMember) {
+				response.Error(c, http.StatusForbidden, response.CodeForbidden, "You can only add users from this workspace")
+				return
+			}
 			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
-			return
-		}
-		if !targetOK {
-			response.Error(c, http.StatusForbidden, response.CodeForbidden, "You can only add users from this workspace")
 			return
 		}
 		if err := roomsRepo.AddMember(roomID, req.UserID); err != nil {

@@ -265,12 +265,11 @@ export default function WorkspaceSettingsPage() {
 
 	const inviteLink = `${window.location.origin}/onboarding?invite=${invite}`;
 
-	const resolvedLogo =
-		logoPreview ?
-			logoPreview.startsWith("blob:") || logoPreview.startsWith("http") ?
-				logoPreview
-			:	`${API_BASE}${logoPreview}`
-		:	null;
+	const resolvedLogo = logoPreview
+		? logoPreview.startsWith("blob:") || logoPreview.startsWith("http")
+			? logoPreview
+			: `${API_BASE}${logoPreview}`
+		: null;
 
 	const tabs = [
 		{ id: "branding", label: "Branding", icon: Building2 },
@@ -282,26 +281,28 @@ export default function WorkspaceSettingsPage() {
 	return (
 		<MainShell>
 			<div className='flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto'>
-				<div className='sticky top-0 z-10 flex items-center gap-3 border-b border-slate-200/80 bg-white/90 px-4 py-3 shadow-clean backdrop-blur-md sm:gap-4 sm:px-6 sm:py-4'>
+				<div className='sticky top-0 z-10 flex items-center gap-2 border-b border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-clean backdrop-blur-md sm:px-6 sm:py-4 sm:gap-4 pt-[max(0.625rem,env(safe-area-inset-top))]'>
 					<button
 						type='button'
 						onClick={() => navigate(-1)}
 						aria-label='Kembali'
-						className={`min-h-11 min-w-11 flex items-center justify-center rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors ${focusRing}`}
+						className={`min-h-11 min-w-11 flex shrink-0 items-center justify-center rounded-xl hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors ${focusRing}`}
 					>
 						<ArrowLeft className='w-5 h-5' />
 					</button>
-					<div>
-						<h1 className='text-lg font-bold text-slate-900 tracking-tight'>
+					<div className='min-w-0 flex-1'>
+						<h1 className='text-base sm:text-lg font-bold text-slate-900 tracking-tight truncate'>
 							Pengaturan workspace
 						</h1>
-						<p className='text-xs text-slate-500 mt-0.5'>{workspace?.slug}</p>
+						<p className='text-xs text-slate-500 mt-0.5 truncate font-mono'>
+							{workspace?.slug}
+						</p>
 					</div>
 				</div>
 
-				<div className='overflow-x-auto border-b border-slate-200/80 bg-white/95 px-4 backdrop-blur-sm sm:px-6'>
+				<div className='overflow-x-auto border-b border-slate-200/80 bg-white/95 backdrop-blur-sm [-webkit-overflow-scrolling:touch] scrollbar-light'>
 					<div
-						className='flex gap-1'
+						className='flex w-max min-w-full gap-0 px-2 sm:px-6 sm:w-auto sm:min-w-0'
 						role='tablist'
 						aria-label='Bagian pengaturan'
 					>
@@ -314,25 +315,25 @@ export default function WorkspaceSettingsPage() {
 									role='tab'
 									aria-selected={activeTab === tab.id}
 									onClick={() => setActiveTab(tab.id)}
-									className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${focusRing} rounded-t-lg ${
-										activeTab === tab.id ?
-											"border-indigo-600 text-indigo-600"
-										:	"border-transparent text-slate-500 hover:text-slate-700"
+									className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors ${focusRing} rounded-t-lg ${
+										activeTab === tab.id
+											? "border-indigo-600 text-indigo-600"
+											: "border-transparent text-slate-500 hover:text-slate-700"
 									}`}
 								>
-									<Icon className='w-4 h-4' />
-									{tab.label}
+									<Icon className='w-4 h-4 shrink-0' />
+									<span className='whitespace-nowrap'>{tab.label}</span>
 								</button>
 							);
 						})}
 					</div>
 				</div>
 
-				<div className='mx-auto w-full max-w-3xl flex-1 space-y-8 px-4 py-6 sm:px-6 sm:py-8'>
+				<div className='mx-auto w-full max-w-3xl flex-1 space-y-6 sm:space-y-8 px-3 py-5 sm:px-6 sm:py-8 pb-[max(1.5rem,env(safe-area-inset-bottom))]'>
 					{activeTab === "branding" && (
 						<>
 							{/* Logo */}
-							<section className={`${cardClean} p-6`}>
+							<section className={`${cardClean} p-4 sm:p-6`}>
 								<div className='flex items-center gap-3 mb-5'>
 									<div className='w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center'>
 										<Image className='w-5 h-5 text-indigo-600' />
@@ -347,20 +348,22 @@ export default function WorkspaceSettingsPage() {
 									</div>
 								</div>
 
-								<div className='flex items-center gap-5'>
+								<div className='flex flex-col items-stretch gap-4 sm:flex-row sm:items-center sm:gap-5'>
 									<div
 										className='w-20 h-20 rounded-2xl flex items-center justify-center shadow-clean overflow-hidden flex-shrink-0 border border-slate-200/80'
 										style={{ backgroundColor: form.primary_color }}
 									>
-										{resolvedLogo ?
+										{resolvedLogo ? (
 											<img
 												src={resolvedLogo}
 												alt='logo'
 												className='w-full h-full object-cover'
 											/>
-										:	<Logo size={36} variant='white' />}
+										) : (
+											<Logo size={36} variant='white' />
+										)}
 									</div>
-									<div className='flex flex-col gap-2'>
+									<div className='flex flex-col gap-2 w-full sm:w-auto'>
 										<input
 											ref={logoRef}
 											type='file'
@@ -373,7 +376,7 @@ export default function WorkspaceSettingsPage() {
 											size='sm'
 											onClick={() => logoRef.current?.click()}
 											disabled={uploadingLogo}
-											className='flex items-center gap-2'
+											className='flex items-center justify-center gap-2 w-full sm:w-auto'
 										>
 											<Upload className='w-4 h-4' />
 											{uploadingLogo ? "Mengupload..." : "Upload Logo"}
@@ -386,7 +389,7 @@ export default function WorkspaceSettingsPage() {
 							</section>
 
 							{/* Branding fields */}
-							<section className={`${cardClean} p-6 space-y-5`}>
+							<section className={`${cardClean} p-4 sm:p-6 space-y-5`}>
 								<div className='flex items-center gap-3 mb-1'>
 									<div className='w-9 h-9 bg-violet-50 rounded-xl flex items-center justify-center'>
 										<Building2 className='w-5 h-5 text-violet-600' />
@@ -439,20 +442,20 @@ export default function WorkspaceSettingsPage() {
 											Warna Utama
 										</label>
 									</div>
-									<div className='flex items-center gap-3'>
+									<div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3'>
 										<input
 											type='color'
 											name='primary_color'
 											value={form.primary_color}
 											onChange={handleChange}
-											className='w-10 h-10 rounded-xl border border-slate-200 cursor-pointer p-0.5 bg-white'
+											className='w-10 h-10 rounded-xl border border-slate-200 cursor-pointer p-0.5 bg-white shrink-0'
 										/>
 										<Input
 											name='primary_color'
 											value={form.primary_color}
 											onChange={handleChange}
 											placeholder='#6366f1'
-											className='font-mono text-sm'
+											className='font-mono text-sm min-w-0 flex-1'
 										/>
 									</div>
 									<div className='flex gap-2 flex-wrap'>
@@ -477,9 +480,9 @@ export default function WorkspaceSettingsPage() {
 												style={{
 													backgroundColor: c,
 													borderColor:
-														form.primary_color === c ?
-															"#1e293b"
-														:	"transparent",
+														form.primary_color === c
+															? "#1e293b"
+															: "transparent",
 												}}
 											/>
 										))}
@@ -490,7 +493,7 @@ export default function WorkspaceSettingsPage() {
 									<Button
 										onClick={handleSaveBranding}
 										disabled={savingBranding}
-										className='flex items-center gap-2'
+										className='flex w-full items-center justify-center gap-2 sm:w-auto'
 									>
 										<Save className='w-4 h-4' />
 										{savingBranding ? "Menyimpan..." : "Simpan Branding"}
@@ -499,7 +502,7 @@ export default function WorkspaceSettingsPage() {
 							</section>
 
 							{/* Invite link */}
-							<section className={`${cardClean} p-6 space-y-4`}>
+							<section className={`${cardClean} p-4 sm:p-6 space-y-4`}>
 								<div className='flex items-center gap-3'>
 									<div className='w-9 h-9 bg-emerald-50 rounded-xl flex items-center justify-center'>
 										<Link2 className='w-5 h-5 text-emerald-600' />
@@ -514,12 +517,12 @@ export default function WorkspaceSettingsPage() {
 									</div>
 								</div>
 
-								<div className='flex gap-2'>
+								<div className='flex flex-col gap-2 sm:flex-row sm:items-stretch'>
 									<input
 										readOnly
 										value={inviteLink}
 										onClick={(e) => e.target.select()}
-										className='flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer font-mono truncate'
+										className='min-w-0 flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm text-slate-600 bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 cursor-pointer font-mono'
 									/>
 									<button
 										type='button'
@@ -527,7 +530,7 @@ export default function WorkspaceSettingsPage() {
 											navigator.clipboard.writeText(inviteLink);
 											toast.success("Link disalin!");
 										}}
-										className={`px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors font-medium ${focusRing}`}
+										className={`shrink-0 px-4 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors font-medium sm:min-w-[5.5rem] ${focusRing}`}
 									>
 										Salin
 									</button>
@@ -551,32 +554,32 @@ export default function WorkspaceSettingsPage() {
 					)}
 
 					{activeTab === "members" && (
-						<section className={`${cardClean} p-6`}>
-							<div className='flex items-center gap-3 mb-5'>
-								<div className='w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center'>
-									<Users className='w-5 h-5 text-indigo-600' />
-								</div>
-								<div>
-									<h2 className='text-sm font-semibold text-slate-800'>
-										Anggota Workspace
-									</h2>
-									<p className='text-xs text-slate-400'>
-										{members.length} anggota
-									</p>
+						<section className={`${cardClean} p-4 sm:p-6`}>
+							<div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 mb-5'>
+								<div className='flex items-center gap-3 min-w-0 flex-1'>
+									<div className='w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0'>
+										<Users className='w-5 h-5 text-indigo-600' />
+									</div>
+									<div className='min-w-0'>
+										<h2 className='text-sm font-semibold text-slate-800'>
+											Anggota Workspace
+										</h2>
+										<p className='text-xs text-slate-400'>
+											{members.length} anggota
+										</p>
+									</div>
 								</div>
 								{myRole && myRole !== "owner" && (
-									<div className='ml-auto'>
-										<Button
-											type='button'
-											variant='secondary'
-											loading={leavingWorkspace}
-											disabled={leavingWorkspace}
-											onClick={() => setLeaveConfirmOpen(true)}
-											className='text-rose-600 hover:text-rose-700'
-										>
-											Keluar
-										</Button>
-									</div>
+									<Button
+										type='button'
+										variant='secondary'
+										loading={leavingWorkspace}
+										disabled={leavingWorkspace}
+										onClick={() => setLeaveConfirmOpen(true)}
+										className='w-full shrink-0 text-rose-600 hover:text-rose-700 sm:w-auto sm:ml-auto'
+									>
+										Keluar
+									</Button>
 								)}
 							</div>
 
@@ -592,11 +595,12 @@ export default function WorkspaceSettingsPage() {
 								/>
 							</div>
 
-							{loadingMembers ?
+							{loadingMembers ? (
 								<div className='flex justify-center py-8'>
 									<div className='w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin' />
 								</div>
-							:	<div className='space-y-2'>
+							) : (
+								<div className='space-y-2'>
 									{filteredMembers.map((m) => {
 										const isMe = Number(m.user_id) === Number(user?.id);
 										const isSuperAdmin = !!user?.is_system_admin;
@@ -613,32 +617,34 @@ export default function WorkspaceSettingsPage() {
 										return (
 											<div
 												key={m.user_id}
-												className='flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors'
+												className='flex flex-col gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors sm:flex-row sm:items-center sm:gap-3'
 											>
-												<Avatar name={m.username || m.email} size='md' />
-												<div className='flex-1 min-w-0'>
-													<div className='flex items-center gap-2'>
-														<p className='text-sm font-medium text-slate-800 truncate'>
-															{m.username || m.email}
+												<div className='flex items-center gap-3 min-w-0 flex-1'>
+													<Avatar name={m.username || m.email} size='md' />
+													<div className='min-w-0 flex-1'>
+														<div className='flex items-center gap-2 flex-wrap'>
+															<p className='text-sm font-medium text-slate-800 truncate'>
+																{m.username || m.email}
+															</p>
+															{isMe && (
+																<span className='text-xs text-slate-400 shrink-0'>
+																	(Kamu)
+																</span>
+															)}
+														</div>
+														<p className='text-xs text-slate-400 truncate'>
+															{m.email}
 														</p>
-														{isMe && (
-															<span className='text-xs text-slate-400'>
-																(Kamu)
-															</span>
-														)}
 													</div>
-													<p className='text-xs text-slate-400 truncate'>
-														{m.email}
-													</p>
 												</div>
 
-												<div className='flex items-center gap-2'>
-													{isOwner ?
+												<div className='flex items-center justify-end gap-2 flex-wrap border-t border-slate-100 pt-3 sm:border-t-0 sm:pt-0 sm:shrink-0'>
+													{isOwner ? (
 														<span className='flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-700'>
 															<Crown className='w-3 h-3' />
 															Pemilik
 														</span>
-													: canChangeRole ?
+													) : canChangeRole ? (
 														<select
 															value={m.role}
 															onChange={(e) =>
@@ -649,21 +655,26 @@ export default function WorkspaceSettingsPage() {
 															<option value='admin'>Admin</option>
 															<option value='member'>Anggota</option>
 														</select>
-													:	<span
-															className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${ROLE_COLORS[m.role]}`}
+													) : (
+														<span
+															className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full ${
+																ROLE_COLORS[m.role]
+															}`}
 														>
 															{m.role === "admin" && (
 																<Shield className='w-3 h-3' />
 															)}
 															{ROLE_LABELS[m.role] || m.role}
 														</span>
-													}
+													)}
 
 													{canRemove && (
 														<button
 															type='button'
 															onClick={() => setRemovingId(m.user_id)}
-															aria-label={`Hapus ${m.username || m.email} dari workspace`}
+															aria-label={`Hapus ${
+																m.username || m.email
+															} dari workspace`}
 															className={`p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors ${focusRing}`}
 														>
 															<Trash2 className='w-4 h-4' />
@@ -675,22 +686,22 @@ export default function WorkspaceSettingsPage() {
 									})}
 									{filteredMembers.length === 0 && (
 										<p className='text-sm text-slate-400 text-center py-6'>
-											{memberSearch ?
-												"Anggota tidak ditemukan"
-											:	"Belum ada anggota"}
+											{memberSearch
+												? "Anggota tidak ditemukan"
+												: "Belum ada anggota"}
 										</p>
 									)}
 								</div>
-							}
+							)}
 						</section>
 					)}
 					{activeTab === "analytics" && (
-						<section className={`${cardClean} p-6`}>
+						<section className={`${cardClean} p-4 sm:p-6`}>
 							<div className='flex items-center gap-3 mb-6'>
-								<div className='w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center'>
+								<div className='w-9 h-9 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0'>
 									<BarChart2 className='w-5 h-5 text-indigo-600' />
 								</div>
-								<div>
+								<div className='min-w-0'>
 									<h2 className='text-sm font-semibold text-slate-800'>
 										Analitik Workspace
 									</h2>
@@ -700,27 +711,28 @@ export default function WorkspaceSettingsPage() {
 								</div>
 							</div>
 
-							{loadingAnalytics ?
+							{loadingAnalytics ? (
 								<div className='flex justify-center py-12'>
 									<div className='w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin' />
 								</div>
-							: analytics ?
+							) : analytics ? (
 								<AnalyticsCharts analytics={analytics} />
-							:	<p className='text-sm text-slate-400 text-center py-8'>
+							) : (
+								<p className='text-sm text-slate-400 text-center py-8'>
 									Tidak ada data analitik
 								</p>
-							}
+							)}
 						</section>
 					)}
 					{activeTab === "subscription" && (
-						<div className='space-y-6'>
+						<div className='space-y-5 sm:space-y-6'>
 							{/* Current plan */}
-							<section className={`${cardClean} p-6`}>
+							<section className={`${cardClean} p-4 sm:p-6`}>
 								<div className='flex items-center gap-3 mb-6'>
-									<div className='w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center'>
+									<div className='w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center shrink-0'>
 										<CreditCard className='w-5 h-5 text-amber-600' />
 									</div>
-									<div>
+									<div className='min-w-0'>
 										<h2 className='text-sm font-semibold text-slate-800'>
 											Paket Langganan
 										</h2>
@@ -730,42 +742,42 @@ export default function WorkspaceSettingsPage() {
 									</div>
 								</div>
 
-								{loadingSubscription ?
+								{loadingSubscription ? (
 									<div className='flex justify-center py-8'>
 										<div className='w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin' />
 									</div>
-								: subscription ?
+								) : subscription ? (
 									<div className='space-y-4'>
-										<div className='flex items-center gap-3 p-4 bg-slate-50 rounded-xl'>
-											<Zap className='w-5 h-5 text-amber-500' />
-											<div>
+										<div className='flex flex-col gap-3 p-4 bg-slate-50 rounded-xl sm:flex-row sm:items-center sm:gap-3'>
+											<Zap className='w-5 h-5 text-amber-500 shrink-0' />
+											<div className='min-w-0 flex-1'>
 												<p className='text-xs text-slate-500'>Paket Aktif</p>
 												<p className='text-base font-bold text-slate-800 capitalize'>
 													{subscription.plan}
 												</p>
 											</div>
 											<span
-												className={`ml-auto text-xs font-medium px-2.5 py-1 rounded-full ${
-													subscription.status === "active" ?
-														"bg-emerald-100 text-emerald-700"
-													:	"bg-rose-100 text-rose-700"
+												className={`self-start text-xs font-medium px-2.5 py-1 rounded-full sm:self-center sm:ml-auto ${
+													subscription.status === "active"
+														? "bg-emerald-100 text-emerald-700"
+														: "bg-rose-100 text-rose-700"
 												}`}
 											>
-												{subscription.status === "active" ?
-													"Aktif"
-												:	subscription.status}
+												{subscription.status === "active"
+													? "Aktif"
+													: subscription.status}
 											</span>
 										</div>
-										<div className='flex items-center justify-between text-sm'>
+										<div className='flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between text-sm'>
 											<span className='text-slate-500'>Batas Anggota</span>
 											<span className='font-medium text-slate-800'>
-												{subscription.member_limit === -1 ?
-													"Tidak terbatas"
-												:	`${subscription.member_limit} anggota`}
+												{subscription.member_limit === -1
+													? "Tidak terbatas"
+													: `${subscription.member_limit} anggota`}
 											</span>
 										</div>
 										{subscription.expires_at && (
-											<div className='flex items-center justify-between text-sm'>
+											<div className='flex flex-col gap-0.5 sm:flex-row sm:items-center sm:justify-between text-sm'>
 												<span className='text-slate-500'>Berakhir</span>
 												<span className='font-medium text-slate-800'>
 													{new Date(subscription.expires_at).toLocaleDateString(
@@ -775,18 +787,19 @@ export default function WorkspaceSettingsPage() {
 											</div>
 										)}
 									</div>
-								:	<p className='text-sm text-slate-400 text-center py-4'>
+								) : (
+									<p className='text-sm text-slate-400 text-center py-4'>
 										Tidak ada data langganan
 									</p>
-								}
+								)}
 							</section>
 
 							{/* Plan comparison */}
-							<section className={`${cardClean} p-6`}>
+							<section className={`${cardClean} p-4 sm:p-6`}>
 								<h3 className='text-sm font-semibold text-slate-800 mb-4'>
 									Perbandingan Paket
 								</h3>
-								<div className='grid grid-cols-3 gap-4'>
+								<div className='grid w-full grid-cols-1 gap-4'>
 									{[
 										{
 											id: "free",
@@ -826,10 +839,11 @@ export default function WorkspaceSettingsPage() {
 										<div
 											key={plan.id}
 											className={`p-4 rounded-2xl border-2 transition-all ${
-												subscription?.plan === plan.id ?
-													"border-indigo-500 bg-indigo-50/50"
-												: plan.highlight ? "border-indigo-200 bg-white"
-												: "border-slate-200 bg-white"
+												subscription?.plan === plan.id
+													? "border-indigo-500 bg-indigo-50/50"
+													: plan.highlight
+													? "border-indigo-200 bg-white"
+													: "border-slate-200 bg-white"
 											}`}
 										>
 											{subscription?.plan === plan.id && (
@@ -856,14 +870,15 @@ export default function WorkspaceSettingsPage() {
 											{plan.id !== "free" && subscription?.plan !== plan.id && (
 												<button
 													type='button'
-													onClick={() => {
-														const email = "sales@zync.chat";
-														window.location.href = `mailto:${email}?subject=Upgrade ke paket ${plan.name}&body=Halo, saya ingin upgrade workspace saya ke paket ${plan.name}.`;
-													}}
+													onClick={() =>
+														navigate(
+															`/payment?plan=${encodeURIComponent(plan.id)}`,
+														)
+													}
 													className={`mt-4 w-full py-2 rounded-xl text-xs font-medium transition-colors ${focusRing} ${
-														plan.highlight ?
-															"bg-indigo-600 text-white hover:bg-indigo-700"
-														:	"border border-slate-200 text-slate-700 hover:bg-slate-50"
+														plan.highlight
+															? "bg-indigo-600 text-white hover:bg-indigo-700"
+															: "border border-slate-200 text-slate-700 hover:bg-slate-50"
 													}`}
 												>
 													Upgrade
@@ -873,7 +888,8 @@ export default function WorkspaceSettingsPage() {
 									))}
 								</div>
 								<p className='text-xs text-slate-400 mt-4 text-center'>
-									Untuk upgrade atau pertanyaan, hubungi{" "}
+									Tombol Upgrade membuka halaman detail pembayaran. Pertanyaan
+									billing:{" "}
 									<a
 										href='mailto:sales@zync.chat'
 										className='text-indigo-600 hover:underline'

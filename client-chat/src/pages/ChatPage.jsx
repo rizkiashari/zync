@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import MainShell from "../components/layout/MainShell";
 import Header from "../components/layout/Header";
@@ -6,6 +7,7 @@ import MessageInput from "../components/chat/MessageInput";
 import ConfirmModal from "../components/ui/ConfirmModal";
 import CallEventBubble from "../components/chat/CallEventBubble";
 import MediaGallery from "../components/chat/MediaGallery";
+import ThreadPanel from "../components/chat/ThreadPanel";
 import {
 	ChatTypingIndicator,
 	ChatDateDivider,
@@ -19,6 +21,7 @@ const ChatPage = () => {
 	const { roomId } = useParams();
 	const dispatch = useAppDispatch();
 	const chat = useDirectChatRoom(roomId);
+	const [activeThread, setActiveThread] = useState(null);
 
 	if (chat.loading) {
 		return (
@@ -74,6 +77,7 @@ const ChatPage = () => {
 
 	return (
 		<MainShell showBottomNav={false}>
+			<div className='flex min-h-0 min-w-0 flex-1'>
 			<div className='flex min-h-0 min-w-0 flex-1 flex-col'>
 				<Header
 					name={contactName}
@@ -157,6 +161,7 @@ const ChatPage = () => {
 										pinnedMessageId={pinnedMessage?.id}
 										onBookmark={handleBookmark}
 										bookmarkedIds={bookmarkedIds}
+										onOpenThread={setActiveThread}
 									/>
 									{isOwn && item.showRead && (
 										<div className='-mt-1 mb-1 flex justify-end pr-2'>
@@ -194,6 +199,16 @@ const ChatPage = () => {
 					roomId={Number(roomId)}
 				/>
 			</div>
+			{activeThread && (
+				<ThreadPanel
+					parentMessage={activeThread}
+					currentUser={user}
+					onClose={() => setActiveThread(null)}
+					roomId={Number(roomId)}
+					onSendReply={(text, replyToId) => handleSend(text, replyToId)}
+				/>
+			)}
+		</div>
 			<ConfirmModal
 				isOpen={showDeleteConfirm}
 				onClose={() => setShowDeleteConfirm(false)}

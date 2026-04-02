@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import MainShell from "../components/layout/MainShell";
 import Button from "../components/ui/Button";
@@ -12,6 +12,7 @@ const isRecommendedPlan = (plan) => plan?.key === "pro";
 
 export default function PricingPage() {
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
 	const { user } = useAuth();
 	const workspace = useSelector((s) => s.workspace.current);
 
@@ -62,6 +63,16 @@ export default function PricingPage() {
 		return pricingPlans.find((p) => isRecommendedPlan(p)) || pricingPlans[0];
 	}, [pricingPlans]);
 
+	const paymentPlanKey = useMemo(() => {
+		const q = (searchParams.get("plan") || "").toLowerCase();
+		if (q === "pro" || q === "enterprise") return q;
+		const paid =
+			pricingPlans.find((p) => p.key === "pro") ||
+			pricingPlans.find((p) => p.key && p.key !== "free");
+		if (paid?.key && paid.key !== "free") return paid.key;
+		return "pro";
+	}, [searchParams, pricingPlans]);
+
 	return (
 		<MainShell>
 			<div className='min-h-0 flex-1 overflow-y-auto scrollbar-light'>
@@ -111,19 +122,19 @@ export default function PricingPage() {
 												type='button'
 												onClick={() => setActive(f.key)}
 												className={`inline-flex items-center px-3 py-2.5 min-h-11 rounded-xl text-xs font-semibold border transition-all ${
-													isActive ?
-														"bg-white/15 border-white/30 text-white shadow-clean-md"
-													:	"bg-white/5 border-white/15 text-white/75 hover:bg-white/10"
+													isActive
+														? "bg-white/15 border-white/30 text-white shadow-clean-md"
+														: "bg-white/5 border-white/15 text-white/75 hover:bg-white/10"
 												}`}
 												aria-pressed={isActive}
 											>
 												<span className='inline-flex items-center gap-2'>
 													<Icon className='w-3.5 h-3.5' />
-													{f.key === "realtime" ?
-														"Real-time"
-													: f.key === "tenant" ?
-														"Aman"
-													:	"Task Hub"}
+													{f.key === "realtime"
+														? "Real-time"
+														: f.key === "tenant"
+														? "Aman"
+														: "Task Hub"}
 												</span>
 											</button>
 										);
@@ -160,9 +171,9 @@ export default function PricingPage() {
 										Langganan
 									</p>
 									<p className='text-white/70 text-xs mt-0.5'>
-										{isWorkspaceOwner ?
-											"Tingkatkan atau kelola paket workspace Anda."
-										:	"Anda bergabung sebagai anggota workspace ini."}
+										{isWorkspaceOwner
+											? "Tingkatkan atau kelola paket workspace Anda."
+											: "Anda bergabung sebagai anggota workspace ini."}
 									</p>
 									{isWorkspaceOwner && workspaceDisplayName && (
 										<span className='inline-flex mt-2 text-[11px] font-semibold text-indigo-100 bg-indigo-500/20 border border-indigo-200/30 px-2.5 py-1 rounded-full max-w-full truncate'>
@@ -173,15 +184,15 @@ export default function PricingPage() {
 							</div>
 
 							<div className='p-4'>
-								{isWorkspaceOwner ?
+								{isWorkspaceOwner ? (
 									<>
-										{pricingLoading ?
+										{pricingLoading ? (
 											<div
 												className='h-24 rounded-2xl border border-white/10 bg-white/5 animate-pulse'
 												aria-busy
 												aria-live='polite'
 											/>
-										: subscribePlan ?
+										) : subscribePlan ? (
 											<div className='rounded-2xl border border-indigo-200/40 bg-indigo-500/10 p-4 mb-4'>
 												<p className='text-xs font-semibold text-white'>
 													{subscribePlan.title}
@@ -194,29 +205,33 @@ export default function PricingPage() {
 													</span>
 												</p>
 											</div>
-										:	<p className='text-sm text-white/75 mb-4'>
+										) : (
+											<p className='text-sm text-white/75 mb-4'>
 												Belum ada paket publik. Kelola langganan di pengaturan
 												workspace.
 											</p>
-										}
+										)}
 										<Button
 											type='button'
 											variant='primary'
 											size='md'
 											fullWidth
 											onClick={() =>
-												navigate("/workspace/settings?tab=subscription")
+												navigate(
+													`/payment?plan=${encodeURIComponent(paymentPlanKey)}`,
+												)
 											}
 											className='!min-h-11 bg-indigo-900/2 text-indigo-700 hover:bg-indigo-50'
 										>
 											Berlangganan
 										</Button>
 									</>
-								:	<p className='text-sm text-white/75 leading-relaxed'>
+								) : (
+									<p className='text-sm text-white/75 leading-relaxed'>
 										Pengelolaan paket dan pembayaran dilakukan oleh pemilik
 										workspace. Hubungi pemilik jika perlu peningkatan fitur.
 									</p>
-								}
+								)}
 							</div>
 						</div>
 					</div>
