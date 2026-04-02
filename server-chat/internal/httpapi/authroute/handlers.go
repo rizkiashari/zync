@@ -2,7 +2,6 @@ package authroute
 
 import (
 	"net/http"
-	"regexp"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -30,21 +29,6 @@ type refreshBody struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
 
-var nonAlpha = regexp.MustCompile(`[^a-z0-9]+`)
-
-func toSlug(s string) string {
-	s = strings.ToLower(strings.TrimSpace(s))
-	s = nonAlpha.ReplaceAllString(s, "-")
-	s = strings.Trim(s, "-")
-	if len(s) > 30 {
-		s = s[:30]
-	}
-	if s == "" {
-		s = "workspace"
-	}
-	return s
-}
-
 // handleRegister godoc
 // @Summary      Register account
 // @Tags         auth
@@ -56,7 +40,7 @@ func toSlug(s string) string {
 // @Failure      409 {object} apidocs.ErrorEnvelope
 // @Failure      500 {object} apidocs.ErrorEnvelope
 // @Router       /auth/register [post]
-func handleRegister(users *repository.UserRepository, rtRepo *repository.RefreshTokenRepository, jwtSvc *auth.Service, wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+func handleRegister(users *repository.UserRepository, rtRepo *repository.RefreshTokenRepository, jwtSvc *auth.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req registerBody
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -99,15 +83,12 @@ func handleRegister(users *repository.UserRepository, rtRepo *repository.Refresh
 			return
 		}
 
-		// Auto-create a default workspace for the new user
-		slug, _ := wsRepo.UniqueSlug(toSlug(username))
-		ws, _ := wsRepo.Create(slug, username+"'s Workspace", u.ID)
-
+		// No default workspace — client sends users to onboarding (create or join via invite link).
 		response.Created(c, gin.H{
 			"access_token":  accessToken,
 			"refresh_token": rt.Token,
 			"user":          u,
-			"workspace":     ws,
+			"workspace":     nil,
 		})
 	}
 }

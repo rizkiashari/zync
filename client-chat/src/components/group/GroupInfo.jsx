@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
 	X,
 	Crown,
@@ -14,10 +14,10 @@ import Avatar from "../ui/Avatar";
 import Button from "../ui/Button";
 import ConfirmModal from "../ui/ConfirmModal";
 import { useAuth } from "../../context/AuthContext";
-import { useAppDispatch, useAppSelector } from "../../store/index";
-import { searchUsers, clearSearch } from "../../store/usersSlice";
+import { useAppDispatch } from "../../store/index";
 import { removeRoom } from "../../store/roomsSlice";
 import { roomService } from "../../services/roomService";
+import { workspaceService } from "../../services/workspaceService";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
@@ -25,8 +25,8 @@ const GroupInfo = ({ group, onClose, onMembersUpdated }) => {
 	const { user } = useAuth();
 	const dispatch = useAppDispatch();
 	const navigate = useNavigate();
-	const searchResults = useAppSelector((s) => s.users.searchResults);
-	const searchStatus = useAppSelector((s) => s.users.searchStatus);
+	const [workspaceMembers, setWorkspaceMembers] = useState([]);
+	const [wsMembersStatus, setWsMembersStatus] = useState("idle");
 
 	const [showAddPanel, setShowAddPanel] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
@@ -44,19 +44,46 @@ const GroupInfo = ({ group, onClose, onMembersUpdated }) => {
 	useEffect(() => {
 		if (!showAddPanel) {
 			setSearchQuery("");
-			dispatch(clearSearch());
 			return;
 		}
-		dispatch(searchUsers(""));
-	}, [showAddPanel, dispatch]);
+		let cancelled = false;
+		setWsMembersStatus("loading");
+		setWorkspaceMembers([]);
+		workspaceService
+			.listMembers()
+			.then((res) => {
+				if (cancelled) return;
+				setWorkspaceMembers(res?.data?.data?.members || []);
+				setWsMembersStatus("succeeded");
+			})
+			.catch(() => {
+				if (cancelled) return;
+				setWorkspaceMembers([]);
+				setWsMembersStatus("succeeded");
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [showAddPanel]);
 
-	useEffect(() => {
-		if (!showAddPanel) return;
-		const timer = setTimeout(() => {
-			dispatch(searchUsers(searchQuery));
-		}, 300);
-		return () => clearTimeout(timer);
-	}, [searchQuery, showAddPanel, dispatch]);
+	const addCandidates = useMemo(() => {
+		const q = searchQuery.trim().toLowerCase();
+		return workspaceMembers
+			.map((m) => ({
+				id: m.user_id,
+				username: m.username,
+				email: m.email,
+				is_online: false,
+			}))
+			.filter((u) => {
+				if (u.id === user?.id) return false;
+				if (!q) return true;
+				return (
+					(u.username || "").toLowerCase().includes(q) ||
+					(u.email || "").toLowerCase().includes(q)
+				);
+			});
+	}, [workspaceMembers, searchQuery, user?.id]);
 
 	const handleAddMember = async (targetUser) => {
 		if (addingId) return;
@@ -176,31 +203,34 @@ const GroupInfo = ({ group, onClose, onMembersUpdated }) => {
 			{showAddPanel ?
 				/* Add Member Panel */
 				<div className='flex-1 flex flex-col overflow-hidden'>
-					<div className='px-4 py-3'>
+					<div className='px-4 py-3 space-y-1.5'>
 						<div className='relative'>
 							<Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400' />
 							<input
 								type='text'
-								placeholder='Cari pengguna...'
+								placeholder='Cari di anggota workspace...'
 								value={searchQuery}
 								onChange={(e) => setSearchQuery(e.target.value)}
 								autoFocus
 								className='w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500'
 							/>
 						</div>
+						<p className='text-[11px] text-slate-400 px-0.5'>
+							Hanya rekan di workspace ini (bukan seluruh akun server).
+						</p>
 					</div>
 					<div className='flex-1 overflow-y-auto px-4 pb-4 space-y-1'>
-						{searchStatus === "loading" && searchResults.length === 0 && (
+						{wsMembersStatus === "loading" && (
 							<p className='text-xs text-slate-400 text-center py-6'>
-								Memuat...
+								Memuat anggota workspace...
 							</p>
 						)}
-						{searchStatus !== "loading" && searchResults.length === 0 && (
+						{wsMembersStatus === "succeeded" && addCandidates.length === 0 && (
 							<p className='text-xs text-slate-400 text-center py-6'>
-								Tidak ada pengguna
+								Tidak ada anggota workspace yang cocok
 							</p>
 						)}
-						{searchResults.map((u) => {
+						{addCandidates.map((u) => {
 							const already = memberIds.has(u.id);
 							const isMe = u.id === user?.id;
 							if (isMe) return null;

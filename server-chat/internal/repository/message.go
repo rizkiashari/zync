@@ -239,6 +239,33 @@ func (r *MessageRepository) CountReplies(parentMsgIDs []uint) (map[uint]int64, e
 	return result, nil
 }
 
+// ListWorkspaceFiles returns file messages across all rooms the user has access to in a workspace.
+// Optionally filter by roomID (0 = all rooms), mimePrefix (empty = all types), and search (empty = no filter).
+func (r *MessageRepository) ListWorkspaceFiles(workspaceID, userID, roomID uint, mimePrefix, search string, limit, offset int) ([]models.Message, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	q := r.db.Table("messages m").
+		Joins("JOIN room_members rm ON rm.room_id = m.room_id AND rm.user_id = ?", userID).
+		Joins("JOIN rooms r ON r.id = m.room_id AND r.workspace_id = ?", workspaceID).
+		Where("m.is_deleted = false AND m.body LIKE ?", `{"_type":"file"%`)
+	if roomID > 0 {
+		q = q.Where("m.room_id = ?", roomID)
+	}
+	if mimePrefix != "" {
+		q = q.Where("m.body LIKE ?", `%"mime":"`+mimePrefix+`%`)
+	}
+	if search != "" {
+		q = q.Where("m.body ILIKE ?", "%"+search+"%")
+	}
+	var msgs []models.Message
+	err := q.Select("m.*").Order("m.id DESC").Limit(limit).Offset(offset).Find(&msgs).Error
+	if err != nil {
+		return nil, err
+	}
+	return msgs, nil
+}
+
 // CountUnread returns the number of messages the user hasn't read in a room.
 func (r *MessageRepository) CountUnread(roomID, userID, lastReadMsgID uint) (int64, error) {
 	var n int64

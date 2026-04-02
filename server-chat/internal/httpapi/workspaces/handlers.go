@@ -300,9 +300,9 @@ func handleRemoveMember(wsRepo *repository.WorkspaceRepository, usersRepo *repos
 	}
 }
 
-// handleLeaveMe removes the current user from the active workspace.
+// handleLeaveMe removes the current user from the active workspace and all rooms in that workspace.
 // Owners cannot leave (to avoid orphaned workspaces without an owner).
-func handleLeaveMe(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
+func handleLeaveMe(wsRepo *repository.WorkspaceRepository, roomsRepo *repository.RoomRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ws, ok := middleware.GetWorkspace(c)
 		if !ok {
@@ -319,7 +319,7 @@ func handleLeaveMe(wsRepo *repository.WorkspaceRepository) gin.HandlerFunc {
 			response.Error(c, http.StatusForbidden, "forbidden", "Workspace owner cannot leave the workspace")
 			return
 		}
-		if err := wsRepo.RemoveMember(ws.ID, userID); err != nil {
+		if err := wsRepo.LeaveWorkspace(ws.ID, userID, roomsRepo); err != nil {
 			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to leave workspace")
 			return
 		}

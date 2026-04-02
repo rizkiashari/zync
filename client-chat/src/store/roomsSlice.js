@@ -145,6 +145,13 @@ const roomsSlice = createSlice({
     removeRoom(state, action) {
       roomsAdapter.removeOne(state, Number(action.payload));
     },
+    /** Clear all rooms (e.g. after leaving a workspace) before loading the next tenant. */
+    clearRooms(state) {
+      roomsAdapter.removeAll(state);
+      state.stats = {};
+      state.onlineUsers = [];
+      state.activeRoomMembers = [];
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -179,6 +186,6 @@ const roomsSlice = createSlice({
   },
 });
 
-export const { receiveWsMessage, updateRoomLastMessage, markRoomRead, setActiveRoomMembers, upsertRoom, removeRoom } = roomsSlice.actions;
+export const { receiveWsMessage, updateRoomLastMessage, markRoomRead, setActiveRoomMembers, upsertRoom, removeRoom, clearRooms } = roomsSlice.actions;
 export const { selectAll: selectAllRooms, selectById: selectRoomById } = roomsAdapter.getSelectors((s) => s.rooms);
 export default roomsSlice.reducer;

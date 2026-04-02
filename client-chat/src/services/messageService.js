@@ -41,4 +41,7 @@ export const messageService = {
 
   getThread: (msgId, params = {}) =>
     api.get(`/api/messages/${msgId}/thread`, { params }),
+
+  listWorkspaceFiles: (workspaceId, params = {}) =>
+    api.get(`/api/workspaces/${workspaceId}/files`, { params }),
 };

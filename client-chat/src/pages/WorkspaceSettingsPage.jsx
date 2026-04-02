@@ -33,6 +33,7 @@ import {
 	setWorkspace,
 	setWorkspaceList,
 } from "../store/workspaceSlice";
+import { clearRooms, fetchDashboard } from "../store/roomsSlice";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 import { API_BASE } from "../lib/api";
@@ -187,19 +188,22 @@ export default function WorkspaceSettingsPage() {
 			await workspaceService.leave();
 			toast.success("Berhasil keluar dari workspace");
 
-			// Choose another workspace if available.
+			dispatch(clearRooms());
+
 			const res = await workspaceService.listMine();
 			const wsList = res?.data?.data?.workspaces || [];
 			if (wsList.length > 0) {
 				dispatch(setWorkspace(wsList[0]));
 				dispatch(setWorkspaceList(wsList));
+				await dispatch(fetchDashboard());
 				navigate("/dashboard");
 			} else {
 				dispatch(clearWorkspace());
 				navigate("/onboarding");
 			}
-		} catch {
-			toast.error("Gagal keluar dari workspace");
+		} catch (err) {
+			const msg = err?.response?.data?.error?.message;
+			toast.error(msg || "Gagal keluar dari workspace");
 		} finally {
 			setLeavingWorkspace(false);
 		}

@@ -185,7 +185,7 @@ const GroupChatPage = () => {
 					currentUser={user}
 					onClose={() => setActiveThread(null)}
 					roomId={Number(groupId)}
-					onSendReply={(text, replyToId) => handleSend(text, replyToId)}
+					onSendReply={(text, replyToId) => handleSend(text, null, { id: replyToId })}
 				/>
 			)}
 					</div>

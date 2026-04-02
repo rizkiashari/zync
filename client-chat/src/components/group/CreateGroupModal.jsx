@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Modal from '../ui/Modal';
 import Input from '../ui/Input';
 import Button from '../ui/Button';
@@ -6,15 +6,15 @@ import Avatar from '../ui/Avatar';
 import { X, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-import { useAppDispatch, useAppSelector } from '../../store/index';
-import { searchUsers, clearSearch } from '../../store/usersSlice';
+import { useAppDispatch } from '../../store/index';
 import { createGroupRoom } from '../../store/roomsSlice';
+import { workspaceService } from '../../services/workspaceService';
+import { useAuth } from '../../context/AuthContext';
 
 const CreateGroupModal = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const contacts = useAppSelector((s) => s.users.searchResults);
-  const searchStatus = useAppSelector((s) => s.users.searchStatus);
+  const { user } = useAuth();
 
   const [groupName, setGroupName] = useState('');
   const [description, setDescription] = useState('');
@@ -22,19 +22,50 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [workspaceMembers, setWorkspaceMembers] = useState([]);
+  const [membersLoadStatus, setMembersLoadStatus] = useState('idle');
 
   useEffect(() => {
     if (!isOpen) return;
-    dispatch(searchUsers(''));
-    return () => dispatch(clearSearch());
-  }, [isOpen, dispatch]);
+    let cancelled = false;
+    setMembersLoadStatus('loading');
+    setWorkspaceMembers([]);
+    workspaceService
+      .listMembers()
+      .then((res) => {
+        if (cancelled) return;
+        setWorkspaceMembers(res?.data?.data?.members || []);
+        setMembersLoadStatus('succeeded');
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setWorkspaceMembers([]);
+        setMembersLoadStatus('succeeded');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      dispatch(searchUsers(search));
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search, dispatch]);
+  /** Hanya anggota workspace saat ini — bukan seluruh user di server. */
+  const contacts = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return workspaceMembers
+      .filter((m) => Number(m.user_id) !== Number(user?.id))
+      .filter((m) => {
+        if (!q) return true;
+        return (
+          (m.username || '').toLowerCase().includes(q) ||
+          (m.email || '').toLowerCase().includes(q)
+        );
+      })
+      .map((m) => ({
+        id: m.user_id,
+        username: m.username,
+        email: m.email,
+        is_online: false,
+      }));
+  }, [workspaceMembers, search, user?.id]);
 
   const toggleMember = (contact) => {
     setSelectedMembers((prev) =>
@@ -112,6 +143,9 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
           <label className="text-sm font-medium text-slate-700 block mb-2">
             Tambah Anggota <span className="text-red-500">*</span>
           </label>
+          <p className="text-xs text-slate-500 mb-2">
+            Hanya rekan di workspace ini yang bisa dipilih.
+          </p>
 
           {selectedMembers.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3">
@@ -131,7 +165,7 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
 
           <input
             type="text"
-            placeholder="Cari pengguna..."
+            placeholder="Cari di anggota workspace..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2"
@@ -142,11 +176,13 @@ const CreateGroupModal = ({ isOpen, onClose }) => {
           )}
 
           <div className="max-h-48 overflow-y-auto scrollbar-light space-y-1 border border-slate-100 rounded-xl p-2">
-            {searchStatus === 'loading' && contacts.length === 0 && (
-              <p className="text-xs text-slate-400 text-center py-4">Memuat...</p>
+            {membersLoadStatus === 'loading' && (
+              <p className="text-xs text-slate-400 text-center py-4">Memuat anggota workspace...</p>
             )}
-            {searchStatus !== 'loading' && contacts.length === 0 && (
-              <p className="text-xs text-slate-400 text-center py-4">Tidak ada pengguna</p>
+            {membersLoadStatus === 'succeeded' && contacts.length === 0 && (
+              <p className="text-xs text-slate-400 text-center py-4">
+                Tidak ada anggota lain di workspace ini
+              </p>
             )}
             {contacts.map((contact) => {
               const isSelected = !!selectedMembers.find((m) => m.id === contact.id);

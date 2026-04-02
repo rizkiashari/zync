@@ -181,6 +181,21 @@ func (r *WorkspaceRepository) RemoveMember(workspaceID, userID uint) error {
 		Delete(&models.WorkspaceMember{}).Error
 }
 
+// LeaveWorkspace removes the user from the workspace and drops their room memberships, read cursors, and recent-task shortcuts for that tenant (transactional).
+func (r *WorkspaceRepository) LeaveWorkspace(workspaceID, userID uint, rooms *RoomRepository) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := rooms.DeleteMembershipInWorkspaceTx(tx, workspaceID, userID); err != nil {
+			return err
+		}
+		if err := tx.Where("user_id = ? AND workspace_id = ?", userID, workspaceID).
+			Delete(&models.RecentTask{}).Error; err != nil {
+			return err
+		}
+		return tx.Where("workspace_id = ? AND user_id = ?", workspaceID, userID).
+			Delete(&models.WorkspaceMember{}).Error
+	})
+}
+
 // RegenerateInviteToken creates a fresh invite token for the workspace.
 func (r *WorkspaceRepository) RegenerateInviteToken(workspaceID uint) (string, error) {
 	token := genWorkspaceToken()

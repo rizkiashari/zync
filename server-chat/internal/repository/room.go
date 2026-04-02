@@ -251,6 +251,15 @@ func (r *RoomRepository) LeaveRoom(roomID, userID uint) error {
 		Delete(&models.RoomMember{}).Error
 }
 
+// DeleteMembershipInWorkspaceTx removes room_members and room_reads for user from all rooms in the workspace (use inside a transaction).
+func (r *RoomRepository) DeleteMembershipInWorkspaceTx(tx *gorm.DB, workspaceID, userID uint) error {
+	roomSub := tx.Model(&models.Room{}).Select("id").Where("workspace_id = ?", workspaceID)
+	if err := tx.Where("user_id = ? AND room_id IN (?)", userID, roomSub).Delete(&models.RoomMember{}).Error; err != nil {
+		return err
+	}
+	return tx.Where("user_id = ? AND room_id IN (?)", userID, roomSub).Delete(&models.RoomRead{}).Error
+}
+
 // UpdateGroup updates name and/or description of a group room.
 func (r *RoomRepository) UpdateGroup(roomID uint, name, description string) error {
 	return r.db.Model(&models.Room{}).Where("id = ?", roomID).Updates(map[string]any{

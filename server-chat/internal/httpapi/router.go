@@ -25,6 +25,7 @@ import (
 	"zync-server/internal/httpapi/tasks"
 	"zync-server/internal/httpapi/upload"
 	"zync-server/internal/httpapi/users"
+	"zync-server/internal/httpapi/workspacefiles"
 	"zync-server/internal/httpapi/workspaces"
 	applogger "zync-server/internal/logger"
 )
@@ -70,7 +71,7 @@ func NewRouter(d Deps) *gin.Engine {
 	api.Use(middleware.Bearer(d.Auth))
 
 	profile.Register(api, d.Users, "./uploads")
-	workspaces.Register(api, d.Workspaces, d.Users, "./uploads", d.Subscriptions)
+	workspaces.Register(api, d.Workspaces, d.Users, "./uploads", d.Subscriptions, d.Rooms)
 
 	adminAPI := api.Group("/admin")
 	adminAPI.Use(middleware.SystemAdmin(d.Users))
@@ -91,6 +92,7 @@ func NewRouter(d Deps) *gin.Engine {
 	calls.Register(wsGroup, d.Hub, d.Rooms, d.Users, d.Config)
 	recenttasks.Register(wsGroup, d.RecentTasks)
 	bookmarks.Register(wsGroup, d.Bookmarks, d.Messages)
+	workspacefiles.Register(wsGroup, d.Messages, d.Workspaces)
 	payments.Register(wsGroup, d.Config, d.OnboardingPricingPlans, d.Users)
 
 	return r

@@ -48,31 +48,19 @@ export const registerThunk = createAsyncThunk(
   async ({ email, password, username }, { rejectWithValue, dispatch }) => {
     try {
       const res = await authService.register(email, password, username);
-      const { access_token, refresh_token, user, workspace } = res.data.data;
+      const { access_token, refresh_token, user } = res.data.data;
       saveTokens(access_token, refresh_token);
       localStorage.setItem(USER_KEY, JSON.stringify(user));
 
-      if (workspace) {
-        dispatch(setWorkspace(workspace));
-      }
-
-      // Ensure workspace list + selected workspace are always consistent.
-      // Register API returns only `workspace`, but some flows expect `workspace.list` too.
+      // New accounts have no workspace until onboarding (create or join with invite).
+      dispatch(clearWorkspace());
       try {
         const listRes = await workspaceService.listMine();
         const wsList = listRes?.data?.data?.workspaces;
-        const arr = Array.isArray(wsList) ? wsList : [];
-        dispatch(setWorkspaceList(arr));
-        if (!workspace && arr.length > 0) {
-          dispatch(setWorkspace(arr[0]));
-        }
+        dispatch(setWorkspaceList(Array.isArray(wsList) ? wsList : []));
       } catch {
-        // If list fetch fails, keep whatever we already set from register response.
-        if (!workspace) dispatch(clearWorkspace());
+        dispatch(setWorkspaceList([]));
       }
-
-      // If we still don't have a workspace (e.g. server returned null), go onboarding.
-      if (!workspace) dispatch(clearWorkspace());
       return user;
     } catch (err) {
       return rejectWithValue(err.response?.data?.error?.message || 'Registration failed');

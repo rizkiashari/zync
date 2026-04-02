@@ -9,7 +9,7 @@ import (
 )
 
 func Register(r gin.IRouter, users *repository.UserRepository, rtRepo *repository.RefreshTokenRepository, jwtSvc *auth.Service, wsRepo *repository.WorkspaceRepository) {
-	r.POST("/auth/register", handleRegister(users, rtRepo, jwtSvc, wsRepo))
+	r.POST("/auth/register", handleRegister(users, rtRepo, jwtSvc))
 	r.POST("/auth/login", handleLogin(users, rtRepo, jwtSvc, wsRepo))
 	r.POST("/auth/refresh", handleRefresh(rtRepo, jwtSvc))
 

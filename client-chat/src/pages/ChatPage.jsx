@@ -205,7 +205,7 @@ const ChatPage = () => {
 					currentUser={user}
 					onClose={() => setActiveThread(null)}
 					roomId={Number(roomId)}
-					onSendReply={(text, replyToId) => handleSend(text, replyToId)}
+					onSendReply={(text, replyToId) => handleSend(text, null, { id: replyToId })}
 				/>
 			)}
 		</div>

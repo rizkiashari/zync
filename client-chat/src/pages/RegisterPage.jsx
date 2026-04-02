@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Mail, Lock, User } from "lucide-react";
 import Input from "../components/ui/Input";
 import Button from "../components/ui/Button";
@@ -7,10 +7,6 @@ import Logo from "../components/ui/Logo";
 import { useAuth } from "../context/AuthContext";
 import { authLink } from "../lib/uiClasses";
 import toast from "react-hot-toast";
-import { useDispatch } from "react-redux";
-import { setWorkspace, setWorkspaceList } from "../store/workspaceSlice";
-import { workspaceService } from "../services/workspaceService";
-
 const PasswordStrength = ({ password }) => {
 	if (!password) return null;
 	let score = 0;
@@ -47,8 +43,8 @@ const PasswordStrength = ({ password }) => {
 
 const RegisterPage = () => {
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
 	const { register } = useAuth();
-	const dispatch = useDispatch();
 	const [form, setForm] = useState({
 		name: "",
 		email: "",
@@ -82,14 +78,10 @@ const RegisterPage = () => {
 		try {
 			await register(form.email.trim(), form.password, form.name.trim());
 			toast.success("Akun berhasil dibuat!");
-			const wsRes = await workspaceService.listMine();
-			const wsList = wsRes?.data?.data?.workspaces || [];
-			if (Array.isArray(wsList) && wsList.length > 0) {
-				dispatch(setWorkspaceList(wsList));
-				dispatch(setWorkspace(wsList[0]));
-				navigate("/dashboard");
+			const invite = searchParams.get("invite")?.trim();
+			if (invite) {
+				navigate(`/onboarding?invite=${encodeURIComponent(invite)}`);
 			} else {
-				// No workspace yet — force user to create or join one
 				navigate("/onboarding");
 			}
 		} catch (err) {
@@ -152,6 +144,9 @@ const RegisterPage = () => {
 							<Link to='/login' className={authLink}>
 								Masuk
 							</Link>
+						</p>
+						<p className='text-slate-500 text-xs mt-2 leading-relaxed'>
+							Setelah daftar: buat workspace baru atau gabung memakai link undangan.
 						</p>
 					</header>
 
