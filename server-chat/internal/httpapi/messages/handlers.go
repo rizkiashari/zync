@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"zync-server/internal/hub"
 	"zync-server/internal/httpapi/middleware"
 	"zync-server/internal/httpapi/response"
 	"zync-server/internal/models"
@@ -275,7 +276,7 @@ type reactionBody struct {
 // @Success      200 {object} apidocs.ReactionsSuccess
 // @Failure      404 {object} apidocs.ErrorEnvelope
 // @Router       /api/messages/{msgId}/reactions [post]
-func addReaction(msgRepo *repository.MessageRepository, roomsRepo *repository.RoomRepository) gin.HandlerFunc {
+func addReaction(msgRepo *repository.MessageRepository, roomsRepo *repository.RoomRepository, h *hub.Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, ok := middleware.UserID(c)
 		if !ok {
@@ -305,6 +306,11 @@ func addReaction(msgRepo *repository.MessageRepository, roomsRepo *repository.Ro
 			return
 		}
 		reactions, _ := msgRepo.GetReactions(msgID)
+		_ = h.BroadcastToRoom(strconv.FormatUint(uint64(msg.RoomID), 10), gin.H{
+			"type":       "reaction_updated",
+			"message_id": msgID,
+			"reactions":  reactions,
+		})
 		response.OK(c, reactions)
 	}
 }
@@ -319,7 +325,7 @@ func addReaction(msgRepo *repository.MessageRepository, roomsRepo *repository.Ro
 // @Success      200 {object} apidocs.ReactionsSuccess
 // @Failure      404 {object} apidocs.ErrorEnvelope
 // @Router       /api/messages/{msgId}/reactions/{emoji} [delete]
-func removeReaction(msgRepo *repository.MessageRepository, roomsRepo *repository.RoomRepository) gin.HandlerFunc {
+func removeReaction(msgRepo *repository.MessageRepository, roomsRepo *repository.RoomRepository, h *hub.Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, ok := middleware.UserID(c)
 		if !ok {
@@ -344,6 +350,11 @@ func removeReaction(msgRepo *repository.MessageRepository, roomsRepo *repository
 			return
 		}
 		reactions, _ := msgRepo.GetReactions(msgID)
+		_ = h.BroadcastToRoom(strconv.FormatUint(uint64(msg.RoomID), 10), gin.H{
+			"type":       "reaction_updated",
+			"message_id": msgID,
+			"reactions":  reactions,
+		})
 		response.OK(c, reactions)
 	}
 }

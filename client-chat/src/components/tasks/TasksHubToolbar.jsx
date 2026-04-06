@@ -1,4 +1,4 @@
-import { Search } from "lucide-react";
+import { Search, Plus } from "lucide-react";
 import { TASKS_HUB_TABS } from "./tasksHubConfig";
 import { focusRing } from "../../lib/uiClasses";
 
@@ -9,6 +9,8 @@ const TasksHubToolbar = ({
 	onQuery,
 	showDone,
 	onShowDone,
+	onCreateTask,
+	canCreateTask,
 }) => (
 	<header className='flex-shrink-0 border-b border-slate-200/80 bg-white/95 px-4 py-3 shadow-clean backdrop-blur-sm sm:px-6 sm:py-4'>
 		<div className='flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4'>
@@ -20,7 +22,18 @@ const TasksHubToolbar = ({
 					Backlog, daftar isu, dan akses papan — pola mirip Jira
 				</p>
 			</div>
-			<div className='relative min-w-[200px] max-w-md flex-1'>
+			<div className='flex items-center gap-2 flex-1 min-w-[200px] max-w-lg'>
+			{canCreateTask && (
+				<button
+					type='button'
+					onClick={onCreateTask}
+					className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition-colors flex-shrink-0 ${focusRing}`}
+				>
+					<Plus className='w-4 h-4' />
+					Buat Task
+				</button>
+			)}
+			<div className='relative flex-1'>
 				<Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none' />
 				<input
 					type='search'
@@ -29,6 +42,7 @@ const TasksHubToolbar = ({
 					onChange={(e) => onQuery(e.target.value)}
 					className='w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 bg-white'
 				/>
+			</div>
 			</div>
 		</div>
 

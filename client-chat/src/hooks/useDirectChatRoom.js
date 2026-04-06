@@ -385,5 +385,6 @@ export function useDirectChatRoom(roomId) {
 		shouldShowAvatar,
 		isTyping,
 		scrollToPinnedMessage,
+		on,
 	};
 }

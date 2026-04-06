@@ -348,5 +348,6 @@ export function useGroupChatRoom(groupId) {
 		handleBookmark,
 		scrollToPinnedMessage,
 		updateMembersFromGroupInfo,
+		on,
 	};
 }

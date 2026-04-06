@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import MainShell from "../components/layout/MainShell";
 import Header from "../components/layout/Header";
@@ -16,12 +16,42 @@ import { useDirectChatRoom } from "../hooks/useDirectChatRoom";
 import { useAppDispatch } from "../store/index";
 import { toggleSidebar } from "../store/uiSlice";
 import { Phone, Video, Pin, X } from "lucide-react";
+import { messageService } from "../services/messageService";
 
 const ChatPage = () => {
 	const { roomId } = useParams();
 	const dispatch = useAppDispatch();
 	const chat = useDirectChatRoom(roomId);
 	const [activeThread, setActiveThread] = useState(null);
+	const [reactions, setReactions] = useState({}); // { [msgId]: [{emoji, count, reacted_by_me}] }
+
+	// Listen for reaction_updated WebSocket events
+	useEffect(() => {
+		if (!chat.on) return;
+		return chat.on("reaction_updated", (ev) => {
+			if (ev.message_id && Array.isArray(ev.reactions)) {
+				setReactions((prev) => ({ ...prev, [ev.message_id]: ev.reactions }));
+			}
+		});
+	}, [chat.on]);
+
+	const handleReact = useCallback(async (msgId, emoji, alreadyReacted) => {
+		try {
+			let updated;
+			if (alreadyReacted) {
+				const res = await messageService.removeReaction(msgId, emoji);
+				updated = res.data?.data;
+			} else {
+				const res = await messageService.addReaction(msgId, emoji);
+				updated = res.data?.data;
+			}
+			if (Array.isArray(updated)) {
+				setReactions((prev) => ({ ...prev, [msgId]: updated }));
+			}
+		} catch {
+			// ignore
+		}
+	}, []);
 
 	if (chat.loading) {
 		return (
@@ -162,6 +192,9 @@ const ChatPage = () => {
 										onBookmark={handleBookmark}
 										bookmarkedIds={bookmarkedIds}
 										onOpenThread={setActiveThread}
+									reactions={reactions[item.id] || []}
+									onReact={handleReact}
+									currentUserId={user?.id}
 									/>
 									{isOwn && item.showRead && (
 										<div className='-mt-1 mb-1 flex justify-end pr-2'>

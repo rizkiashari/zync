@@ -24,6 +24,16 @@ func verifyMidtransSignature(orderID, statusCode, grossAmount, serverKey, wantSi
 	return strings.EqualFold(got, wantSignature)
 }
 
+type midtransNotifBody struct {
+	OrderID           string `json:"order_id"`
+	StatusCode        string `json:"status_code"`
+	GrossAmount       string `json:"gross_amount"`
+	SignatureKey      string `json:"signature_key"`
+	TransactionStatus string `json:"transaction_status"`
+	PaymentType       string `json:"payment_type"`
+	TransactionID     string `json:"transaction_id"`
+}
+
 // handleMidtransNotification handles Midtrans HTTP(S) notification (no auth — signature verified).
 // Configure URL in Midtrans dashboard: POST {PUBLIC_URL}/api/payments/midtrans/notification
 func handleMidtransNotification(cfg *config.Config, txns *repository.PaymentTransactionRepository) gin.HandlerFunc {
@@ -33,14 +43,18 @@ func handleMidtransNotification(cfg *config.Config, txns *repository.PaymentTran
 			return
 		}
 
-		_ = c.Request.ParseForm()
-		orderID := strings.TrimSpace(c.PostForm("order_id"))
-		statusCode := strings.TrimSpace(c.PostForm("status_code"))
-		grossAmount := strings.TrimSpace(c.PostForm("gross_amount"))
-		sig := strings.TrimSpace(c.PostForm("signature_key"))
-		transStatus := strings.TrimSpace(c.PostForm("transaction_status"))
-		paymentType := strings.TrimSpace(c.PostForm("payment_type"))
-		transID := strings.TrimSpace(c.PostForm("transaction_id"))
+		var body midtransNotifBody
+		if err := c.ShouldBindJSON(&body); err != nil {
+			c.String(http.StatusBadRequest, "invalid body")
+			return
+		}
+		orderID := strings.TrimSpace(body.OrderID)
+		statusCode := strings.TrimSpace(body.StatusCode)
+		grossAmount := strings.TrimSpace(body.GrossAmount)
+		sig := strings.TrimSpace(body.SignatureKey)
+		transStatus := strings.TrimSpace(body.TransactionStatus)
+		paymentType := strings.TrimSpace(body.PaymentType)
+		transID := strings.TrimSpace(body.TransactionID)
 
 		if orderID == "" {
 			c.String(http.StatusOK, "OK")

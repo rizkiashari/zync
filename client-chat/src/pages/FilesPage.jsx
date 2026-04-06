@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSelector } from "react-redux";
 import MainShell from "../components/layout/MainShell";
 import { messageService } from "../services/messageService";
@@ -10,7 +10,12 @@ import {
 	Search,
 	Filter,
 	FolderOpen,
+	Folder,
 	Loader2,
+	List,
+	LayoutGrid,
+	ChevronDown,
+	ChevronRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -26,7 +31,7 @@ function parseFileMeta(body) {
 	try {
 		const parsed = JSON.parse(body);
 		if (parsed._type === "file") return parsed;
-	} catch (_e) {
+	} catch {
 		return null;
 	}
 	return null;
@@ -47,7 +52,7 @@ function formatDate(ts) {
 	});
 }
 
-const FileRow = ({ msg, fileUrl }) => {
+const FileRow = ({ msg }) => {
 	const meta = parseFileMeta(msg.body);
 	if (!meta) return null;
 	const isImage = meta.mime?.startsWith("image/");
@@ -63,7 +68,6 @@ const FileRow = ({ msg, fileUrl }) => {
 						className='w-full h-full object-cover rounded-xl'
 						onError={(e) => {
 							e.target.style.display = "none";
-							e.target.parentNode.innerHTML = '<span class="text-slate-400 text-xs">IMG</span>';
 						}}
 					/>
 				) : (
@@ -90,6 +94,42 @@ const FileRow = ({ msg, fileUrl }) => {
 	);
 };
 
+const FolderGroup = ({ roomName, files }) => {
+	const [open, setOpen] = useState(true);
+
+	return (
+		<div className='border border-slate-200 rounded-xl overflow-hidden mb-3'>
+			<button
+				type='button'
+				onClick={() => setOpen((v) => !v)}
+				className='w-full flex items-center gap-3 px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left'
+			>
+				{open ? (
+					<FolderOpen className='w-4 h-4 text-amber-500 flex-shrink-0' />
+				) : (
+					<Folder className='w-4 h-4 text-amber-500 flex-shrink-0' />
+				)}
+				<span className='flex-1 text-sm font-semibold text-slate-700 truncate'>
+					{roomName}
+				</span>
+				<span className='text-xs text-slate-400 flex-shrink-0'>{files.length} file</span>
+				{open ? (
+					<ChevronDown className='w-4 h-4 text-slate-400 flex-shrink-0' />
+				) : (
+					<ChevronRight className='w-4 h-4 text-slate-400 flex-shrink-0' />
+				)}
+			</button>
+			{open && (
+				<div>
+					{files.map((msg) => (
+						<FileRow key={msg.id} msg={msg} />
+					))}
+				</div>
+			)}
+		</div>
+	);
+};
+
 const FilesPage = () => {
 	const workspace = useSelector((s) => s.workspace.current);
 	const rooms = useSelector(selectAllRooms);
@@ -100,6 +140,7 @@ const FilesPage = () => {
 	const [roomFilter, setRoomFilter] = useState("");
 	const [offset, setOffset] = useState(0);
 	const [hasMore, setHasMore] = useState(true);
+	const [viewMode, setViewMode] = useState("list"); // "list" | "folder"
 	const LIMIT = 50;
 
 	const loadFiles = useCallback(
@@ -145,24 +186,67 @@ const FilesPage = () => {
 		return r?.name || `Room ${roomId}`;
 	};
 
+	// Group files by room_id for folder view
+	const folderGroups = useMemo(() => {
+		const map = new Map();
+		for (const msg of files) {
+			const key = msg.room_id ?? "unknown";
+			if (!map.has(key)) map.set(key, []);
+			map.get(key).push(msg);
+		}
+		return [...map.entries()].map(([rid, msgs]) => ({
+			roomId: rid,
+			name: rid === "unknown" ? "Tidak diketahui" : roomName(rid),
+			files: msgs,
+		}));
+	}, [files, rooms]); // eslint-disable-line react-hooks/exhaustive-deps
+
 	return (
 		<MainShell>
 			<div className='flex flex-1 flex-col min-h-0'>
 				{/* Header */}
 				<div className='border-b border-slate-200 bg-white px-6 py-4'>
-					<div className='flex items-center gap-3 mb-4'>
-						<div className='w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center'>
-							<FolderOpen className='w-5 h-5 text-indigo-600' />
+					<div className='flex items-center justify-between gap-3 mb-4'>
+						<div className='flex items-center gap-3'>
+							<div className='w-9 h-9 rounded-xl bg-indigo-100 flex items-center justify-center'>
+								<FolderOpen className='w-5 h-5 text-indigo-600' />
+							</div>
+							<div>
+								<h1 className='text-lg font-semibold text-slate-900'>File Manager</h1>
+								<p className='text-xs text-slate-500'>Semua file di workspace ini</p>
+							</div>
 						</div>
-						<div>
-							<h1 className='text-lg font-semibold text-slate-900'>File Manager</h1>
-							<p className='text-xs text-slate-500'>Semua file di workspace ini</p>
+						{/* View toggle */}
+						<div className='flex items-center bg-slate-100 rounded-xl p-1 gap-1'>
+							<button
+								type='button'
+								onClick={() => setViewMode("list")}
+								title='Tampilan daftar'
+								className={`p-1.5 rounded-lg transition-all ${
+									viewMode === "list"
+										? "bg-white text-indigo-600 shadow-sm"
+										: "text-slate-500 hover:text-slate-700"
+								}`}
+							>
+								<List className='w-4 h-4' />
+							</button>
+							<button
+								type='button'
+								onClick={() => setViewMode("folder")}
+								title='Tampilan folder'
+								className={`p-1.5 rounded-lg transition-all ${
+									viewMode === "folder"
+										? "bg-white text-indigo-600 shadow-sm"
+										: "text-slate-500 hover:text-slate-700"
+								}`}
+							>
+								<LayoutGrid className='w-4 h-4' />
+							</button>
 						</div>
 					</div>
 
 					{/* Filters */}
 					<div className='flex flex-wrap gap-2'>
-						{/* Search */}
 						<div className='relative flex-1 min-w-48'>
 							<Search className='absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400' />
 							<input
@@ -174,16 +258,16 @@ const FilesPage = () => {
 							/>
 						</div>
 
-						{/* MIME filter */}
 						<div className='flex items-center gap-1 bg-slate-100 rounded-xl p-1'>
 							{MIME_FILTERS.map((f) => (
 								<button
 									key={f.value}
+									type='button'
 									onClick={() => setMimeFilter(f.value)}
 									className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-										mimeFilter === f.value ?
-											"bg-white text-indigo-600 shadow-sm"
-										:	"text-slate-500 hover:text-slate-700"
+										mimeFilter === f.value
+											? "bg-white text-indigo-600 shadow-sm"
+											: "text-slate-500 hover:text-slate-700"
 									}`}
 								>
 									{f.label}
@@ -191,26 +275,27 @@ const FilesPage = () => {
 							))}
 						</div>
 
-						{/* Room filter */}
-						<div className='relative'>
-							<Filter className='absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400' />
-							<select
-								value={roomFilter}
-								onChange={(e) => setRoomFilter(e.target.value)}
-								className='pl-8 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none min-w-36'
-							>
-								<option value=''>Semua room</option>
-								{rooms.map((r) => (
-									<option key={r.id} value={r.id}>
-										{r.name || r.username || `Room ${r.id}`}
-									</option>
-								))}
-							</select>
-						</div>
+						{viewMode === "list" && (
+							<div className='relative'>
+								<Filter className='absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400' />
+								<select
+									value={roomFilter}
+									onChange={(e) => setRoomFilter(e.target.value)}
+									className='pl-8 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white appearance-none min-w-36'
+								>
+									<option value=''>Semua room</option>
+									{rooms.map((r) => (
+										<option key={r.id} value={r.id}>
+											{r.name || `Room ${r.id}`}
+										</option>
+									))}
+								</select>
+							</div>
+						)}
 					</div>
 				</div>
 
-				{/* File list */}
+				{/* Content */}
 				<div className='flex-1 overflow-y-auto bg-white'>
 					{loading && files.length === 0 ? (
 						<div className='flex justify-center py-12'>
@@ -221,6 +306,16 @@ const FilesPage = () => {
 							<Image className='w-12 h-12 opacity-30' />
 							<p className='text-sm'>Belum ada file yang dibagikan</p>
 						</div>
+					) : viewMode === "folder" ? (
+						<div className='p-4'>
+							{folderGroups.map((group) => (
+								<FolderGroup
+									key={group.roomId}
+									roomName={group.name}
+									files={group.files}
+								/>
+							))}
+						</div>
 					) : (
 						<>
 							{files.map((msg) => (
@@ -229,6 +324,7 @@ const FilesPage = () => {
 							{hasMore && (
 								<div className='flex justify-center py-4'>
 									<button
+										type='button'
 										onClick={() => loadFiles(false)}
 										disabled={loading}
 										className='px-4 py-2 text-sm text-indigo-600 hover:text-indigo-800 disabled:opacity-50 transition-colors'

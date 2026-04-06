@@ -136,12 +136,17 @@ func Serve(h *hub.Hub, store MessageStore, presence PresenceStore, members RoomM
 	if err := c.presence.SetOnline(userID, true); err != nil {
 		log.Printf("set online: %v", err)
 	}
-	_ = c.hub.BroadcastToRoom(roomKey, Outgoing{
-		Type:          "presence",
-		UserID:        userID,
-		Online:        true,
-		StatusMessage: statusMessage,
-	})
+	presenceOn := Outgoing{Type: "presence", UserID: userID, Online: true, StatusMessage: statusMessage}
+	_ = c.hub.BroadcastToRoom(roomKey, presenceOn)
+	if members != nil {
+		if memberIDs, err := members.GetMemberIDs(roomID); err == nil {
+			for _, mid := range memberIDs {
+				if mid != userID {
+					_ = c.hub.NotifyUser(mid, presenceOn)
+				}
+			}
+		}
+	}
 
 	go c.writePump()
 	go c.readPump()
@@ -154,11 +159,17 @@ func (c *Client) readPump() {
 		if err := c.presence.SetOnline(c.userID, false); err != nil {
 			log.Printf("set offline: %v", err)
 		}
-		_ = c.hub.BroadcastToRoom(c.roomKey, Outgoing{
-			Type:   "presence",
-			UserID: c.userID,
-			Online: false,
-		})
+		presenceOff := Outgoing{Type: "presence", UserID: c.userID, Online: false}
+		_ = c.hub.BroadcastToRoom(c.roomKey, presenceOff)
+		if c.members != nil {
+			if memberIDs, err := c.members.GetMemberIDs(c.roomID); err == nil {
+				for _, mid := range memberIDs {
+					if mid != c.userID {
+						_ = c.hub.NotifyUser(mid, presenceOff)
+					}
+				}
+			}
+		}
 	}()
 
 	c.conn.SetReadLimit(maxMessageSize)

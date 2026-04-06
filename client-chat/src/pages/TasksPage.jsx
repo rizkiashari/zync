@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import MainShell from "../components/layout/MainShell";
 import { useTasksHub } from "../hooks/useTasksHub";
@@ -6,10 +7,12 @@ import TasksHubToolbar from "../components/tasks/TasksHubToolbar";
 import TasksHubBacklog from "../components/tasks/TasksHubBacklog";
 import TasksHubListTable from "../components/tasks/TasksHubListTable";
 import TasksHubBoardGrid from "../components/tasks/TasksHubBoardGrid";
+import TasksHubCreateModal from "../components/tasks/TasksHubCreateModal";
 
 const TasksPage = () => {
 	const navigate = useNavigate();
 	const hub = useTasksHub();
+	const [showCreate, setShowCreate] = useState(false);
 
 	const goKanban = (groupId) => navigate(`/group/${groupId}/kanban`);
 	const goGroupChat = (groupId) => navigate(`/group/${groupId}`);
@@ -31,6 +34,8 @@ const TasksPage = () => {
 						onQuery={hub.setQuery}
 						showDone={hub.showDone}
 						onShowDone={hub.setShowDone}
+						canCreateTask={hub.groupRooms.length > 0}
+						onCreateTask={() => setShowCreate(true)}
 					/>
 
 					<div className='flex-1 overflow-y-auto p-4 sm:p-6'>
@@ -79,6 +84,14 @@ const TasksPage = () => {
 					</div>
 				</main>
 			</div>
+		{showCreate && (
+			<TasksHubCreateModal
+				groupRooms={hub.groupRooms}
+				boardsByRoomId={hub.boardsByRoomId}
+				onClose={() => setShowCreate(false)}
+				onCreated={() => hub.refetchBoards({ quiet: true })}
+			/>
+		)}
 		</MainShell>
 	);
 };

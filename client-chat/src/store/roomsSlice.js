@@ -23,39 +23,37 @@ export const fetchRooms = createAsyncThunk('rooms/fetchRooms', async (_, { rejec
     const res = await roomService.list();
     const rooms = res.data.data || [];
     const currentUserId = Number(getState()?.auth?.user?.id);
-    const directWithoutName = rooms.filter((room) =>
-      room?.type === 'direct' && !String(room?.name || '').trim()
-    );
+    const directRooms = rooms.filter((room) => room?.type === 'direct');
 
-    if (directWithoutName.length === 0 || !currentUserId) {
+    if (directRooms.length === 0 || !currentUserId) {
       return rooms;
     }
 
     const detailResults = await Promise.allSettled(
-      directWithoutName.map(async (room) => {
+      directRooms.map(async (room) => {
         const detailRes = await roomService.getById(room.id);
         const payload = detailRes?.data?.data;
         const members = payload?.members || [];
         const other = members.find((m) => Number(m?.id) !== currentUserId);
-        const fallbackName = other?.username || other?.email;
         return {
           id: room.id,
-          name: fallbackName || room.name || 'Chat',
+          name: other?.username || other?.email || room.name || 'Chat',
+          contact_id: other?.id ?? null,
         };
       })
     );
 
-    const nameMap = new Map();
+    const infoMap = new Map();
     detailResults.forEach((result) => {
       if (result.status === 'fulfilled' && result.value?.id) {
-        nameMap.set(Number(result.value.id), result.value.name);
+        infoMap.set(Number(result.value.id), result.value);
       }
     });
 
     return rooms.map((room) => {
-      const resolvedName = nameMap.get(Number(room.id));
-      if (!resolvedName) return room;
-      return { ...room, name: resolvedName };
+      const info = infoMap.get(Number(room.id));
+      if (!info) return room;
+      return { ...room, name: info.name, contact_id: info.contact_id };
     });
   } catch (err) {
     return rejectWithValue(err.response?.data?.error?.message || 'Failed to load rooms');

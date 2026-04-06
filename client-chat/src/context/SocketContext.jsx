@@ -19,6 +19,12 @@ import {
 import { receiveWsMessageInMessages } from "../store/messagesSlice";
 import { fetchNotifications } from "../store/notificationsSlice";
 
+// Helper to update onlineUsers array immutably
+const applyPresence = (prev, userId, online) => {
+	if (online) return [...new Set([...prev, userId])];
+	return prev.filter((id) => id !== userId);
+};
+
 const SocketContext = createContext(null);
 
 const RECONNECT_DELAY = 3000;
@@ -139,15 +145,9 @@ export const SocketProvider = ({ children }) => {
 									});
 									break;
 								case "presence":
-									if (msg.online) {
-										setOnlineUsers((prev) => [
-											...new Set([...prev, msg.user_id]),
-										]);
-									} else {
-										setOnlineUsers((prev) =>
-											prev.filter((id) => id !== msg.user_id),
-										);
-									}
+									setOnlineUsers((prev) =>
+										applyPresence(prev, msg.user_id, msg.online),
+									);
 									emitEvent("presence", msg);
 									break;
 								case "read":
@@ -239,6 +239,11 @@ export const SocketProvider = ({ children }) => {
 							emitEvent("workspace_subscription_refresh", msg);
 						} else if (msg.type === "removed_from_workspace") {
 							emitEvent("removed_from_workspace", msg);
+						} else if (msg.type === "presence") {
+							setOnlineUsers((prev) =>
+								applyPresence(prev, msg.user_id, msg.online),
+							);
+							emitEvent("presence", msg);
 						}
 					} catch {
 						/* ignore */

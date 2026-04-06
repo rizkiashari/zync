@@ -16,7 +16,7 @@ const ChatListItem = ({ room, isActive, onClick }) => {
 	const isGroup = room.type === "group";
 	const unread = room.unread_count || 0;
 	const displayName = room.name || (isGroup ? "Grup" : "Chat");
-	const isOnline = onlineUsers.includes(room.id);
+	const isOnline = !isGroup && room.contact_id != null && onlineUsers.includes(room.contact_id);
 
 	return (
 		<button

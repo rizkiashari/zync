@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import MainShell from "../components/layout/MainShell";
 import Header from "../components/layout/Header";
@@ -16,12 +16,37 @@ import { useGroupChatRoom } from "../hooks/useGroupChatRoom";
 import { useAppDispatch } from "../store/index";
 import { toggleSidebar } from "../store/uiSlice";
 import { Phone, Video, Pin, X } from "lucide-react";
+import { messageService } from "../services/messageService";
 
 const GroupChatPage = () => {
 	const { groupId } = useParams();
 	const dispatch = useAppDispatch();
 	const g = useGroupChatRoom(groupId);
 	const [activeThread, setActiveThread] = useState(null);
+	const [reactions, setReactions] = useState({});
+
+	useEffect(() => {
+		if (!g.on) return;
+		return g.on("reaction_updated", (ev) => {
+			if (ev.message_id && Array.isArray(ev.reactions)) {
+				setReactions((prev) => ({ ...prev, [ev.message_id]: ev.reactions }));
+			}
+		});
+	}, [g.on]);
+
+	const handleReact = useCallback(async (msgId, emoji, alreadyReacted) => {
+		try {
+			const res = alreadyReacted
+				? await messageService.removeReaction(msgId, emoji)
+				: await messageService.addReaction(msgId, emoji);
+			const updated = res.data?.data;
+			if (Array.isArray(updated)) {
+				setReactions((prev) => ({ ...prev, [msgId]: updated }));
+			}
+		} catch {
+			// ignore
+		}
+	}, []);
 
 	if (g.loading) {
 		return (
@@ -106,13 +131,15 @@ const GroupChatPage = () => {
 				{ongoingCalls[Number(groupId)] && (
 					<div className='flex items-center justify-between gap-3 border-b border-emerald-200/60 bg-emerald-50/95 px-4 py-2'>
 						<div className='flex min-w-0 items-center gap-2 text-sm font-medium text-emerald-800'>
-							{ongoingCalls[Number(groupId)] === "video" ?
+							{ongoingCalls[Number(groupId)] === "video" ? (
 								<Video className='h-4 w-4 shrink-0' />
-							:	<Phone className='h-4 w-4 shrink-0' />}
+							) : (
+								<Phone className='h-4 w-4 shrink-0' />
+							)}
 							<span className='truncate'>
-								{ongoingCalls[Number(groupId)] === "video" ?
-									"Video call"
-								:	"Voice call"}{" "}
+								{ongoingCalls[Number(groupId)] === "video"
+									? "Video call"
+									: "Voice call"}{" "}
 								sedang berlangsung
 							</span>
 						</div>
@@ -149,7 +176,10 @@ const GroupChatPage = () => {
 												pinnedMessageId={pinnedMessage?.id}
 												onBookmark={handleBookmark}
 												bookmarkedIds={bookmarkedIds}
-										onOpenThread={setActiveThread}
+												onOpenThread={setActiveThread}
+												reactions={reactions[item.id] || []}
+												onReact={handleReact}
+												currentUserId={g.user?.id}
 											/>
 										</div>
 									);
@@ -160,9 +190,9 @@ const GroupChatPage = () => {
 										event={{
 											...ev,
 											callerName:
-												ev.callType === "call_started" ?
-													memberMap[ev.from] || `User ${ev.from}`
-												:	"",
+												ev.callType === "call_started"
+													? memberMap[ev.from] || `User ${ev.from}`
+													: "",
 										}}
 									/>
 								))}
@@ -179,15 +209,17 @@ const GroupChatPage = () => {
 							onCancelReply={() => setReplyTo(null)}
 							roomId={Number(groupId)}
 						/>
-			{activeThread && (
-				<ThreadPanel
-					parentMessage={activeThread}
-					currentUser={user}
-					onClose={() => setActiveThread(null)}
-					roomId={Number(groupId)}
-					onSendReply={(text, replyToId) => handleSend(text, null, { id: replyToId })}
-				/>
-			)}
+						{activeThread && (
+							<ThreadPanel
+								parentMessage={activeThread}
+								currentUser={user}
+								onClose={() => setActiveThread(null)}
+								roomId={Number(groupId)}
+								onSendReply={(text, replyToId) =>
+									handleSend(text, null, { id: replyToId })
+								}
+							/>
+						)}
 					</div>
 					{showInfo && (
 						<GroupInfo

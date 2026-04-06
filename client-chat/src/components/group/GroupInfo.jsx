@@ -14,6 +14,7 @@ import Avatar from "../ui/Avatar";
 import Button from "../ui/Button";
 import ConfirmModal from "../ui/ConfirmModal";
 import { useAuth } from "../../context/AuthContext";
+import { useSocket } from "../../context/SocketContext";
 import { useAppDispatch } from "../../store/index";
 import { removeRoom } from "../../store/roomsSlice";
 import { roomService } from "../../services/roomService";
@@ -23,6 +24,7 @@ import toast from "react-hot-toast";
 
 const GroupInfo = ({ group, onClose, onMembersUpdated }) => {
 	const { user } = useAuth();
+	const { onlineUsers } = useSocket();
 	const dispatch = useAppDispatch();
 	const navigate = useNavigate();
 	const [workspaceMembers, setWorkspaceMembers] = useState([]);
@@ -73,7 +75,7 @@ const GroupInfo = ({ group, onClose, onMembersUpdated }) => {
 				id: m.user_id,
 				username: m.username,
 				email: m.email,
-				is_online: false,
+				is_online: onlineUsers.includes(m.user_id),
 			}))
 			.filter((u) => {
 				if (u.id === user?.id) return false;
@@ -83,7 +85,7 @@ const GroupInfo = ({ group, onClose, onMembersUpdated }) => {
 					(u.email || "").toLowerCase().includes(q)
 				);
 			});
-	}, [workspaceMembers, searchQuery, user?.id]);
+	}, [workspaceMembers, searchQuery, user?.id, onlineUsers]);
 
 	const handleAddMember = async (targetUser) => {
 		if (addingId) return;
@@ -322,7 +324,7 @@ const GroupInfo = ({ group, onClose, onMembersUpdated }) => {
 									key={member.id}
 									className='flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors'
 								>
-									<Avatar name={member.name} size='sm' />
+									<Avatar name={member.name} size='sm' online={onlineUsers.includes(member.id)} />
 									<div className='flex-1 min-w-0'>
 										<p className='text-sm font-medium text-slate-800 truncate'>
 											{member.name}

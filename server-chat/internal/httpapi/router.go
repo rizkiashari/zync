@@ -90,7 +90,7 @@ func NewRouter(d Deps) *gin.Engine {
 	users.Register(wsGroup, d.Users)
 	dashboard.Register(wsGroup, d.Rooms, d.Users)
 	rooms.Register(wsGroup, d.Hub, d.Rooms, d.Users, d.Workspaces, d.Messages)
-	messages.Register(wsGroup, d.Messages, d.Rooms)
+	messages.Register(wsGroup, d.Messages, d.Rooms, d.Hub)
 	upload.Register(wsGroup, d.Rooms, "./uploads")
 	notifications.Register(wsGroup, d.Notifications)
 	tasks.Register(wsGroup, d.Hub, d.Tasks, d.Rooms, d.Users, d.Mailer, d.Notifications)

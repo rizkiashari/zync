@@ -89,6 +89,7 @@ export const useTasksHub = () => {
 		groupRooms,
 		boardsByRoomId,
 		loading,
+		refetchBoards,
 		workspaceId,
 		setWorkspaceId,
 		mainTab,
