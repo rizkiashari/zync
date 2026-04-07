@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import Avatar from "../ui/Avatar";
 import { useCall } from "../../context/CallContext";
 import { focusRing } from "../../lib/uiClasses";
+import { formatLastSeen } from "../../lib/chatThreadUtils";
 
 const Header = ({
 	name,
@@ -27,6 +28,8 @@ const Header = ({
 	onGallery,
 	kanbanPath,
 	roomId,
+	lastSeenAt,
+	statusMessage,
 }) => {
 	const navigate = useNavigate();
 	const isOnline = status === "online";
@@ -70,8 +73,8 @@ const Header = ({
 						{memberCount ?
 							`${memberCount} anggota`
 						: isOnline ?
-							"Online"
-						:	"Terakhir dilihat baru-baru ini"}
+							statusMessage || "Online"
+						:	formatLastSeen(lastSeenAt)}
 					</p>
 				</div>
 			</div>

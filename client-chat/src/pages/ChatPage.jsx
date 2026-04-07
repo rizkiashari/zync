@@ -83,6 +83,8 @@ const ChatPage = () => {
 		contact,
 		contactName,
 		isOnline,
+		contactLastSeenAt,
+		contactStatusMessage,
 		user,
 		isConnected,
 		replyTo,
@@ -119,6 +121,8 @@ const ChatPage = () => {
 					name={contactName}
 					status={isOnline ? "online" : "offline"}
 					avatar={contact?.avatar}
+					lastSeenAt={contactLastSeenAt}
+					statusMessage={contactStatusMessage}
 					onOpenSidebar={() => dispatch(toggleSidebar())}
 					onDelete={handleDeleteRoom}
 					onGallery={() => setShowGallery(true)}

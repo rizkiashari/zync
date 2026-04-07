@@ -44,6 +44,8 @@ export const SocketProvider = ({ children }) => {
 	const [isConnected, setIsConnected] = useState(false);
 	const [isNotifyConnected, setIsNotifyConnected] = useState(false);
 	const [onlineUsers, setOnlineUsers] = useState([]);
+	// userPresence: { [userId]: { online, lastSeenAt: Date|null, statusMessage: string } }
+	const [userPresence, setUserPresence] = useState({});
 	usePushNotification(user);
 
 	const emitEvent = useCallback((event, data) => {
@@ -149,6 +151,21 @@ export const SocketProvider = ({ children }) => {
 									setOnlineUsers((prev) =>
 										applyPresence(prev, msg.user_id, msg.online),
 									);
+									setUserPresence((prev) => ({
+										...prev,
+										[msg.user_id]: {
+											online: msg.online,
+											lastSeenAt: msg.online
+												? null
+												: msg.last_seen_at
+												? new Date(msg.last_seen_at * 1000)
+												: new Date(),
+											statusMessage:
+												msg.status_message ||
+												prev[msg.user_id]?.statusMessage ||
+												"",
+										},
+									}));
 									emitEvent("presence", msg);
 									break;
 								case "read":
@@ -251,6 +268,21 @@ export const SocketProvider = ({ children }) => {
 							setOnlineUsers((prev) =>
 								applyPresence(prev, msg.user_id, msg.online),
 							);
+							setUserPresence((prev) => ({
+								...prev,
+								[msg.user_id]: {
+									online: msg.online,
+									lastSeenAt: msg.online
+										? null
+										: msg.last_seen_at
+										? new Date(msg.last_seen_at * 1000)
+										: new Date(),
+									statusMessage:
+										msg.status_message ||
+										prev[msg.user_id]?.statusMessage ||
+										"",
+								},
+							}));
 							emitEvent("presence", msg);
 						}
 					} catch {
@@ -400,6 +432,7 @@ export const SocketProvider = ({ children }) => {
 				isConnected,
 				isNotifyConnected,
 				onlineUsers,
+				userPresence,
 				on,
 				off,
 				connectToRoom,

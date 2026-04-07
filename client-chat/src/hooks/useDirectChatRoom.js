@@ -37,6 +37,7 @@ export function useDirectChatRoom(roomId) {
 		emitRead,
 		on,
 		onlineUsers,
+		userPresence,
 		isConnected,
 	} = useSocket();
 	const dispatch = useAppDispatch();
@@ -60,7 +61,15 @@ export function useDirectChatRoom(roomId) {
 	const [readUpTo, setReadUpTo] = useState(0);
 	const [bookmarkedIds, setBookmarkedIds] = useState([]);
 
-	const isOnline = onlineUsers.includes(contact?.id);
+	const contactPresence = contact?.id ? userPresence[contact.id] : null;
+	const isOnline = contactPresence
+		? contactPresence.online
+		: onlineUsers.includes(contact?.id) || (contact?.is_online ?? false);
+	const contactLastSeenAt =
+		contactPresence?.lastSeenAt ??
+		(contact?.last_seen_at ? new Date(contact.last_seen_at) : null);
+	const contactStatusMessage =
+		contactPresence?.statusMessage ?? contact?.status_message ?? "";
 	const contactName = contact?.username || contact?.email || "Pengguna";
 
 	useEffect(() => {
@@ -306,12 +315,12 @@ export function useDirectChatRoom(roomId) {
 				const parent = msgMap[m.reply_to_id] || replyCache[m.reply_to_id];
 				const parentSenderId = parent?.sender_id ?? parent?.from;
 				const parentName =
-					Number(parentSenderId) === Number(user?.id) ?
-						user?.username || "Saya"
-					:	contactName;
+					Number(parentSenderId) === Number(user?.id)
+						? user?.username || "Saya"
+						: contactName;
 				replyToRow = {
 					id: m.reply_to_id,
-					text: parent ? (parent.body ?? parent.text ?? "") : "Memuat...",
+					text: parent ? parent.body ?? parent.text ?? "" : "Memuat...",
 					senderName: parent ? parentName : "...",
 				};
 			}
@@ -319,14 +328,13 @@ export function useDirectChatRoom(roomId) {
 				id: m.id,
 				senderId: m.sender_id ?? m.from,
 				senderName:
-					Number(m.sender_id ?? m.from) === Number(user?.id) ?
-						user?.username || "Saya"
-					:	contactName,
+					Number(m.sender_id ?? m.from) === Number(user?.id)
+						? user?.username || "Saya"
+						: contactName,
 				text: m.body ?? m.text ?? "",
-				timestamp:
-					m.created_at ?
-						new Date(m.created_at)
-					:	new Date((m.sent_at || 0) * 1000),
+				timestamp: m.created_at
+					? new Date(m.created_at)
+					: new Date((m.sent_at || 0) * 1000),
 				read: lastReadOwnId != null && m.id <= lastReadOwnId,
 				showRead: m.id === lastReadOwnId,
 				replyTo: replyToRow,
@@ -359,6 +367,8 @@ export function useDirectChatRoom(roomId) {
 		contact,
 		contactName,
 		isOnline,
+		contactLastSeenAt,
+		contactStatusMessage,
 		user,
 		isConnected,
 		replyTo,

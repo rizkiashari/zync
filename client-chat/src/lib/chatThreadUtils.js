@@ -1,6 +1,18 @@
 /**
- * Pure helpers untuk merapikan daftar pesan (tanpa React).
- */
+ * Format last seen timestamp menjadi teks bahasa Indonesia.
+ * */
+export function formatLastSeen(date) {
+	if (!date) return "Terakhir dilihat baru-baru ini";
+	const diffMs = Date.now() - new Date(date).getTime();
+	const diffMins = Math.floor(diffMs / 60000);
+	const diffHours = Math.floor(diffMins / 60);
+	const diffDays = Math.floor(diffHours / 24);
+	if (diffMins < 1) return "Baru saja online";
+	if (diffMins < 60) return `Terakhir dilihat ${diffMins} menit lalu`;
+	if (diffHours < 24) return `Terakhir dilihat ${diffHours} jam lalu`;
+	if (diffDays === 1) return "Terakhir dilihat kemarin";
+	return `Terakhir dilihat ${diffDays} hari lalu`;
+}
 
 /** @param {Array<{ timestamp: Date | string | number }>} messages */
 export function groupMessagesWithDateDividers(messages) {

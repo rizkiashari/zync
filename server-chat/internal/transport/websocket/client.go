@@ -69,6 +69,7 @@ type Outgoing struct {
 	MsgID         uint   `json:"msg_id,omitempty"`
 	SentAt        int64  `json:"sent_at,omitempty"`
 	StatusMessage string `json:"status_message,omitempty"`
+	LastSeenAt    int64  `json:"last_seen_at,omitempty"`
 }
 
 // MessageStore persists chat messages.
@@ -154,7 +155,7 @@ func (c *Client) readPump() {
 		c.hub.Unregister(c)
 		_ = c.conn.Close()
 		// Online status is managed by notify WS; room WS only broadcasts in-room presence
-		presenceOff := Outgoing{Type: "presence", UserID: c.userID, Online: false}
+		presenceOff := Outgoing{Type: "presence", UserID: c.userID, Online: false, LastSeenAt: time.Now().Unix()}
 		_ = c.hub.BroadcastToRoom(c.roomKey, presenceOff)
 		if c.members != nil {
 			if memberIDs, err := c.members.GetMemberIDs(c.roomID); err == nil {
