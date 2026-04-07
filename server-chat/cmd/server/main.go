@@ -83,7 +83,14 @@ func main() {
 	onboardingPricingRepo := repository.NewOnboardingPricingRepository(db)
 	subscriptionRepo := repository.NewSubscriptionRepository(db)
 	paymentTxnRepo := repository.NewPaymentTransactionRepository(db)
+	coinRepo := repository.NewCoinRepository(db)
+	stickerRepo := repository.NewStickerRepository(db)
 	mailSvc := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
+
+	if err := database.SeedStickerPacks(db, log); err != nil {
+		log.Error("sticker packs seed", "error", err)
+		os.Exit(1)
+	}
 
 	h := hub.New()
 	go h.Run()
@@ -105,6 +112,8 @@ func main() {
 		PushSubscriptions: pushSubRepo,
 		Subscriptions:       subscriptionRepo,
 		PaymentTransactions: paymentTxnRepo,
+		Coins:               coinRepo,
+		Stickers:            stickerRepo,
 		Mailer:              mailSvc,
 		OnboardingPricingPlans: onboardingPricingRepo,
 		Auth:          jwtSvc,

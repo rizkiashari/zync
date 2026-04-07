@@ -11,6 +11,7 @@ import (
 	"zync-server/internal/httpapi/authroute"
 	"zync-server/internal/httpapi/bookmarks"
 	"zync-server/internal/httpapi/calls"
+	coinsroute "zync-server/internal/httpapi/coins"
 	"zync-server/internal/httpapi/dashboard"
 	"zync-server/internal/httpapi/health"
 	"zync-server/internal/httpapi/messages"
@@ -23,6 +24,7 @@ import (
 	"zync-server/internal/httpapi/realtime"
 	"zync-server/internal/httpapi/recenttasks"
 	"zync-server/internal/httpapi/rooms"
+	stickersroute "zync-server/internal/httpapi/stickers"
 	"zync-server/internal/httpapi/tasks"
 	"zync-server/internal/httpapi/upload"
 	"zync-server/internal/httpapi/users"
@@ -76,6 +78,8 @@ func NewRouter(d Deps) *gin.Engine {
 	if d.PushSubscriptions != nil {
 		pushroute.Register(api, d.PushSubscriptions, d.Config.VAPIDPublicKey)
 	}
+	coinsroute.Register(api, d.Coins, d.Users)
+	stickersroute.Register(api, d.Stickers, d.Coins)
 	workspaces.Register(api, d.Workspaces, d.Users, "./uploads", d.Subscriptions, d.Rooms, d.OnboardingPricingPlans, d.PaymentTransactions, d.Notifications, d.Hub)
 
 	adminAPI := api.Group("/admin")

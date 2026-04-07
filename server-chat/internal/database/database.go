@@ -64,6 +64,11 @@ func Connect(dsn string, pool PoolConfig) (*gorm.DB, error) {
 		&models.WorkspaceSubscription{},
 		&models.PaymentTransaction{},
 		&models.PushSubscription{},
+		// Coin & sticker features
+		&models.CoinWallet{},
+		&models.CoinTransaction{},
+		&models.StickerPack{},
+		&models.UserStickerPack{},
 	); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
