@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import MainShell from "../components/layout/MainShell";
 import Header from "../components/layout/Header";
@@ -23,31 +23,39 @@ const GroupChatPage = () => {
 	const dispatch = useAppDispatch();
 	const g = useGroupChatRoom(groupId);
 	const [activeThread, setActiveThread] = useState(null);
-	// reactions keyed by message id — seeded from API on load, then live-updated via WS
-	const [reactions, setReactions] = useState({});
+	// localReactions: WS/user updates keyed by message id
+	const [localReactions, setLocalReactions] = useState({});
+	const reactionsRef = useRef({});
 
-	// Seed reactions from messages that arrived with reactions from the API
-	useEffect(() => {
-		if (!g.groupedMessages || g.loading) return;
+	// Merge API seed (from groupedMessages) with local updates — no setState in effects
+	const reactions = useMemo(() => {
 		const seed = {};
-		for (const item of g.groupedMessages) {
-			if (item.type === "message" && Array.isArray(item.reactions) && item.reactions.length > 0) {
-				seed[item.id] = item.reactions;
+		if (g.groupedMessages && !g.loading) {
+			for (const item of g.groupedMessages) {
+				if (
+					item.type === "message" &&
+					Array.isArray(item.reactions) &&
+					item.reactions.length > 0
+				) {
+					seed[item.id] = item.reactions;
+				}
 			}
 		}
-		if (Object.keys(seed).length > 0) {
-			setReactions((prev) => ({ ...seed, ...prev }));
-		}
-	}, [g.groupedMessages, g.loading]); // eslint-disable-line react-hooks/exhaustive-deps
+		return { ...seed, ...localReactions };
+	}, [g.groupedMessages, g.loading, localReactions]);
 
+	useEffect(() => {
+		reactionsRef.current = reactions;
+	}, [reactions]);
+
+	const { on: socketOn } = g;
 	// WS reaction events — counts from other users (reacted_by_me not included, keep existing)
 	useEffect(() => {
-		if (!g.on) return;
-		return g.on("reaction_updated", (ev) => {
+		if (!socketOn) return;
+		return socketOn("reaction_updated", (ev) => {
 			if (ev.message_id && Array.isArray(ev.reactions)) {
-				setReactions((prev) => {
-					// Preserve existing reacted_by_me for emojis we already know about
-					const existing = prev[ev.message_id] || [];
+				setLocalReactions((prev) => {
+					const existing = reactionsRef.current[ev.message_id] || [];
 					const merged = ev.reactions.map((r) => {
 						const found = existing.find((e) => e.emoji === r.emoji);
 						return { ...r, reacted_by_me: found?.reacted_by_me ?? false };
@@ -56,17 +64,24 @@ const GroupChatPage = () => {
 				});
 			}
 		});
-	}, [g.on]);
+	}, [socketOn]);
 
 	const handleReact = useCallback(async (msgId, emoji, alreadyReacted) => {
 		try {
+			// If adding a new emoji and user already has a different reaction, change it
+			if (!alreadyReacted) {
+				const currentRxns = reactionsRef.current[msgId] || [];
+				const existingReaction = currentRxns.find((r) => r.reacted_by_me);
+				if (existingReaction && existingReaction.emoji !== emoji) {
+					await messageService.removeReaction(msgId, existingReaction.emoji);
+				}
+			}
 			const res = alreadyReacted
 				? await messageService.removeReaction(msgId, emoji)
 				: await messageService.addReaction(msgId, emoji);
 			const updated = res.data?.data;
 			if (Array.isArray(updated)) {
-				// API response includes reacted_by_me for current user
-				setReactions((prev) => ({ ...prev, [msgId]: updated }));
+				setLocalReactions((prev) => ({ ...prev, [msgId]: updated }));
 			}
 		} catch {
 			// ignore
@@ -127,7 +142,6 @@ const GroupChatPage = () => {
 					onInfo={() => setShowInfo(!showInfo)}
 					onGallery={() => setShowGallery(true)}
 					kanbanPath={`/group/${groupId}/kanban`}
-					roomId={Number(groupId)}
 				/>
 				{pinnedMessage && (
 					<div className='flex items-center gap-2 border-b border-amber-200/60 bg-amber-50/95 px-4 py-2'>
@@ -232,14 +246,12 @@ const GroupChatPage = () => {
 							onTyping={handleTyping}
 							replyTo={replyTo}
 							onCancelReply={() => setReplyTo(null)}
-							roomId={Number(groupId)}
 						/>
 						{activeThread && (
 							<ThreadPanel
 								parentMessage={activeThread}
 								currentUser={user}
 								onClose={() => setActiveThread(null)}
-								roomId={Number(groupId)}
 								onSendReply={(text, replyToId) =>
 									handleSend(text, null, { id: replyToId })
 								}
@@ -258,7 +270,6 @@ const GroupChatPage = () => {
 			{showGallery && (
 				<MediaGallery
 					key={groupId}
-					roomId={Number(groupId)}
 					onClose={() => setShowGallery(false)}
 				/>
 			)}

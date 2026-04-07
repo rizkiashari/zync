@@ -1,35 +1,45 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useSelector } from "react-redux";
 import { useAuth } from "./context/AuthContext";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
-import OnboardingPage from "./pages/OnboardingPage";
-import AdOnboardingPage from "./pages/AdOnboardingPage";
-import DashboardPage from "./pages/DashboardPage";
-import ChatPage from "./pages/ChatPage";
-import GroupChatPage from "./pages/GroupChatPage";
-import ProfilePage from "./pages/ProfilePage";
-import ChangePasswordPage from "./pages/ChangePasswordPage";
-import KanbanPage from "./pages/KanbanPage";
-import TasksPage from "./pages/TasksPage";
-import CallPage from "./pages/CallPage";
-import WorkspaceSettingsPage from "./pages/WorkspaceSettingsPage";
-import AdminUsersPage from "./pages/AdminUsersPage";
-import AdminTransactionsPage from "./pages/AdminTransactionsPage";
-import BookmarksPage from "./pages/BookmarksPage";
-import FilesPage from "./pages/FilesPage";
-import PricingPage from "./pages/PricingPage";
-import PaymentDetailPage from "./pages/PaymentDetailPage";
 import IncomingCallModal from "./components/call/IncomingCallModal";
 
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const RegisterPage = lazy(() => import("./pages/RegisterPage"));
+const ForgotPasswordPage = lazy(() => import("./pages/ForgotPasswordPage"));
+const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
+const AdOnboardingPage = lazy(() => import("./pages/AdOnboardingPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const ChatPage = lazy(() => import("./pages/ChatPage"));
+const GroupChatPage = lazy(() => import("./pages/GroupChatPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const ChangePasswordPage = lazy(() => import("./pages/ChangePasswordPage"));
+const KanbanPage = lazy(() => import("./pages/KanbanPage"));
+const TasksPage = lazy(() => import("./pages/TasksPage"));
+const CallPage = lazy(() => import("./pages/CallPage"));
+const WorkspaceSettingsPage = lazy(() =>
+	import("./pages/WorkspaceSettingsPage"),
+);
+const AdminUsersPage = lazy(() => import("./pages/AdminUsersPage"));
+const AdminTransactionsPage = lazy(() =>
+	import("./pages/AdminTransactionsPage"),
+);
+const BookmarksPage = lazy(() => import("./pages/BookmarksPage"));
+const FilesPage = lazy(() => import("./pages/FilesPage"));
+const PricingPage = lazy(() => import("./pages/PricingPage"));
+const PaymentDetailPage = lazy(() => import("./pages/PaymentDetailPage"));
+
 const LoadingScreen = () => (
-	<div className='min-h-screen bg-slate-50 flex items-center justify-center'>
-		<div className='flex flex-col items-center gap-3'>
-			<div className='w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin' />
-			<p className='text-slate-500 text-sm'>Memuat...</p>
+	<div className='fixed inset-0 bg-slate-900 flex flex-col items-center justify-center gap-6'>
+		<div className='flex flex-col items-center gap-4'>
+			<img src='./app-icon.png' alt='Zync' className='w-24 h-24 rounded-[28px] shadow-2xl shadow-black/60' />
+			<div className='text-center'>
+				<p className='text-white text-2xl font-bold tracking-tight'>Zync</p>
+				<p className='text-slate-400 text-sm mt-1'>Chat & workspace ringan</p>
+			</div>
 		</div>
+		<div className='w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin' />
 	</div>
 );
 
@@ -80,188 +90,190 @@ function App() {
 				}}
 			/>
 			<IncomingCallModal />
-			<Routes>
-				{/* Public routes */}
-				<Route
-					path='/login'
-					element={
-						<PublicRoute>
-							<LoginPage />
-						</PublicRoute>
-					}
-				/>
-				<Route
-					path='/register'
-					element={
-						<PublicRoute>
-							<RegisterPage />
-						</PublicRoute>
-					}
-				/>
-				<Route
-					path='/forgot-password'
-					element={
-						<PublicRoute>
-							<ForgotPasswordPage />
-						</PublicRoute>
-					}
-				/>
+			<Suspense fallback={<LoadingScreen />}>
+				<Routes>
+					{/* Public routes */}
+					<Route
+						path='/login'
+						element={
+							<PublicRoute>
+								<LoginPage />
+							</PublicRoute>
+						}
+					/>
+					<Route
+						path='/register'
+						element={
+							<PublicRoute>
+								<RegisterPage />
+							</PublicRoute>
+						}
+					/>
+					<Route
+						path='/forgot-password'
+						element={
+							<PublicRoute>
+								<ForgotPasswordPage />
+							</PublicRoute>
+						}
+					/>
 
-				{/* Onboarding — needs auth but no workspace yet */}
-				<Route
-					path='/onboarding'
-					element={
-						<AuthRoute>
-							<OnboardingPage />
-						</AuthRoute>
-					}
-				/>
+					{/* Onboarding — needs auth but no workspace yet */}
+					<Route
+						path='/onboarding'
+						element={
+							<AuthRoute>
+								<OnboardingPage />
+							</AuthRoute>
+						}
+					/>
 
-				{/* Workspace-scoped protected routes */}
-				<Route
-					path='/dashboard'
-					element={
-						<ProtectedRoute>
-							<DashboardPage />
-						</ProtectedRoute>
-					}
-				/>
-				<Route
-					path='/tasks'
-					element={
-						<ProtectedRoute>
-							<TasksPage />
-						</ProtectedRoute>
-					}
-				/>
-				<Route
-					path='/chat/:roomId'
-					element={
-						<ProtectedRoute>
-							<ChatPage />
-						</ProtectedRoute>
-					}
-				/>
-				<Route
-					path='/group/:groupId'
-					element={
-						<ProtectedRoute>
-							<GroupChatPage />
-						</ProtectedRoute>
-					}
-				/>
-				<Route
-					path='/group/:groupId/kanban'
-					element={
-						<ProtectedRoute>
-							<KanbanPage />
-						</ProtectedRoute>
-					}
-				/>
-				<Route
-					path='/call/:roomId'
-					element={
-						<ProtectedRoute>
-							<CallPage />
-						</ProtectedRoute>
-					}
-				/>
+					{/* Workspace-scoped protected routes */}
+					<Route
+						path='/dashboard'
+						element={
+							<ProtectedRoute>
+								<DashboardPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path='/tasks'
+						element={
+							<ProtectedRoute>
+								<TasksPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path='/chat/:roomId'
+						element={
+							<ProtectedRoute>
+								<ChatPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path='/group/:groupId'
+						element={
+							<ProtectedRoute>
+								<GroupChatPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path='/group/:groupId/kanban'
+						element={
+							<ProtectedRoute>
+								<KanbanPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path='/call/:roomId'
+						element={
+							<ProtectedRoute>
+								<CallPage />
+							</ProtectedRoute>
+						}
+					/>
 
-				{/* Auth-only routes (no workspace required) */}
-				<Route
-					path='/profile'
-					element={
-						<AuthRoute>
-							<ProfilePage />
-						</AuthRoute>
-					}
-				/>
-				<Route
-					path='/change-password'
-					element={
-						<AuthRoute>
-							<ChangePasswordPage />
-						</AuthRoute>
-					}
-				/>
+					{/* Auth-only routes (no workspace required) */}
+					<Route
+						path='/profile'
+						element={
+							<AuthRoute>
+								<ProfilePage />
+							</AuthRoute>
+						}
+					/>
+					<Route
+						path='/change-password'
+						element={
+							<AuthRoute>
+								<ChangePasswordPage />
+							</AuthRoute>
+						}
+					/>
 
-				{/* Workspace settings */}
-				<Route
-					path='/workspace/settings'
-					element={
-						<ProtectedRoute>
-							<WorkspaceSettingsPage />
-						</ProtectedRoute>
-					}
-				/>
+					{/* Workspace settings */}
+					<Route
+						path='/workspace/settings'
+						element={
+							<ProtectedRoute>
+								<WorkspaceSettingsPage />
+							</ProtectedRoute>
+						}
+					/>
 
-				<Route
-					path='/admin/users'
-					element={
-						<AdminRoute>
-							<AdminUsersPage />
-						</AdminRoute>
-					}
-				/>
-				<Route
-					path='/admin/transactions'
-					element={
-						<AdminRoute>
-							<AdminTransactionsPage />
-						</AdminRoute>
-					}
-				/>
-				<Route
-					path='/bookmarks'
-					element={
-						<ProtectedRoute>
-							<BookmarksPage />
-						</ProtectedRoute>
-					}
-				/>
-				<Route
-					path='/files'
-					element={
-						<ProtectedRoute>
-							<FilesPage />
-						</ProtectedRoute>
-					}
-				/>
-				<Route
-					path='/pricing'
-					element={
-						<ProtectedRoute>
-							<PricingPage />
-						</ProtectedRoute>
-					}
-				/>
-				<Route
-					path='/payment'
-					element={
-						<ProtectedRoute>
-							<PaymentDetailPage />
-						</ProtectedRoute>
-					}
-				/>
+					<Route
+						path='/admin/users'
+						element={
+							<AdminRoute>
+								<AdminUsersPage />
+							</AdminRoute>
+						}
+					/>
+					<Route
+						path='/admin/transactions'
+						element={
+							<AdminRoute>
+								<AdminTransactionsPage />
+							</AdminRoute>
+						}
+					/>
+					<Route
+						path='/bookmarks'
+						element={
+							<ProtectedRoute>
+								<BookmarksPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path='/files'
+						element={
+							<ProtectedRoute>
+								<FilesPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path='/pricing'
+						element={
+							<ProtectedRoute>
+								<PricingPage />
+							</ProtectedRoute>
+						}
+					/>
+					<Route
+						path='/payment'
+						element={
+							<ProtectedRoute>
+								<PaymentDetailPage />
+							</ProtectedRoute>
+						}
+					/>
 
-				{/* Redirects */}
-				<Route
-					path='/'
-					element={
-						<PublicRoute>
-							<AdOnboardingPage />
-						</PublicRoute>
-					}
-				/>
-				<Route
-					path='*'
-					element={
-						<PublicRoute>
-							<AdOnboardingPage />
-						</PublicRoute>
-					}
-				/>
-			</Routes>
+					{/* Redirects */}
+					<Route
+						path='/'
+						element={
+							<PublicRoute>
+								<AdOnboardingPage />
+							</PublicRoute>
+						}
+					/>
+					<Route
+						path='*'
+						element={
+							<PublicRoute>
+								<AdOnboardingPage />
+							</PublicRoute>
+						}
+					/>
+				</Routes>
+			</Suspense>
 		</>
 	);
 }

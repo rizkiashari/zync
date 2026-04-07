@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams } from "react-router-dom";
 import MainShell from "../components/layout/MainShell";
 import Header from "../components/layout/Header";
@@ -24,27 +24,33 @@ const ChatPage = () => {
 	const chat = useDirectChatRoom(roomId);
 	const [activeThread, setActiveThread] = useState(null);
 	const [reactions, setReactions] = useState({}); // { [msgId]: [{emoji, count, reacted_by_me}] }
+	const reactionsRef = useRef(reactions);
+	useEffect(() => { reactionsRef.current = reactions; }, [reactions]);
 
 	// Listen for reaction_updated WebSocket events
+	const { on: chatOn } = chat;
 	useEffect(() => {
-		if (!chat.on) return;
-		return chat.on("reaction_updated", (ev) => {
+		if (!chatOn) return;
+		return chatOn("reaction_updated", (ev) => {
 			if (ev.message_id && Array.isArray(ev.reactions)) {
 				setReactions((prev) => ({ ...prev, [ev.message_id]: ev.reactions }));
 			}
 		});
-	}, [chat.on]);
+	}, [chatOn]);
 
 	const handleReact = useCallback(async (msgId, emoji, alreadyReacted) => {
 		try {
-			let updated;
-			if (alreadyReacted) {
-				const res = await messageService.removeReaction(msgId, emoji);
-				updated = res.data?.data;
-			} else {
-				const res = await messageService.addReaction(msgId, emoji);
-				updated = res.data?.data;
+			if (!alreadyReacted) {
+				const currentRxns = reactionsRef.current[msgId] || [];
+				const existingReaction = currentRxns.find((r) => r.reacted_by_me);
+				if (existingReaction && existingReaction.emoji !== emoji) {
+					await messageService.removeReaction(msgId, existingReaction.emoji);
+				}
 			}
+			const res = alreadyReacted
+				? await messageService.removeReaction(msgId, emoji)
+				: await messageService.addReaction(msgId, emoji);
+			const updated = res.data?.data;
 			if (Array.isArray(updated)) {
 				setReactions((prev) => ({ ...prev, [msgId]: updated }));
 			}
@@ -237,7 +243,6 @@ const ChatPage = () => {
 					parentMessage={activeThread}
 					currentUser={user}
 					onClose={() => setActiveThread(null)}
-					roomId={Number(roomId)}
 					onSendReply={(text, replyToId) => handleSend(text, null, { id: replyToId })}
 				/>
 			)}

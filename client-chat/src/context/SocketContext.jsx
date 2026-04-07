@@ -298,7 +298,7 @@ export const SocketProvider = ({ children }) => {
 
 	useEffect(() => {
 		if (!user) return;
-		const IDLE_MS = 2 * 1000; // 2 seconds (testing)
+		const IDLE_MS = 20 * 60 * 1000; // 20 minutes
 
 		const goOffline = () => {
 			if (isIdleRef.current) return;
