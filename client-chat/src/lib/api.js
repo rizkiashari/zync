@@ -2,21 +2,24 @@ import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 
 function resolveApiBase() {
-	const env = import.meta.env.VITE_API_URL;
-	if (env && String(env).trim()) {
-		return String(env).trim().replace(/\/$/, "");
+	const env = import.meta.env.VITE_API_URL?.trim();
+	if (env) {
+		return env.replace(/\/$/, "");
 	}
 
+	// Web / mobile browser (bukan app Capacitor)
+	if (!Capacitor.isNativePlatform()) {
+		return "http://localhost:8080";
+	}
+
+	// Hanya Capacitor: dev lokal ke mesin host (bukan production VPS)
 	const platform = Capacitor.getPlatform();
 	if (platform === "android") {
-		// Emulator: host machine. Physical device: set VITE_API_URL to your LAN IP.
 		return "http://10.0.2.2:8080";
 	}
 	if (platform === "ios") {
-		// Simulator often reaches host via localhost. Physical device: set VITE_API_URL.
 		return "http://127.0.0.1:8080";
 	}
-
 	return "http://localhost:8080";
 }
 

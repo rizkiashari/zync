@@ -45,6 +45,10 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Kamera dibutuhkan untuk video call</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Mikrofon dibutuhkan untuk panggilan suara dan video</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

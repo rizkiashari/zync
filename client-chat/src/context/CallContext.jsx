@@ -8,6 +8,7 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSocket } from "./SocketContext";
 import { callService } from "../services/callService";
+import { requestMediaPermissions } from "../lib/platform";
 import toast from "react-hot-toast";
 
 const CallContext = createContext(null);
@@ -97,6 +98,12 @@ export const CallProvider = ({ children }) => {
 	const startCall = useCallback(
 		async (roomId, kind = "voice") => {
 			try {
+				await requestMediaPermissions(kind);
+			} catch (permErr) {
+				toast.error(permErr.message);
+				return;
+			}
+			try {
 				await callService.startCall(roomId, kind);
 				const res = await callService.getToken(roomId);
 				const { token, livekit_url, livekit_room } = res.data.data;
@@ -120,6 +127,12 @@ export const CallProvider = ({ children }) => {
 	const acceptCall = useCallback(async () => {
 		if (!incomingCall) return;
 		const { roomId, kind } = incomingCall;
+		try {
+			await requestMediaPermissions(kind);
+		} catch (permErr) {
+			toast.error(permErr.message);
+			return;
+		}
 		setIncomingCall(null);
 		try {
 			const res = await callService.getToken(roomId);

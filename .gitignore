@@ -25,6 +25,9 @@ client-chat/.env.*
 !client-chat/.env.example
 !client-chat/.env.local.example
 !client-chat/.env.prod.example
+!client-chat/.env.production
+!client-chat/.env.production.example
+!client-chat/.env.prod
 
 # Server (Go)
 server-chat/.env

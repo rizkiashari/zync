@@ -20,7 +20,15 @@ import {
 	Video,
 	VideoOff,
 	Users,
+	RotateCcw,
+	Coins,
+	SmilePlus,
 } from "lucide-react";
+import { useCallEvents } from "../hooks/useCallEvents";
+import CallEventOverlay from "../components/call/CallEventOverlay";
+import SawerPanel from "../components/call/SawerPanel";
+import StickerPanel from "../components/call/StickerPanel";
+import toast from "react-hot-toast";
 
 // ── Memoized voice tile ───────────────────────────────────────────────────────
 const VoiceTile = memo(({ participant }) => {
@@ -43,10 +51,7 @@ const VoiceTile = memo(({ participant }) => {
 						<div
 							key={i}
 							className='w-[3px] bg-emerald-400 rounded-sm animate-bounce'
-							style={{
-								height: `${4 + i * 3}px`,
-								animationDelay: `${i * 0.1}s`,
-							}}
+							style={{ height: `${4 + i * 3}px`, animationDelay: `${i * 0.1}s` }}
 						/>
 					))}
 				</div>
@@ -64,25 +69,22 @@ const VoiceTile = memo(({ participant }) => {
 const VideoTile = memo(({ track }) => {
 	const p = track.participant;
 	const isSpeaking = useIsSpeaking(p);
-	// Direct property check — safe even when publication is undefined.
-	// useTracks() re-renders the parent when mute state changes, so this stays fresh.
 	const isCamOff = !track.publication || track.publication.isMuted;
 
 	if (!p) return null;
 
 	return (
 		<div
-			className={`relative rounded-xl overflow-hidden bg-[#3c4043] flex items-center justify-center transition-all ${
+			className={`relative rounded-xl overflow-hidden bg-black flex items-center justify-center transition-all ${
 				isSpeaking ? "ring-2 ring-emerald-400" : ""
 			}`}
 		>
-			{isCamOff ?
-				<div className='w-full h-full flex items-center justify-center bg-[#3c4043]'>
-					<div className='w-16 h-16 rounded-full bg-gradient-to-br from-indigo-400 to-violet-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg'>
-						{(p.name || p.identity)?.[0]?.toUpperCase() ?? "?"}
-					</div>
-				</div>
-			:	<VideoTrack trackRef={track} className='w-full h-full object-cover' />}
+			{/* Feature 1: black screen when cam off */}
+			{isCamOff ? (
+				<div className='w-full h-full flex items-center justify-center bg-black' />
+			) : (
+				<VideoTrack trackRef={track} className='w-full h-full object-cover' />
+			)}
 			<div className='absolute bottom-2 left-2'>
 				<span className='bg-black/60 text-white text-xs px-2 py-0.5 rounded-full'>
 					{p.name || p.identity}
@@ -120,45 +122,36 @@ const VoiceLayout = ({ onEndCall }) => {
 					))}
 				</div>
 			</div>
-
 			<RoomAudioRenderer />
-
 			<div className='flex items-center justify-center gap-3 border-t border-white/10 bg-[#202124] px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-4 sm:py-5'>
-				<button
-					type='button'
-					onClick={toggleMic}
-					className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124] ${
-						muted ?
-							"bg-red-500 hover:bg-red-600"
-						:	"bg-[#3c4043] hover:bg-[#4a4d51]"
-					}`}
-					aria-label={muted ? "Nyalakan mikrofon" : "Mute mikrofon"}
-					title={muted ? "Unmute" : "Mute"}
-				>
-					{muted ?
-						<MicOff className='w-5 h-5 text-white' />
-					:	<Mic className='w-5 h-5 text-white' />}
-				</button>
-				<button
-					type='button'
-					onClick={onEndCall}
-					className='w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-colors shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124]'
-					aria-label='Tinggalkan panggilan'
-					title='Tinggalkan'
-				>
-					<PhoneOff className='w-6 h-6 text-white' />
-				</button>
+				<CtrlBtn active={muted} onClick={toggleMic} label={muted ? "Nyalakan mikrofon" : "Mute mikrofon"}>
+					{muted ? <MicOff className='w-5 h-5 text-white' /> : <Mic className='w-5 h-5 text-white' />}
+				</CtrlBtn>
+				<EndBtn onClick={onEndCall} />
 			</div>
 		</div>
 	);
 };
 
 // ── Video layout ──────────────────────────────────────────────────────────────
-const VideoLayout = ({ onEndCall }) => {
+const VideoLayout = ({ onEndCall, callData }) => {
 	const { localParticipant } = useLocalParticipant();
 	const allTracks = useTracks([Track.Source.Camera], { onlySubscribed: false });
-	const [muted, setMuted] = useState(false);
+	const [muted, setMuted]       = useState(false);
 	const [videoOff, setVideoOff] = useState(false);
+	const [facingMode, setFacingMode] = useState("user"); // Feature 2
+	const [showSawer, setShowSawer]   = useState(false);  // Feature 3
+	const [showSticker, setShowSticker] = useState(false); // Feature 4+5
+
+	// Feature 3+4 — data channel events
+	const { events, sendEvent } = useCallEvents();
+
+	const remoteTracks = allTracks.filter(
+		(t) => isTrackReference(t) && !t.participant.isLocal,
+	);
+	const localTrack = allTracks.find(
+		(t) => isTrackReference(t) && t.participant.isLocal,
+	);
 
 	const toggleMic = useCallback(() => {
 		localParticipant.setMicrophoneEnabled(muted);
@@ -170,18 +163,40 @@ const VideoLayout = ({ onEndCall }) => {
 		setVideoOff((v) => !v);
 	}, [localParticipant, videoOff]);
 
-	// Only real track references (not placeholders) — guarantees publication exists
-	const remoteTracks = allTracks.filter(
-		(t) => isTrackReference(t) && !t.participant.isLocal,
+	// Feature 2: flip between front and back camera
+	const handleFlipCamera = useCallback(async () => {
+		const next = facingMode === "user" ? "environment" : "user";
+		try {
+			await localParticipant.setCameraEnabled(true, { facingMode: next });
+			setFacingMode(next);
+		} catch {
+			toast.error("Gagal mengganti kamera");
+		}
+	}, [localParticipant, facingMode]);
+
+	// Feature 3: send sawer via data channel
+	const handleSendSawer = useCallback(
+		({ amount, message }) => {
+			sendEvent("sawer", { amount, message });
+		},
+		[sendEvent],
 	);
-	const localTrack = allTracks.find(
-		(t) => isTrackReference(t) && t.participant.isLocal,
+
+	// Feature 4: send sticker via data channel
+	const handleSendSticker = useCallback(
+		({ stickerId, x }) => {
+			sendEvent("sticker", { stickerId, x });
+		},
+		[sendEvent],
 	);
+
+	// Receiver identity for sawer — first remote participant or empty
+	const receiverIdentity = remoteTracks[0]?.participant?.identity ?? "";
 
 	return (
 		<div className='flex flex-col h-full bg-[#202124]'>
 			<div className='flex-1 relative p-3 overflow-hidden'>
-				{remoteTracks.length > 0 ?
+				{remoteTracks.length > 0 ? (
 					<div
 						className='h-full grid gap-2'
 						style={{
@@ -193,82 +208,122 @@ const VideoLayout = ({ onEndCall }) => {
 							<VideoTile key={t.participant.identity} track={t} />
 						))}
 					</div>
-				:	<div className='h-full flex items-center justify-center'>
+				) : (
+					<div className='h-full flex items-center justify-center'>
 						<div className='flex flex-col items-center gap-3 text-white/50'>
 							<Users className='w-12 h-12' />
 							<p className='text-sm'>Menunggu peserta lain…</p>
 						</div>
 					</div>
-				}
+				)}
 
-				{/* Local PiP */}
-				<div className='absolute bottom-3 right-3 w-32 h-24 rounded-xl overflow-hidden shadow-2xl border-2 border-white/20 bg-[#3c4043]'>
-					{localTrack && !videoOff ?
+				{/* Local PiP — Feature 1: black when videoOff */}
+				<div className='absolute bottom-3 right-3 w-32 h-24 rounded-xl overflow-hidden shadow-2xl border-2 border-white/20 bg-black'>
+					{localTrack && !videoOff ? (
 						<VideoTrack
 							trackRef={localTrack}
 							className='w-full h-full object-cover'
 						/>
-					:	<div className='w-full h-full flex items-center justify-center'>
-							<div className='w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-bold text-sm'>
-								{(localParticipant.name ||
-									localParticipant.identity)?.[0]?.toUpperCase() ?? "?"}
-							</div>
-						</div>
-					}
+					) : (
+						/* Feature 1: pure black screen instead of avatar */
+						<div className='w-full h-full bg-black' />
+					)}
 					<div className='absolute bottom-1 left-1 right-1 text-center'>
 						<span className='text-white text-[10px] bg-black/50 px-1 rounded'>
 							{localParticipant.name || "Kamu"}
 						</span>
 					</div>
 				</div>
+
+				{/* Feature 3+4: floating event overlay */}
+				<CallEventOverlay events={events} />
+
+				{/* Feature 3: Sawer panel */}
+				{showSawer && (
+					<SawerPanel
+						roomId={callData?.roomId}
+						receiverIdentity={receiverIdentity}
+						onSend={handleSendSawer}
+						onClose={() => setShowSawer(false)}
+					/>
+				)}
+
+				{/* Feature 4+5: Sticker panel */}
+				{showSticker && (
+					<StickerPanel
+						onSend={handleSendSticker}
+						onClose={() => setShowSticker(false)}
+					/>
+				)}
 			</div>
 
 			<RoomAudioRenderer />
 
-			<div className='flex items-center justify-center gap-3 border-t border-white/10 bg-[#202124] px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-4 sm:py-5'>
-				<button
-					type='button'
-					onClick={toggleMic}
-					className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124] ${
-						muted ?
-							"bg-red-500 hover:bg-red-600"
-						:	"bg-[#3c4043] hover:bg-[#4a4d51]"
-					}`}
-					aria-label={muted ? "Nyalakan mikrofon" : "Mute mikrofon"}
-					title={muted ? "Unmute" : "Mute"}
+			{/* Toolbar */}
+			<div className='flex items-center justify-center gap-2 border-t border-white/10 bg-[#202124] px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-3 sm:py-5 flex-wrap'>
+				<CtrlBtn active={muted} onClick={toggleMic} label={muted ? "Nyalakan mikrofon" : "Mute mikrofon"}>
+					{muted ? <MicOff className='w-5 h-5 text-white' /> : <Mic className='w-5 h-5 text-white' />}
+				</CtrlBtn>
+
+				<CtrlBtn active={videoOff} onClick={toggleCamera} label={videoOff ? "Nyalakan kamera" : "Matikan kamera"}>
+					{videoOff ? <VideoOff className='w-5 h-5 text-white' /> : <Video className='w-5 h-5 text-white' />}
+				</CtrlBtn>
+
+				{/* Feature 2: flip camera */}
+				<CtrlBtn onClick={handleFlipCamera} label='Balik kamera'>
+					<RotateCcw className='w-5 h-5 text-white' />
+				</CtrlBtn>
+
+				{/* Feature 3: sawer */}
+				<CtrlBtn
+					active={showSawer}
+					onClick={() => { setShowSawer((v) => !v); setShowSticker(false); }}
+					label='Sawer koin'
 				>
-					{muted ?
-						<MicOff className='w-5 h-5 text-white' />
-					:	<Mic className='w-5 h-5 text-white' />}
-				</button>
-				<button
-					type='button'
-					onClick={toggleCamera}
-					className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124] ${
-						videoOff ?
-							"bg-red-500 hover:bg-red-600"
-						:	"bg-[#3c4043] hover:bg-[#4a4d51]"
-					}`}
-					aria-label={videoOff ? "Nyalakan kamera" : "Matikan kamera"}
-					title={videoOff ? "Nyalakan Kamera" : "Matikan Kamera"}
+					<Coins className='w-5 h-5 text-yellow-300' />
+				</CtrlBtn>
+
+				{/* Feature 4+5: stickers */}
+				<CtrlBtn
+					active={showSticker}
+					onClick={() => { setShowSticker((v) => !v); setShowSawer(false); }}
+					label='Stiker'
 				>
-					{videoOff ?
-						<VideoOff className='w-5 h-5 text-white' />
-					:	<Video className='w-5 h-5 text-white' />}
-				</button>
-				<button
-					type='button'
-					onClick={onEndCall}
-					className='w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-colors shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124]'
-					aria-label='Tinggalkan panggilan'
-					title='Tinggalkan'
-				>
-					<PhoneOff className='w-6 h-6 text-white' />
-				</button>
+					<SmilePlus className='w-5 h-5 text-emerald-300' />
+				</CtrlBtn>
+
+				<EndBtn onClick={onEndCall} />
 			</div>
 		</div>
 	);
 };
+
+// ── Reusable control button ───────────────────────────────────────────────────
+const CtrlBtn = ({ active, onClick, label, children }) => (
+	<button
+		type='button'
+		onClick={onClick}
+		className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124] ${
+			active ? "bg-red-500 hover:bg-red-600" : "bg-[#3c4043] hover:bg-[#4a4d51]"
+		}`}
+		aria-label={label}
+		title={label}
+	>
+		{children}
+	</button>
+);
+
+const EndBtn = ({ onClick }) => (
+	<button
+		type='button'
+		onClick={onClick}
+		className='w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-colors shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#202124]'
+		aria-label='Tinggalkan panggilan'
+		title='Tinggalkan'
+	>
+		<PhoneOff className='w-6 h-6 text-white' />
+	</button>
+);
 
 // ── CallPage ──────────────────────────────────────────────────────────────────
 const CallPage = () => {
@@ -280,32 +335,21 @@ const CallPage = () => {
 	const kind = searchParams.get("kind") || "voice";
 	const isVideo = kind === "video";
 
-	// Snapshot call data once on mount so LiveKitRoom stays stable even when
-	// activeCall changes in context mid-call.
 	const [callData] = useState(() => activeCall);
-
-	// Return path is stored inside callData so it can't drift after mount.
 	const returnPath = callData?.returnPath || "/dashboard";
-
-	// Guard: prevent double navigation from both button handler and onDisconnected.
 	const leavingRef = useRef(false);
 
-	// If somehow landed here with no call data, go back immediately.
 	useEffect(() => {
 		if (!callData) navigate(returnPath, { replace: true });
 	}, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-	// User pressed the leave button — notify everyone, clear state, navigate away.
 	const handleLeaveBtn = useCallback(() => {
 		if (leavingRef.current) return;
 		leavingRef.current = true;
-		endCall(Number(roomId)); // clears local state + fires POST /call/end
+		endCall(Number(roomId));
 		navigate(returnPath, { replace: true });
 	}, [endCall, roomId, navigate, returnPath]);
 
-	// LiveKit fired onDisconnected (network drop or normal disconnect after leave).
-	// State is already handled by either handleLeaveBtn or the WS call_ended event.
-	// Just navigate away once.
 	const handleLKDisconnect = useCallback(() => {
 		if (leavingRef.current) return;
 		leavingRef.current = true;
@@ -318,9 +362,11 @@ const CallPage = () => {
 		<div className='flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden bg-[#202124]'>
 			<div className='flex flex-shrink-0 items-center justify-between border-b border-white/10 bg-[#202124] px-4 py-2.5 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-6 sm:py-3'>
 				<div className='flex items-center gap-2 text-white'>
-					{isVideo ?
+					{isVideo ? (
 						<Video className='w-4 h-4 text-emerald-400' />
-					:	<Phone className='w-4 h-4 text-emerald-400' />}
+					) : (
+						<Phone className='w-4 h-4 text-emerald-400' />
+					)}
 					<span className='text-sm font-medium'>
 						{isVideo ? "Video Call" : "Voice Call"}
 					</span>
@@ -331,7 +377,6 @@ const CallPage = () => {
 				</div>
 			</div>
 
-			{/* LiveKitRoom uses a stable snapshot — never re-connects mid-call */}
 			<LiveKitRoom
 				serverUrl={callData.liveKitUrl}
 				token={callData.token}
@@ -341,9 +386,11 @@ const CallPage = () => {
 				onDisconnected={handleLKDisconnect}
 				className='flex-1 flex flex-col overflow-hidden'
 			>
-				{isVideo ?
-					<VideoLayout onEndCall={handleLeaveBtn} />
-				:	<VoiceLayout onEndCall={handleLeaveBtn} />}
+				{isVideo ? (
+					<VideoLayout onEndCall={handleLeaveBtn} callData={callData} />
+				) : (
+					<VoiceLayout onEndCall={handleLeaveBtn} />
+				)}
 			</LiveKitRoom>
 		</div>
 	);
