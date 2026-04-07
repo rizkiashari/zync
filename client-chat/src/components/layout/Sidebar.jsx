@@ -54,7 +54,7 @@ const STATUS_PRESETS = [
 
 const Sidebar = () => {
 	const { user } = useAuth();
-	const { isConnected, on } = useSocket();
+	const { isNotifyConnected, on } = useSocket();
 	const navigate = useNavigate();
 	const { pathname } = useLocation();
 	const sidebarOpen = useAppSelector((s) => s.ui.sidebarOpen);
@@ -215,14 +215,14 @@ const Sidebar = () => {
 
 						<div className='flex items-center gap-2'>
 							<div
-								title={isConnected ? "Terhubung" : "Tidak terhubung"}
+								title={isNotifyConnected ? "Terhubung" : "Tidak terhubung"}
 								className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-all ${
-									isConnected
+									isNotifyConnected
 										? "bg-emerald-900/40 text-emerald-400"
 										: "bg-slate-700/60 text-slate-500"
 								}`}
 							>
-								{isConnected ? (
+								{isNotifyConnected ? (
 									<Wifi className='w-3 h-3' />
 								) : (
 									<WifiOff className='w-3 h-3' />

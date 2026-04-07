@@ -75,6 +75,7 @@ const GroupInfo = ({ group, onClose, onMembersUpdated }) => {
 				id: m.user_id,
 				username: m.username,
 				email: m.email,
+				department: m.department || "",
 				is_online: onlineUsers.includes(m.user_id),
 			}))
 			.filter((u) => {
@@ -256,6 +257,9 @@ const GroupInfo = ({ group, onClose, onMembersUpdated }) => {
 										<p className='text-sm font-medium text-slate-800 truncate'>
 											{u.username || u.email}
 										</p>
+										{u.department && !already && (
+											<p className='text-xs text-indigo-600 truncate'>{u.department}</p>
+										)}
 										{already && (
 											<p className='text-xs text-slate-400'>Sudah anggota</p>
 										)}
@@ -334,6 +338,9 @@ const GroupInfo = ({ group, onClose, onMembersUpdated }) => {
 												</span>
 											)}
 										</p>
+										{member.department && (
+											<p className='text-xs text-indigo-600 truncate'>{member.department}</p>
+										)}
 									</div>
 									{member.role === "admin" && (
 										<span className='flex items-center gap-1 text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full flex-shrink-0'>

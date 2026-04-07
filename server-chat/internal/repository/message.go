@@ -139,10 +139,23 @@ func (r *MessageRepository) RemoveReaction(messageID, userID uint, emoji string)
 		Delete(&models.MessageReaction{}).Error
 }
 
+// MessageWithReactions is a Message enriched with per-user reaction data.
+type MessageWithReactions struct {
+	models.Message
+	Reactions []ReactionSummaryWithMe `json:"reactions"`
+}
+
 // ReactionSummary holds aggregated reaction counts for a message.
 type ReactionSummary struct {
 	Emoji string `json:"emoji"`
 	Count int64  `json:"count"`
+}
+
+// ReactionSummaryWithMe is ReactionSummary enriched with whether the requesting user reacted.
+type ReactionSummaryWithMe struct {
+	Emoji       string `json:"emoji"`
+	Count       int64  `json:"count"`
+	ReactedByMe bool   `json:"reacted_by_me"`
 }
 
 // GetReactions returns aggregated reaction counts for a message.
@@ -155,6 +168,54 @@ func (r *MessageRepository) GetReactions(messageID uint) ([]ReactionSummary, err
 		Order("count DESC").
 		Scan(&result).Error
 	return result, err
+}
+
+// GetReactionsForUser returns aggregated reaction counts with a reacted_by_me flag.
+func (r *MessageRepository) GetReactionsForUser(messageID, userID uint) ([]ReactionSummaryWithMe, error) {
+	var result []ReactionSummaryWithMe
+	err := r.db.Raw(`
+		SELECT emoji, COUNT(*) AS count,
+			BOOL_OR(user_id = ?) AS reacted_by_me
+		FROM message_reactions
+		WHERE message_id = ?
+		GROUP BY emoji
+		ORDER BY count DESC
+	`, userID, messageID).Scan(&result).Error
+	return result, err
+}
+
+// GetBulkReactionsForUser returns reactions for multiple messages with reacted_by_me flags.
+func (r *MessageRepository) GetBulkReactionsForUser(messageIDs []uint, userID uint) (map[uint][]ReactionSummaryWithMe, error) {
+	result := make(map[uint][]ReactionSummaryWithMe)
+	if len(messageIDs) == 0 {
+		return result, nil
+	}
+	type row struct {
+		MessageID   uint   `gorm:"column:message_id"`
+		Emoji       string `gorm:"column:emoji"`
+		Count       int64  `gorm:"column:count"`
+		ReactedByMe bool   `gorm:"column:reacted_by_me"`
+	}
+	var rows []row
+	err := r.db.Raw(`
+		SELECT message_id, emoji, COUNT(*) AS count,
+			BOOL_OR(user_id = ?) AS reacted_by_me
+		FROM message_reactions
+		WHERE message_id IN ?
+		GROUP BY message_id, emoji
+		ORDER BY count DESC
+	`, userID, messageIDs).Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	for _, rw := range rows {
+		result[rw.MessageID] = append(result[rw.MessageID], ReactionSummaryWithMe{
+			Emoji:       rw.Emoji,
+			Count:       rw.Count,
+			ReactedByMe: rw.ReactedByMe,
+		})
+	}
+	return result, nil
 }
 
 // GetLastMessage returns the most recent non-deleted message in a room.

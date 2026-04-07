@@ -133,9 +133,6 @@ func Serve(h *hub.Hub, store MessageStore, presence PresenceStore, members RoomM
 	}
 	c.hub.Register(c)
 
-	if err := c.presence.SetOnline(userID, true); err != nil {
-		log.Printf("set online: %v", err)
-	}
 	presenceOn := Outgoing{Type: "presence", UserID: userID, Online: true, StatusMessage: statusMessage}
 	_ = c.hub.BroadcastToRoom(roomKey, presenceOn)
 	if members != nil {
@@ -156,9 +153,7 @@ func (c *Client) readPump() {
 	defer func() {
 		c.hub.Unregister(c)
 		_ = c.conn.Close()
-		if err := c.presence.SetOnline(c.userID, false); err != nil {
-			log.Printf("set offline: %v", err)
-		}
+		// Online status is managed by notify WS; room WS only broadcasts in-room presence
 		presenceOff := Outgoing{Type: "presence", UserID: c.userID, Online: false}
 		_ = c.hub.BroadcastToRoom(c.roomKey, presenceOff)
 		if c.members != nil {

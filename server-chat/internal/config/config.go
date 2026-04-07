@@ -36,8 +36,21 @@ type Config struct {
 	VAPIDSubject    string
 }
 
+// loadAppDotenv picks env file by GO_ENV: production|prod → .env.prod, else → .env.local.
+// If that file is missing (e.g. Docker injects vars only), falls back to .env.
+func loadAppDotenv() {
+	mode := strings.ToLower(strings.TrimSpace(os.Getenv("GO_ENV")))
+	primary := ".env.local"
+	if mode == "production" || mode == "prod" {
+		primary = ".env.prod"
+	}
+	if err := godotenv.Load(primary); err != nil {
+		_ = godotenv.Load(".env")
+	}
+}
+
 func Load() (*Config, error) {
-	_ = godotenv.Load()
+	loadAppDotenv()
 
 	dsn := os.Getenv("DATABASE_DSN")
 	if dsn == "" {

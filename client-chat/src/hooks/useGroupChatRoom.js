@@ -275,6 +275,7 @@ export function useGroupChatRoom(groupId) {
 				replyTo: replyToRow,
 				deleted: m.is_deleted,
 				edited: !!m.edited_at,
+				reactions: Array.isArray(m.reactions) ? m.reactions : [],
 			};
 		});
 		return groupMessagesWithDateDividers(messages);
@@ -297,6 +298,7 @@ export function useGroupChatRoom(groupId) {
 				id: m.id,
 				name: m.username || m.email,
 				role: m.role || "member",
+				department: m.department || "",
 			})),
 		}),
 		[room, members],

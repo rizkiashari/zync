@@ -56,10 +56,25 @@ func listMessages(msgRepo *repository.MessageRepository, roomsRepo *repository.R
 			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
 			return
 		}
-		if msgs == nil {
-			msgs = make([]models.Message, 0)
+		if len(msgs) == 0 {
+			response.OK(c, []repository.MessageWithReactions{})
+			return
 		}
-		response.OK(c, msgs)
+		// Collect message IDs for bulk reaction fetch
+		msgIDs := make([]uint, len(msgs))
+		for i, m := range msgs {
+			msgIDs[i] = m.ID
+		}
+		rxMap, _ := msgRepo.GetBulkReactionsForUser(msgIDs, userID)
+		out := make([]repository.MessageWithReactions, len(msgs))
+		for i, m := range msgs {
+			rxs := rxMap[m.ID]
+			if rxs == nil {
+				rxs = []repository.ReactionSummaryWithMe{}
+			}
+			out[i] = repository.MessageWithReactions{Message: m, Reactions: rxs}
+		}
+		response.OK(c, out)
 	}
 }
 
@@ -305,13 +320,17 @@ func addReaction(msgRepo *repository.MessageRepository, roomsRepo *repository.Ro
 			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
 			return
 		}
-		reactions, _ := msgRepo.GetReactions(msgID)
+		// Broadcast without reacted_by_me (varies per recipient)
+		broadcastRxs, _ := msgRepo.GetReactions(msgID)
 		_ = h.BroadcastToRoom(strconv.FormatUint(uint64(msg.RoomID), 10), gin.H{
 			"type":       "reaction_updated",
 			"message_id": msgID,
-			"reactions":  reactions,
+			"reactions":  broadcastRxs,
+			"user_id":    userID,
 		})
-		response.OK(c, reactions)
+		// Return personalized view to the requesting user
+		myRxs, _ := msgRepo.GetReactionsForUser(msgID, userID)
+		response.OK(c, myRxs)
 	}
 }
 
@@ -349,13 +368,15 @@ func removeReaction(msgRepo *repository.MessageRepository, roomsRepo *repository
 			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Unable to complete the request")
 			return
 		}
-		reactions, _ := msgRepo.GetReactions(msgID)
+		broadcastRxs, _ := msgRepo.GetReactions(msgID)
 		_ = h.BroadcastToRoom(strconv.FormatUint(uint64(msg.RoomID), 10), gin.H{
 			"type":       "reaction_updated",
 			"message_id": msgID,
-			"reactions":  reactions,
+			"reactions":  broadcastRxs,
+			"user_id":    userID,
 		})
-		response.OK(c, reactions)
+		myRxs, _ := msgRepo.GetReactionsForUser(msgID, userID)
+		response.OK(c, myRxs)
 	}
 }
 

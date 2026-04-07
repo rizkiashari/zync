@@ -5,7 +5,9 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
+		"dev:host": "vite --host",
 		"build": "vite build",
+		"build:prod": "vite build --mode prod",
 		"build:mobile": "vite build && ./node_modules/.bin/cap sync",
 		"cap:sync": "./node_modules/.bin/cap sync",
 		"cap:ios": "./node_modules/.bin/cap open ios",
@@ -13,7 +15,8 @@
 		"cap:assets": "node ../node_modules/@capacitor/assets/bin/capacitor-assets generate --ios --android",
 		"cap:assets:sync": "npm run cap:assets && npm run cap:sync",
 		"lint": "node ./node_modules/eslint/bin/eslint.js src --max-warnings 0",
-		"preview": "vite preview"
+		"preview": "vite preview",
+		"preview:host": "vite preview --host --port 4173"
 	},
 	"dependencies": {
 		"@capacitor/android": "^7.6.1",

@@ -1,0 +1,64 @@
+# Usage:
+#   cp .env.local.example .env.local   # atau pakai .env.prod di server
+#   docker compose --env-file .env.local up -d --build
+#
+# Di VPS setelah deploy, file di server bernama .env (isi = .env.prod lokal).
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-zync}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-zync}
+    ports:
+      # Host :5433 → container 5432 (hindari bentrok Postgres native di :5432). go run: DATABASE_DSN pakai port 5433.
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    # VPS umumnya amd64; dari Mac ARM64, compose build menghasilkan image yang cocok di server.
+    platform: linux/amd64
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${API_PUBLISH_PORT:-8080}:8080"
+    volumes:
+      - api_uploads:/uploads
+    environment:
+      ADDR: :8080
+      # Prefer DOCKER_DATABASE_DSN in .env if password has @ : / # etc. (URL-encode). Host must be `db`.
+      # If unset, falls back to POSTGRES_* (password must be URL-safe).
+      DATABASE_DSN: ${DOCKER_DATABASE_DSN:-postgresql://${POSTGRES_USER:-zync}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-zync}?sslmode=disable&timezone=UTC}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      JWT_TTL: ${JWT_TTL:-72h}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
+      DB_MAX_OPEN_CONNS: ${DB_MAX_OPEN_CONNS:-10}
+      DB_MAX_IDLE_CONNS: ${DB_MAX_IDLE_CONNS:-5}
+      LIVEKIT_URL: ${LIVEKIT_URL:-}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY:-}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      MIDTRANS_SERVER_KEY: ${MIDTRANS_SERVER_KEY:-}
+      MIDTRANS_IS_PRODUCTION: ${MIDTRANS_IS_PRODUCTION:-false}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  api_uploads:

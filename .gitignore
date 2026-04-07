@@ -23,9 +23,14 @@ client-chat/*.local
 client-chat/.env
 client-chat/.env.*
 !client-chat/.env.example
+!client-chat/.env.local.example
+!client-chat/.env.prod.example
 
 # Server (Go)
 server-chat/.env
+!server-chat/.env.example
+!server-chat/.env.local.example
+!server-chat/.env.prod.example
 server-chat/tmp/
 server-chat/bin/
 server-chat/uploads/

@@ -13,6 +13,8 @@ import {
 	BookmarkCheck,
 	MessageSquare,
 	Smile,
+	X,
+	ZoomIn,
 } from "lucide-react";
 import Avatar from "../ui/Avatar";
 import { formatMessageTime } from "../../data/mockData";
@@ -62,7 +64,93 @@ function parseFileMeta(text) {
 	return null;
 }
 
+const FilePreviewModal = ({ meta, onClose }) => {
+	const fullUrl = messageService.fileUrl(meta.url);
+	const isImage = meta.mime?.startsWith("image/");
+	const isVideo = meta.mime?.startsWith("video/");
+	const sizeStr =
+		meta.size > 1024 * 1024
+			? `${(meta.size / 1024 / 1024).toFixed(1)} MB`
+			: `${(meta.size / 1024).toFixed(1)} KB`;
+
+	useEffect(() => {
+		const onKey = (e) => { if (e.key === "Escape") onClose(); };
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	}, [onClose]);
+
+	return (
+		<div
+			className='fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4'
+			onClick={onClose}
+		>
+			<div
+				className='relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden'
+				onClick={(e) => e.stopPropagation()}
+			>
+				<div className='flex items-center justify-between px-4 py-3 border-b border-slate-100'>
+					<div className='flex items-center gap-2 min-w-0'>
+						<FileText className='w-4 h-4 text-indigo-500 flex-shrink-0' />
+						<span className='text-sm font-medium text-slate-800 truncate'>{meta.name}</span>
+						<span className='text-xs text-slate-400 flex-shrink-0'>{sizeStr}</span>
+					</div>
+					<div className='flex items-center gap-1 flex-shrink-0 ml-2'>
+						<a
+							href={fullUrl}
+							download={meta.name}
+							target='_blank'
+							rel='noopener noreferrer'
+							className='p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-indigo-600 transition-colors'
+							title='Unduh'
+						>
+							<Download className='w-4 h-4' />
+						</a>
+						<button
+							onClick={onClose}
+							className='p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors'
+						>
+							<X className='w-4 h-4' />
+						</button>
+					</div>
+				</div>
+				<div className='flex-1 overflow-auto flex items-center justify-center p-4 bg-slate-50'>
+					{isImage ? (
+						<img
+							src={fullUrl}
+							alt={meta.name}
+							className='max-w-full max-h-[70vh] rounded-xl object-contain shadow'
+						/>
+					) : isVideo ? (
+						<video
+							src={fullUrl}
+							controls
+							className='max-w-full max-h-[70vh] rounded-xl shadow'
+						/>
+					) : (
+						<div className='flex flex-col items-center gap-4 py-8'>
+							<FileText className='w-16 h-16 text-indigo-300' />
+							<p className='text-sm text-slate-600 font-medium'>{meta.name}</p>
+							<p className='text-xs text-slate-400'>{meta.mime} · {sizeStr}</p>
+							<a
+								href={fullUrl}
+								download={meta.name}
+								target='_blank'
+								rel='noopener noreferrer'
+								className='flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors'
+							>
+								<Download className='w-4 h-4' />
+								Unduh File
+							</a>
+						</div>
+					)}
+				</div>
+			</div>
+		</div>
+	);
+};
+
 const FileBubble = ({ meta, dark }) => {
+	const [preview, setPreview] = useState(false);
 	const isImage = meta.mime?.startsWith("image/");
 	const fullUrl = messageService.fileUrl(meta.url);
 	const sizeStr =
@@ -71,50 +159,61 @@ const FileBubble = ({ meta, dark }) => {
 			: `${(meta.size / 1024).toFixed(1)} KB`;
 	if (isImage) {
 		return (
-			<a href={fullUrl} target='_blank' rel='noopener noreferrer'>
-				<img
-					src={fullUrl}
-					alt={meta.name}
-					className='max-w-[200px] rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity'
-				/>
-			</a>
+			<>
+				<button
+					type='button'
+					onClick={() => setPreview(true)}
+					className='relative group'
+				>
+					<img
+						src={fullUrl}
+						alt={meta.name}
+						className='max-w-[200px] rounded-xl object-cover cursor-pointer hover:opacity-90 transition-opacity'
+					/>
+					<div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity'>
+						<ZoomIn className='w-8 h-8 text-white drop-shadow' />
+					</div>
+				</button>
+				{preview && <FilePreviewModal meta={meta} onClose={() => setPreview(false)} />}
+			</>
 		);
 	}
 	return (
-		<a
-			href={fullUrl}
-			download={meta.name}
-			target='_blank'
-			rel='noopener noreferrer'
-			className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${
-				dark
-					? "border-white/20 bg-white/10 hover:bg-white/20"
-					: "border-slate-200 bg-slate-50 hover:bg-slate-100"
-			} transition-colors`}
-		>
-			<FileText
-				className={`w-8 h-8 flex-shrink-0 ${
-					dark ? "text-white/70" : "text-indigo-500"
-				}`}
-			/>
-			<div className='min-w-0 flex-1'>
-				<p
-					className={`text-xs font-medium truncate ${
-						dark ? "text-white" : "text-slate-800"
+		<>
+			<button
+				type='button'
+				onClick={() => setPreview(true)}
+				className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${
+					dark
+						? "border-white/20 bg-white/10 hover:bg-white/20"
+						: "border-slate-200 bg-slate-50 hover:bg-slate-100"
+				} transition-colors w-full text-left`}
+			>
+				<FileText
+					className={`w-8 h-8 flex-shrink-0 ${
+						dark ? "text-white/70" : "text-indigo-500"
 					}`}
-				>
-					{meta.name}
-				</p>
-				<p className={`text-xs ${dark ? "text-white/60" : "text-slate-400"}`}>
-					{sizeStr}
-				</p>
-			</div>
-			<Download
-				className={`w-4 h-4 flex-shrink-0 ${
-					dark ? "text-white/70" : "text-slate-500"
-				}`}
-			/>
-		</a>
+				/>
+				<div className='min-w-0 flex-1'>
+					<p
+						className={`text-xs font-medium truncate ${
+							dark ? "text-white" : "text-slate-800"
+						}`}
+					>
+						{meta.name}
+					</p>
+					<p className={`text-xs ${dark ? "text-white/60" : "text-slate-400"}`}>
+						{sizeStr}
+					</p>
+				</div>
+				<Download
+					className={`w-4 h-4 flex-shrink-0 ${
+						dark ? "text-white/70" : "text-slate-500"
+					}`}
+				/>
+			</button>
+			{preview && <FilePreviewModal meta={meta} onClose={() => setPreview(false)} />}
+		</>
 	);
 };
 
@@ -312,7 +411,7 @@ const MessageBubble = ({
 	threadCount = 0,
 	reactions = [],
 	onReact,
-	currentUserId,
+	// currentUserId unused — kept for future use
 }) => {
 	const [menu, setMenu] = useState(null);
 	const time = formatMessageTime(message.timestamp);

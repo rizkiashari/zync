@@ -112,6 +112,7 @@ function normalizeMsg(msg) {
     reply_to_id: msg.reply_to_id,
     is_deleted: msg.is_deleted ?? false,
     sender: msg.sender,
+    reactions: Array.isArray(msg.reactions) ? msg.reactions : [],
     optimistic: false,
   };
 }

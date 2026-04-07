@@ -14,7 +14,8 @@ import (
 )
 
 // handleNotifyWS upgrades a persistent connection for cross-room notifications (unread badges).
-func handleNotifyWS(h *hub.Hub, jwtSvc *auth.Service, allowedOrigins []string) gin.HandlerFunc {
+// It also owns the user's global online/offline presence.
+func handleNotifyWS(h *hub.Hub, usersRepo *repository.UserRepository, jwtSvc *auth.Service, allowedOrigins []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := tokenFromRequest(c.Request)
 		if token == "" {
@@ -26,7 +27,7 @@ func handleNotifyWS(h *hub.Hub, jwtSvc *auth.Service, allowedOrigins []string) g
 			abortUnauthorized(c)
 			return
 		}
-		chatws.ServeNotify(h, c.Writer, c.Request, userID, allowedOrigins)
+		chatws.ServeNotify(h, usersRepo, c.Writer, c.Request, userID, allowedOrigins)
 	}
 }
 

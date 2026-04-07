@@ -42,6 +42,7 @@ export const SocketProvider = ({ children }) => {
 	const reconnectAttemptsRef = useRef(0);
 	const listenersRef = useRef({});
 	const [isConnected, setIsConnected] = useState(false);
+	const [isNotifyConnected, setIsNotifyConnected] = useState(false);
 	const [onlineUsers, setOnlineUsers] = useState([]);
 	usePushNotification(user);
 
@@ -197,6 +198,10 @@ export const SocketProvider = ({ children }) => {
 			const ws = new WebSocket(`${WS_BASE}/ws/notify?token=${token}`);
 			notifyWsRef.current = ws;
 
+			ws.onopen = () => {
+				setIsNotifyConnected(true);
+			};
+
 			ws.onmessage = (event) => {
 				const parts = String(event.data).split("\n").filter(Boolean);
 				for (const part of parts) {
@@ -214,7 +219,10 @@ export const SocketProvider = ({ children }) => {
 						} else if (msg.type === "room_deleted") {
 							reduxDispatch(removeRoom(msg.room_id));
 							emitEvent("room_deleted", { roomId: msg.room_id });
-						} else if (msg.type === "call_started" || msg.type === "call_ended") {
+						} else if (
+							msg.type === "call_started" ||
+							msg.type === "call_ended"
+						) {
 							emitEvent(msg.type, msg);
 						} else if (msg.type === "task_reminder") {
 							toast(`⏰ Deadline: "${msg.title}" jatuh tempo dalam 24 jam`, {
@@ -252,6 +260,7 @@ export const SocketProvider = ({ children }) => {
 			};
 
 			ws.onclose = () => {
+				setIsNotifyConnected(false);
 				notifyWsRef.current = null;
 				// Reconnect after 5s
 				notifyReconnectTimerRef.current = setTimeout(connectNotify, 5000);
@@ -281,6 +290,80 @@ export const SocketProvider = ({ children }) => {
 			disconnectRoom();
 		}
 	}, [user, disconnectRoom]);
+
+	// Auto-offline after 20 min of user inactivity: close both WS connections.
+	// They auto-reconnect when the user interacts again.
+	const idleTimerRef = useRef(null);
+	const isIdleRef = useRef(false);
+
+	useEffect(() => {
+		if (!user) return;
+		const IDLE_MS = 2 * 1000; // 2 seconds (testing)
+
+		const goOffline = () => {
+			if (isIdleRef.current) return;
+			isIdleRef.current = true;
+			// Close room WS — backend marks user offline on disconnect
+			if (wsRef.current) {
+				wsRef.current.onclose = null;
+				wsRef.current.close();
+				wsRef.current = null;
+				setIsConnected(false);
+			}
+			// Close notify WS too
+			clearTimeout(notifyReconnectTimerRef.current);
+			if (notifyWsRef.current) {
+				notifyWsRef.current.onclose = null;
+				notifyWsRef.current.close();
+				notifyWsRef.current = null;
+			}
+		};
+
+		const onActivity = () => {
+			clearTimeout(idleTimerRef.current);
+			if (isIdleRef.current) {
+				// Reconnect notify WS on return from idle
+				isIdleRef.current = false;
+				const token = localStorage.getItem("access_token");
+				if (token && !notifyWsRef.current) {
+					const notifyUrl = `${WS_BASE}/ws/notify?token=${token}`;
+					const ws = new WebSocket(notifyUrl);
+					notifyWsRef.current = ws;
+					ws.onclose = () => {
+						notifyWsRef.current = null;
+						if (!isIdleRef.current)
+							notifyReconnectTimerRef.current = setTimeout(() => {
+								const t = localStorage.getItem("access_token");
+								if (t) {
+									const w2 = new WebSocket(`${WS_BASE}/ws/notify?token=${t}`);
+									notifyWsRef.current = w2;
+								}
+							}, 3000);
+					};
+					ws.onerror = () => ws.close();
+				}
+				// Room WS reconnects automatically when user navigates back to a room
+			}
+			idleTimerRef.current = setTimeout(goOffline, IDLE_MS);
+		};
+
+		const EVENTS = [
+			"mousemove",
+			"keydown",
+			"mousedown",
+			"touchstart",
+			"scroll",
+		];
+		EVENTS.forEach((ev) =>
+			window.addEventListener(ev, onActivity, { passive: true }),
+		);
+		idleTimerRef.current = setTimeout(goOffline, IDLE_MS);
+
+		return () => {
+			clearTimeout(idleTimerRef.current);
+			EVENTS.forEach((ev) => window.removeEventListener(ev, onActivity));
+		};
+	}, [user]);
 
 	useEffect(() => {
 		return () => {
@@ -315,6 +398,7 @@ export const SocketProvider = ({ children }) => {
 		<SocketContext.Provider
 			value={{
 				isConnected,
+				isNotifyConnected,
 				onlineUsers,
 				on,
 				off,

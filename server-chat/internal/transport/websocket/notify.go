@@ -12,11 +12,12 @@ import (
 )
 
 type notifyClient struct {
-	hub     *hub.Hub
-	conn    *gorillaws.Conn
-	send    chan []byte
-	userID  uint
-	userKey string
+	hub      *hub.Hub
+	presence PresenceStore
+	conn     *gorillaws.Conn
+	send     chan []byte
+	userID   uint
+	userKey  string
 }
 
 func (c *notifyClient) Send() chan<- []byte { return c.send }
@@ -25,8 +26,8 @@ func (c *notifyClient) ID() string          { return strconv.FormatUint(uint64(c
 func (c *notifyClient) Room() string        { return c.userKey }
 
 // ServeNotify upgrades the connection and registers the client under "user:{userID}" in the hub.
-// The server pushes cross-room chat notifications so the client can update unread badges.
-func ServeNotify(h *hub.Hub, w http.ResponseWriter, r *http.Request, userID uint, allowedOrigins []string) {
+// It also manages the user's global online/offline status — online while this WS is open.
+func ServeNotify(h *hub.Hub, presence PresenceStore, w http.ResponseWriter, r *http.Request, userID uint, allowedOrigins []string) {
 	upgrader := newUpgrader(allowedOrigins)
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -35,13 +36,17 @@ func ServeNotify(h *hub.Hub, w http.ResponseWriter, r *http.Request, userID uint
 	}
 	userKey := "user:" + strconv.FormatUint(uint64(userID), 10)
 	c := &notifyClient{
-		hub:     h,
-		conn:    conn,
-		send:    make(chan []byte, 256),
-		userID:  userID,
-		userKey: userKey,
+		hub:      h,
+		presence: presence,
+		conn:     conn,
+		send:     make(chan []byte, 256),
+		userID:   userID,
+		userKey:  userKey,
 	}
 	c.hub.Register(c)
+	if err := c.presence.SetOnline(userID, true); err != nil {
+		log.Printf("notify: set online: %v", err)
+	}
 	go c.writePump()
 	go c.readPump()
 }
@@ -50,6 +55,9 @@ func (c *notifyClient) readPump() {
 	defer func() {
 		c.hub.Unregister(c)
 		_ = c.conn.Close()
+		if err := c.presence.SetOnline(c.userID, false); err != nil {
+			log.Printf("notify: set offline: %v", err)
+		}
 	}()
 	c.conn.SetReadLimit(512)
 	_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))

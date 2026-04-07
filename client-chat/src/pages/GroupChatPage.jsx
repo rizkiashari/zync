@@ -23,13 +23,37 @@ const GroupChatPage = () => {
 	const dispatch = useAppDispatch();
 	const g = useGroupChatRoom(groupId);
 	const [activeThread, setActiveThread] = useState(null);
+	// reactions keyed by message id — seeded from API on load, then live-updated via WS
 	const [reactions, setReactions] = useState({});
 
+	// Seed reactions from messages that arrived with reactions from the API
+	useEffect(() => {
+		if (!g.groupedMessages || g.loading) return;
+		const seed = {};
+		for (const item of g.groupedMessages) {
+			if (item.type === "message" && Array.isArray(item.reactions) && item.reactions.length > 0) {
+				seed[item.id] = item.reactions;
+			}
+		}
+		if (Object.keys(seed).length > 0) {
+			setReactions((prev) => ({ ...seed, ...prev }));
+		}
+	}, [g.groupedMessages, g.loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	// WS reaction events — counts from other users (reacted_by_me not included, keep existing)
 	useEffect(() => {
 		if (!g.on) return;
 		return g.on("reaction_updated", (ev) => {
 			if (ev.message_id && Array.isArray(ev.reactions)) {
-				setReactions((prev) => ({ ...prev, [ev.message_id]: ev.reactions }));
+				setReactions((prev) => {
+					// Preserve existing reacted_by_me for emojis we already know about
+					const existing = prev[ev.message_id] || [];
+					const merged = ev.reactions.map((r) => {
+						const found = existing.find((e) => e.emoji === r.emoji);
+						return { ...r, reacted_by_me: found?.reacted_by_me ?? false };
+					});
+					return { ...prev, [ev.message_id]: merged };
+				});
 			}
 		});
 	}, [g.on]);
@@ -41,6 +65,7 @@ const GroupChatPage = () => {
 				: await messageService.addReaction(msgId, emoji);
 			const updated = res.data?.data;
 			if (Array.isArray(updated)) {
+				// API response includes reacted_by_me for current user
 				setReactions((prev) => ({ ...prev, [msgId]: updated }));
 			}
 		} catch {
