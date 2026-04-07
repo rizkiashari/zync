@@ -33,7 +33,7 @@ const PaymentDetailPage = lazy(() => import("./pages/PaymentDetailPage"));
 const LoadingScreen = () => (
 	<div className='fixed inset-0 bg-slate-900 flex flex-col items-center justify-center gap-6'>
 		<div className='flex flex-col items-center gap-4'>
-			<img src='./app-icon.png' alt='Zync' className='w-24 h-24 rounded-[28px] shadow-2xl shadow-black/60' />
+			<img src='./app-icon.png' alt='Zync' className='w-24 h-24 rounded-full shadow-2xl shadow-black/60' />
 			<div className='text-center'>
 				<p className='text-white text-2xl font-bold tracking-tight'>Zync</p>
 				<p className='text-slate-400 text-sm mt-1'>Chat & workspace ringan</p>
