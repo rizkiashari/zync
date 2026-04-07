@@ -34,6 +34,7 @@ type updateProfileBody struct {
 	Username           *string `json:"username"            binding:"omitempty,min=2,max=64"`
 	Avatar             *string `json:"avatar"              binding:"omitempty,max=512"`
 	Bio                *string `json:"bio"                 binding:"omitempty,max=256"`
+	Department         *string `json:"department"          binding:"omitempty,max=64"`
 	EmailNotifications *bool   `json:"email_notifications"`
 	IsDND              *bool   `json:"is_dnd"`
 }
@@ -114,6 +115,9 @@ func handleUpdateProfile(usersRepo *repository.UserRepository) gin.HandlerFunc {
 		}
 		if req.Bio != nil {
 			updates["bio"] = strings.TrimSpace(*req.Bio)
+		}
+		if req.Department != nil {
+			updates["department"] = strings.TrimSpace(*req.Department)
 		}
 		if req.EmailNotifications != nil {
 			updates["email_notifications"] = *req.EmailNotifications

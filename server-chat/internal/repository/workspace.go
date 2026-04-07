@@ -145,19 +145,20 @@ func (r *WorkspaceRepository) AddMember(workspaceID, userID uint, role string) e
 
 // MemberWithUser holds workspace member info joined with user details.
 type MemberWithUser struct {
-	UserID    uint      `json:"user_id"`
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-	Avatar    string    `json:"avatar"`
-	Role      string    `json:"role"`
-	JoinedAt  time.Time `json:"joined_at"`
+	UserID     uint      `json:"user_id"`
+	Username   string    `json:"username"`
+	Email      string    `json:"email"`
+	Avatar     string    `json:"avatar"`
+	Department string    `json:"department"`
+	Role       string    `json:"role"`
+	JoinedAt   time.Time `json:"joined_at"`
 }
 
 // ListMembers returns all members of a workspace with user details.
 func (r *WorkspaceRepository) ListMembers(workspaceID uint) ([]MemberWithUser, error) {
 	var members []MemberWithUser
 	err := r.db.Table("workspace_members").
-		Select("workspace_members.user_id, users.username, users.email, users.avatar, workspace_members.role, workspace_members.joined_at").
+		Select("workspace_members.user_id, users.username, users.email, users.avatar, users.department, workspace_members.role, workspace_members.joined_at").
 		Joins("JOIN users ON users.id = workspace_members.user_id").
 		Where("workspace_members.workspace_id = ?", workspaceID).
 		Order("workspace_members.joined_at ASC").

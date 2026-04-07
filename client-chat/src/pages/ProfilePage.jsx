@@ -83,6 +83,7 @@ const ProfilePage = () => {
 		name: user?.username || user?.name || "",
 		email: user?.email || "",
 		bio: user?.bio || "",
+		department: user?.department || "",
 	});
 	const [errors, setErrors] = useState({});
 	const [loading, setLoading] = useState(false);
@@ -234,6 +235,7 @@ const ProfilePage = () => {
 			const res = await profileService.update({
 				username: form.name.trim(),
 				bio: form.bio.trim(),
+				department: form.department.trim(),
 				avatar: avatarPath,
 			});
 			updateUser(res.data.data);
@@ -254,6 +256,7 @@ const ProfilePage = () => {
 			const res = await profileService.update({
 				username: form.name.trim(),
 				bio: form.bio.trim(),
+				department: form.department.trim(),
 			});
 			updateUser(res.data.data);
 			toast.success("Profil berhasil disimpan!");
@@ -357,6 +360,12 @@ const ProfilePage = () => {
 								<p className='text-sm text-slate-600 mt-2 leading-relaxed'>
 									{form.bio}
 								</p>
+							)}
+							{form.department && (
+								<span className='inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium'>
+									<Building2 className='w-3 h-3' />
+									{form.department}
+								</span>
 							)}
 							<div className='flex items-center gap-1.5 mt-3 text-xs text-slate-400'>
 								<Calendar className='w-3.5 h-3.5' />
@@ -509,6 +518,14 @@ const ProfilePage = () => {
 									className='w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:border-transparent hover:border-slate-300 transition-all resize-none'
 								/>
 							</div>
+							<Input
+								label='Jabatan / Departemen'
+								type='text'
+								placeholder='Contoh: Frontend Engineer, Backend, Designer...'
+								value={form.department}
+								onChange={set("department")}
+								icon={Building2}
+							/>
 							{edited && (
 								<Button type='submit' fullWidth loading={loading}>
 									Simpan Perubahan

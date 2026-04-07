@@ -3,11 +3,12 @@ import api from "../lib/api";
 export const profileService = {
 	get: () => api.get("/api/profile"),
 
-	update: ({ username, avatar, bio }) =>
+	update: ({ username, avatar, bio, department }) =>
 		api.put("/api/profile", {
 			...(username !== undefined && { username }),
 			...(avatar !== undefined && { avatar }),
 			...(bio !== undefined && { bio }),
+			...(department !== undefined && { department }),
 		}),
 
 	uploadAvatar: (file) => {
