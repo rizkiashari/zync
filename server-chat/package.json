@@ -4,6 +4,9 @@
   "scripts": {
     "build": "go build -o bin/server ./cmd/server",
     "dev": "air",
-    "lint": "go vet ./..."
+    "lint": "go vet ./...",
+    "deploy:vps": "./deploy-to-vps.sh root@103.178.153.192",
+    "deploy:vps:local-build": "REMOTE_BUILD=0 ./deploy-to-vps.sh root@103.178.153.192",
+    "deploy:vps:no-build": "DEPLOY_NO_BUILD=1 ./deploy-to-vps.sh root@103.178.153.192"
   }
 }

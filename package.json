@@ -11,7 +11,10 @@
 		"build": "node node_modules/turbo/bin/turbo run build",
 		"lint": "node node_modules/turbo/bin/turbo run lint",
 		"client": "npm run dev -w client-chat",
-		"server": "npm run dev -w server-chat"
+		"server": "npm run dev -w server-chat",
+		"deploy:vps": "npm run deploy:vps -w server-chat",
+		"deploy:vps:local-build": "npm run deploy:vps:local-build -w server-chat",
+		"deploy:vps:no-build": "npm run deploy:vps:no-build -w server-chat"
 	},
 	"devDependencies": {
 		"turbo": "^2.5.4"

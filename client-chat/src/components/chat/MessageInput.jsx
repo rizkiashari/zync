@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import {
 	Send,
 	Smile,
@@ -7,6 +7,8 @@ import {
 	FileText,
 	CornerUpLeft,
 	Image,
+	Mic,
+	Square,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { messageService } from "../../services/messageService";
@@ -63,13 +65,30 @@ const FilePreview = ({ file, onRemove }) => {
 	);
 };
 
+function pickAudioMime() {
+	if (typeof MediaRecorder === "undefined") return "";
+	if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+		return "audio/webm;codecs=opus";
+	}
+	if (MediaRecorder.isTypeSupported("audio/webm")) return "audio/webm";
+	if (MediaRecorder.isTypeSupported("audio/mp4")) return "audio/mp4";
+	return "";
+}
+
 const MessageInput = ({ onSend, onTyping, replyTo, onCancelReply, roomId }) => {
 	const [text, setText] = useState("");
 	const [attachedFile, setAttachedFile] = useState(null);
 	const [uploading, setUploading] = useState(false);
+	const [recording, setRecording] = useState(false);
+	const [recordSeconds, setRecordSeconds] = useState(0);
 	const textareaRef = useRef(null);
 	const fileInputRef = useRef(null);
 	const imageInputRef = useRef(null);
+	const mediaRecorderRef = useRef(null);
+	const streamRef = useRef(null);
+	const chunksRef = useRef([]);
+	const recordMimeRef = useRef("");
+	const tickRef = useRef(null);
 
 	useEffect(() => {
 		if (textareaRef.current) {
@@ -83,6 +102,118 @@ const MessageInput = ({ onSend, onTyping, replyTo, onCancelReply, roomId }) => {
 	useEffect(() => {
 		if (replyTo) textareaRef.current?.focus();
 	}, [replyTo]);
+
+	useEffect(
+		() => () => {
+			if (tickRef.current) clearInterval(tickRef.current);
+			if (mediaRecorderRef.current?.state === "recording") {
+				mediaRecorderRef.current.stop();
+			}
+			streamRef.current?.getTracks().forEach((t) => t.stop());
+		},
+		[],
+	);
+
+	const stopRecordingInternal = useCallback(() => {
+		if (tickRef.current) {
+			clearInterval(tickRef.current);
+			tickRef.current = null;
+		}
+		setRecordSeconds(0);
+		if (mediaRecorderRef.current?.state === "recording") {
+			mediaRecorderRef.current.stop();
+		} else {
+			streamRef.current?.getTracks().forEach((t) => t.stop());
+			streamRef.current = null;
+		}
+	}, []);
+
+	const finalizeVoiceUpload = useCallback(
+		async (blob, mime, reply) => {
+			if (!roomId || !blob.size) return;
+			const ext =
+				mime.includes("mp4") ? "mp4"
+				: mime.includes("webm") ? "webm"
+				: mime.includes("ogg") ? "ogg"
+				: "webm";
+			const file = new File([blob], `voice-${Date.now()}.${ext}`, {
+				type: mime || "audio/webm",
+			});
+			setUploading(true);
+			try {
+				const res = await messageService.uploadFile(roomId, file);
+				const { url, name, mime: serverMime, size } = res.data.data;
+				const fileMeta = JSON.stringify({
+					_type: "file",
+					url,
+					name,
+					mime: serverMime || mime,
+					size,
+				});
+				onSend(fileMeta, null, reply ?? null);
+			} catch {
+				toast.error("Gagal mengunggah pesan suara");
+			}
+			setUploading(false);
+		},
+		[roomId, onSend],
+	);
+
+	const handleToggleVoiceRecord = useCallback(async () => {
+		if (recording) {
+			stopRecordingInternal();
+			return;
+		}
+		if (!roomId) {
+			toast.error("Room belum siap");
+			return;
+		}
+		if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+			toast.error("Perekaman suara tidak didukung di perangkat ini");
+			return;
+		}
+		let mime = pickAudioMime();
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			streamRef.current = stream;
+			const rec =
+				mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+			mime = mime || rec.mimeType || "audio/webm";
+			recordMimeRef.current = mime;
+			chunksRef.current = [];
+			rec.ondataavailable = (e) => {
+				if (e.data?.size) chunksRef.current.push(e.data);
+			};
+			rec.onstop = () => {
+				stream.getTracks().forEach((t) => t.stop());
+				streamRef.current = null;
+				mediaRecorderRef.current = null;
+				const blob = new Blob(chunksRef.current, { type: recordMimeRef.current });
+				chunksRef.current = [];
+				setRecording(false);
+				onTyping?.(false);
+				if (blob.size > 0) {
+					finalizeVoiceUpload(blob, recordMimeRef.current, replyTo);
+				}
+			};
+			mediaRecorderRef.current = rec;
+			rec.start(200);
+			setRecording(true);
+			setRecordSeconds(0);
+			tickRef.current = setInterval(() => {
+				setRecordSeconds((s) => s + 1);
+			}, 1000);
+		} catch {
+			toast.error("Izinkan mikrofon untuk rekaman suara");
+		}
+	}, [
+		recording,
+		roomId,
+		stopRecordingInternal,
+		finalizeVoiceUpload,
+		replyTo,
+		onTyping,
+	]);
 
 	const handleSend = async () => {
 		const trimmed = text.trim();
@@ -142,7 +273,9 @@ const MessageInput = ({ onSend, onTyping, replyTo, onCancelReply, roomId }) => {
 	};
 
 	const canSend =
-		(text.trim().length > 0 || attachedFile !== null) && !uploading;
+		(text.trim().length > 0 || attachedFile !== null) && !uploading && !recording;
+
+	const fmtRec = `${String(Math.floor(recordSeconds / 60)).padStart(2, "0")}:${String(recordSeconds % 60).padStart(2, "0")}`;
 
 	return (
 		<div className='border-t border-slate-100 bg-white flex-shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]'>
@@ -152,6 +285,16 @@ const MessageInput = ({ onSend, onTyping, replyTo, onCancelReply, roomId }) => {
 					file={attachedFile}
 					onRemove={() => !uploading && setAttachedFile(null)}
 				/>
+			)}
+			{recording && (
+				<div className='flex items-center justify-center gap-3 px-4 py-2 bg-rose-50 border-b border-rose-100'>
+					<span className='relative flex h-2.5 w-2.5'>
+						<span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75' />
+						<span className='relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500' />
+					</span>
+					<span className='text-sm font-mono font-medium text-rose-800'>{fmtRec}</span>
+					<span className='text-xs text-rose-600'>Rekaman… ketuk lagi untuk kirim</span>
+				</div>
 			)}
 
 			<div className='px-4 py-3'>
@@ -173,11 +316,26 @@ const MessageInput = ({ onSend, onTyping, replyTo, onCancelReply, roomId }) => {
 							replyTo ? `Balas ${replyTo.senderName}...` : "Ketik pesan..."
 						}
 						rows={1}
-						disabled={uploading}
+						disabled={uploading || recording}
 						className='flex-1 bg-transparent text-sm text-slate-800 placeholder-slate-400 resize-none focus:outline-none leading-relaxed py-1 max-h-[120px] overflow-y-auto disabled:opacity-50'
 					/>
 
 					<div className='flex items-center gap-1 flex-shrink-0 mb-0.5'>
+						<button
+							type='button'
+							disabled={uploading || !roomId}
+							onClick={handleToggleVoiceRecord}
+							className={`p-1.5 rounded-lg transition-colors disabled:opacity-40 ${
+								recording ?
+									"text-white bg-rose-500 hover:bg-rose-600"
+								:	"text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+							}`}
+							title={recording ? "Selesai & kirim pesan suara" : "Rekam pesan suara"}
+						>
+							{recording ?
+								<Square className='w-5 h-5 fill-current' />
+							:	<Mic className='w-5 h-5' />}
+						</button>
 						{/* Image picker */}
 						<input
 							ref={imageInputRef}
@@ -188,7 +346,7 @@ const MessageInput = ({ onSend, onTyping, replyTo, onCancelReply, roomId }) => {
 						/>
 						<button
 							type='button'
-							disabled={uploading}
+							disabled={uploading || recording}
 							onClick={() => imageInputRef.current?.click()}
 							className='p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-40'
 							title='Kirim foto'
@@ -205,7 +363,7 @@ const MessageInput = ({ onSend, onTyping, replyTo, onCancelReply, roomId }) => {
 						/>
 						<button
 							type='button'
-							disabled={uploading}
+							disabled={uploading || recording}
 							onClick={() => fileInputRef.current?.click()}
 							className='p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-40'
 							title='Kirim dokumen'

@@ -25,6 +25,7 @@ var allowedExt = map[string]bool{
 	".xls": true, ".xlsx": true,
 	".txt": true, ".csv": true,
 	".zip": true, ".mp4": true, ".mp3": true,
+	".webm": true, ".ogg": true, ".wav": true,
 }
 
 func randHex() string {

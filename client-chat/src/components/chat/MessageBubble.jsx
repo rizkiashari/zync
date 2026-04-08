@@ -68,6 +68,7 @@ const FilePreviewModal = ({ meta, onClose }) => {
 	const fullUrl = messageService.fileUrl(meta.url);
 	const isImage = meta.mime?.startsWith("image/");
 	const isVideo = meta.mime?.startsWith("video/");
+	const isAudio = meta.mime?.startsWith("audio/");
 	const sizeStr =
 		meta.size > 1024 * 1024
 			? `${(meta.size / 1024 / 1024).toFixed(1)} MB`
@@ -126,6 +127,8 @@ const FilePreviewModal = ({ meta, onClose }) => {
 							controls
 							className='max-w-full max-h-[70vh] rounded-xl shadow'
 						/>
+					) : isAudio ? (
+						<audio src={fullUrl} controls className='w-full max-w-md' />
 					) : (
 						<div className='flex flex-col items-center gap-4 py-8'>
 							<FileText className='w-16 h-16 text-indigo-300' />
@@ -152,6 +155,7 @@ const FilePreviewModal = ({ meta, onClose }) => {
 const FileBubble = ({ meta, dark }) => {
 	const [preview, setPreview] = useState(false);
 	const isImage = meta.mime?.startsWith("image/");
+	const isAudio = meta.mime?.startsWith("audio/");
 	const fullUrl = messageService.fileUrl(meta.url);
 	const sizeStr =
 		meta.size > 1024 * 1024
@@ -176,6 +180,20 @@ const FileBubble = ({ meta, dark }) => {
 				</button>
 				{preview && <FilePreviewModal meta={meta} onClose={() => setPreview(false)} />}
 			</>
+		);
+	}
+	if (isAudio) {
+		return (
+			<div
+				className={`flex flex-col gap-2 rounded-xl px-3 py-2 max-w-[min(280px,82vw)] ${
+					dark ? "bg-white/10" : "bg-slate-50 border border-slate-100"
+				}`}
+			>
+				<audio src={fullUrl} controls className='w-full h-9' preload='metadata' />
+				<p className={`text-[10px] ${dark ? "text-white/60" : "text-slate-400"}`}>
+					Pesan suara · {sizeStr}
+				</p>
+			</div>
 		);
 	}
 	return (

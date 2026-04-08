@@ -36,7 +36,7 @@ export const CallProvider = ({ children }) => {
 				...prev,
 				[roomId]: [
 					...(prev[roomId] || []),
-					{ id: `cs_${Date.now()}`, callType: "call_started", kind, from: payload.from, timestamp: new Date() },
+					{ id: crypto.randomUUID(), callType: "call_started", kind, from: payload.from, timestamp: new Date() },
 				],
 			}));
 			// Show incoming modal only if not already in a call
@@ -60,7 +60,7 @@ export const CallProvider = ({ children }) => {
 					...prev,
 					[roomId]: [
 						...prevEvents,
-						{ id: `ce_${Date.now()}`, callType: "call_ended", kind: lastStart?.kind || "voice", from: null, timestamp: new Date() },
+						{ id: crypto.randomUUID(), callType: "call_ended", kind: lastStart?.kind || "voice", from: null, timestamp: new Date() },
 					],
 				};
 			});

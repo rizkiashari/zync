@@ -14,9 +14,9 @@ export function formatChatListMessagePreview(raw) {
 			return original;
 		}
 		const name = typeof parsed.name === "string" ? parsed.name.trim() : "";
-		const isImg =
-			typeof parsed.mime === "string" && parsed.mime.startsWith("image/");
-		if (isImg) return name ? `Gambar · ${name}` : "Gambar";
+		const mime = typeof parsed.mime === "string" ? parsed.mime : "";
+		if (mime.startsWith("image/")) return name ? `Gambar · ${name}` : "Gambar";
+		if (mime.startsWith("audio/")) return "Pesan suara";
 		return name ? `Berkas · ${name}` : "Berkas";
 	} catch {
 		return original;

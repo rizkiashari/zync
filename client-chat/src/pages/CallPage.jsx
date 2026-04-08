@@ -23,6 +23,8 @@ import {
 	RotateCcw,
 	Coins,
 	SmilePlus,
+	Monitor,
+	MonitorOff as MonitorStopIcon,
 } from "lucide-react";
 import { useCallEvents } from "../hooks/useCallEvents";
 import CallEventOverlay from "../components/call/CallEventOverlay";
@@ -51,7 +53,10 @@ const VoiceTile = memo(({ participant }) => {
 						<div
 							key={i}
 							className='w-[3px] bg-emerald-400 rounded-sm animate-bounce'
-							style={{ height: `${4 + i * 3}px`, animationDelay: `${i * 0.1}s` }}
+							style={{
+								height: `${4 + i * 3}px`,
+								animationDelay: `${i * 0.1}s`,
+							}}
 						/>
 					))}
 				</div>
@@ -88,6 +93,7 @@ const VideoTile = memo(({ track }) => {
 			<div className='absolute bottom-2 left-2'>
 				<span className='bg-black/60 text-white text-xs px-2 py-0.5 rounded-full'>
 					{p.name || p.identity}
+					{track.source === Track.Source.ScreenShare ? " · Layar" : ""}
 				</span>
 			</div>
 		</div>
@@ -112,9 +118,11 @@ const VoiceLayout = ({ onEndCall }) => {
 					className='grid gap-3 w-full max-w-2xl'
 					style={{
 						gridTemplateColumns:
-							participants.length === 1 ? "1fr"
-							: participants.length <= 4 ? "repeat(2, 1fr)"
-							: "repeat(3, 1fr)",
+							participants.length === 1
+								? "1fr"
+								: participants.length <= 4
+								? "repeat(2, 1fr)"
+								: "repeat(3, 1fr)",
 					}}
 				>
 					{participants.map((p) => (
@@ -124,8 +132,16 @@ const VoiceLayout = ({ onEndCall }) => {
 			</div>
 			<RoomAudioRenderer />
 			<div className='flex items-center justify-center gap-3 border-t border-white/10 bg-[#202124] px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-4 sm:py-5'>
-				<CtrlBtn active={muted} onClick={toggleMic} label={muted ? "Nyalakan mikrofon" : "Mute mikrofon"}>
-					{muted ? <MicOff className='w-5 h-5 text-white' /> : <Mic className='w-5 h-5 text-white' />}
+				<CtrlBtn
+					active={muted}
+					onClick={toggleMic}
+					label={muted ? "Nyalakan mikrofon" : "Mute mikrofon"}
+				>
+					{muted ? (
+						<MicOff className='w-5 h-5 text-white' />
+					) : (
+						<Mic className='w-5 h-5 text-white' />
+					)}
 				</CtrlBtn>
 				<EndBtn onClick={onEndCall} />
 			</div>
@@ -136,22 +152,34 @@ const VoiceLayout = ({ onEndCall }) => {
 // ── Video layout ──────────────────────────────────────────────────────────────
 const VideoLayout = ({ onEndCall, callData }) => {
 	const { localParticipant } = useLocalParticipant();
-	const allTracks = useTracks([Track.Source.Camera], { onlySubscribed: false });
-	const [muted, setMuted]       = useState(false);
+	const cameraTracks = useTracks([Track.Source.Camera], {
+		onlySubscribed: false,
+	});
+	const screenTracks = useTracks([Track.Source.ScreenShare], {
+		onlySubscribed: false,
+	});
+	const [muted, setMuted] = useState(false);
 	const [videoOff, setVideoOff] = useState(false);
 	const [facingMode, setFacingMode] = useState("user"); // Feature 2
-	const [showSawer, setShowSawer]   = useState(false);  // Feature 3
+	const [showSawer, setShowSawer] = useState(false); // Feature 3
 	const [showSticker, setShowSticker] = useState(false); // Feature 4+5
 
 	// Feature 3+4 — data channel events
 	const { events, sendEvent } = useCallEvents();
 
-	const remoteTracks = allTracks.filter(
+	const remoteCameraTracks = cameraTracks.filter(
 		(t) => isTrackReference(t) && !t.participant.isLocal,
 	);
-	const localTrack = allTracks.find(
+	const remoteScreenTracks = screenTracks.filter(
+		(t) => isTrackReference(t) && !t.participant.isLocal,
+	);
+	const localTrack = cameraTracks.find(
 		(t) => isTrackReference(t) && t.participant.isLocal,
 	);
+	const [sharingScreen, setSharingScreen] = useState(false);
+	useEffect(() => {
+		setSharingScreen(localParticipant.isScreenShareEnabled);
+	}, [localParticipant]);
 
 	const toggleMic = useCallback(() => {
 		localParticipant.setMicrophoneEnabled(muted);
@@ -190,26 +218,66 @@ const VideoLayout = ({ onEndCall, callData }) => {
 		[sendEvent],
 	);
 
+	const toggleScreenShare = useCallback(async () => {
+		try {
+			const next = !localParticipant.isScreenShareEnabled;
+			await localParticipant.setScreenShareEnabled(next);
+			setSharingScreen(next);
+		} catch {
+			toast.error(
+				"Tidak bisa berbagi layar (izin ditolak atau tidak didukung)",
+			);
+		}
+	}, [localParticipant]);
+
 	// Receiver identity for sawer — first remote participant or empty
-	const receiverIdentity = remoteTracks[0]?.participant?.identity ?? "";
+	const receiverIdentity =
+		remoteCameraTracks[0]?.participant?.identity ??
+		remoteScreenTracks[0]?.participant?.identity ??
+		"";
 
 	return (
 		<div className='flex flex-col h-full bg-[#202124]'>
-			<div className='flex-1 relative p-3 overflow-hidden'>
-				{remoteTracks.length > 0 ? (
-					<div
-						className='h-full grid gap-2'
-						style={{
-							gridTemplateColumns:
-								remoteTracks.length === 1 ? "1fr" : "repeat(2, 1fr)",
-						}}
-					>
-						{remoteTracks.map((t) => (
-							<VideoTile key={t.participant.identity} track={t} />
-						))}
+			<div className='flex-1 relative p-3 overflow-hidden flex flex-col gap-2 min-h-0'>
+				{sharingScreen && (
+					<div className='flex-shrink-0 rounded-lg bg-emerald-500/20 border border-emerald-400/40 px-3 py-2 text-center'>
+						<p className='text-emerald-200 text-xs font-medium'>
+							Layar Anda sedang dibagikan
+						</p>
+					</div>
+				)}
+				{remoteScreenTracks.length > 0 || remoteCameraTracks.length > 0 ? (
+					<div className='flex-1 flex flex-col gap-2 min-h-0 overflow-hidden'>
+						{remoteScreenTracks.length > 0 && (
+							<div
+								className='grid gap-2 flex-shrink-0 min-h-[35%]'
+								style={{
+									gridTemplateColumns:
+										remoteScreenTracks.length === 1 ? "1fr" : "repeat(2, 1fr)",
+								}}
+							>
+								{remoteScreenTracks.map((t) => (
+									<VideoTile
+										key={`${t.participant.identity}-screenshare`}
+										track={t}
+									/>
+								))}
+							</div>
+						)}
+						<div
+							className='flex-1 min-h-0 grid gap-2'
+							style={{
+								gridTemplateColumns:
+									remoteCameraTracks.length <= 1 ? "1fr" : "repeat(2, 1fr)",
+							}}
+						>
+							{remoteCameraTracks.map((t) => (
+								<VideoTile key={t.participant.identity} track={t} />
+							))}
+						</div>
 					</div>
 				) : (
-					<div className='h-full flex items-center justify-center'>
+					<div className='h-full flex items-center justify-center flex-1'>
 						<div className='flex flex-col items-center gap-3 text-white/50'>
 							<Users className='w-12 h-12' />
 							<p className='text-sm'>Menunggu peserta lain…</p>
@@ -261,12 +329,40 @@ const VideoLayout = ({ onEndCall, callData }) => {
 
 			{/* Toolbar */}
 			<div className='flex items-center justify-center gap-2 border-t border-white/10 bg-[#202124] px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-3 sm:py-5 flex-wrap'>
-				<CtrlBtn active={muted} onClick={toggleMic} label={muted ? "Nyalakan mikrofon" : "Mute mikrofon"}>
-					{muted ? <MicOff className='w-5 h-5 text-white' /> : <Mic className='w-5 h-5 text-white' />}
+				<CtrlBtn
+					active={muted}
+					onClick={toggleMic}
+					label={muted ? "Nyalakan mikrofon" : "Mute mikrofon"}
+				>
+					{muted ? (
+						<MicOff className='w-5 h-5 text-white' />
+					) : (
+						<Mic className='w-5 h-5 text-white' />
+					)}
 				</CtrlBtn>
 
-				<CtrlBtn active={videoOff} onClick={toggleCamera} label={videoOff ? "Nyalakan kamera" : "Matikan kamera"}>
-					{videoOff ? <VideoOff className='w-5 h-5 text-white' /> : <Video className='w-5 h-5 text-white' />}
+				<CtrlBtn
+					active={videoOff}
+					onClick={toggleCamera}
+					label={videoOff ? "Nyalakan kamera" : "Matikan kamera"}
+				>
+					{videoOff ? (
+						<VideoOff className='w-5 h-5 text-white' />
+					) : (
+						<Video className='w-5 h-5 text-white' />
+					)}
+				</CtrlBtn>
+
+				<CtrlBtn
+					active={sharingScreen}
+					onClick={toggleScreenShare}
+					label={sharingScreen ? "hentikan berbagi layar" : "Berbagi layar"}
+				>
+					{sharingScreen ? (
+						<MonitorStopIcon className='w-5 h-5 text-white' />
+					) : (
+						<Monitor className='w-5 h-5 text-white' />
+					)}
 				</CtrlBtn>
 
 				{/* Feature 2: flip camera */}
@@ -277,7 +373,10 @@ const VideoLayout = ({ onEndCall, callData }) => {
 				{/* Feature 3: sawer */}
 				<CtrlBtn
 					active={showSawer}
-					onClick={() => { setShowSawer((v) => !v); setShowSticker(false); }}
+					onClick={() => {
+						setShowSawer((v) => !v);
+						setShowSticker(false);
+					}}
 					label='Sawer koin'
 				>
 					<Coins className='w-5 h-5 text-yellow-300' />
@@ -286,7 +385,10 @@ const VideoLayout = ({ onEndCall, callData }) => {
 				{/* Feature 4+5: stickers */}
 				<CtrlBtn
 					active={showSticker}
-					onClick={() => { setShowSticker((v) => !v); setShowSawer(false); }}
+					onClick={() => {
+						setShowSticker((v) => !v);
+						setShowSawer(false);
+					}}
 					label='Stiker'
 				>
 					<SmilePlus className='w-5 h-5 text-emerald-300' />

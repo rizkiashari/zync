@@ -7,24 +7,23 @@
 #   SSH_IDENTITY_FILE=~/.ssh/id_ed25519_office ./deploy-to-vps.sh root@103.178.153.192
 # Optional second arg: remote directory (default /opt/server-chat)
 #
-# If build on VPS fails, set DEPLOY_NO_BUILD=1 (after docker load image on server).
-#   DEPLOY_NO_BUILD=1 SSH_IDENTITY_FILE=~/.ssh/id_ed25519_office ./deploy-to-vps.sh root@HOST
-#
-# If VPS cannot pull from Docker Hub (DNS timeout), build on Mac then load on server:
-#   docker compose build api
-#   docker save server-chat-api:latest | gzip > api.gz
-#   scp api.gz REMOTE:/tmp/ && ssh REMOTE 'gunzip -c /tmp/api.gz | docker load && rm /tmp/api.gz'
-#   ssh REMOTE "cd $RDIR && docker compose up -d --no-build --force-recreate api"
+# Modes:
+# - Default: build on VPS (REMOTE_BUILD=1)
+# - Local build + upload image: REMOTE_BUILD=0
+#   REMOTE_BUILD=0 SSH_IDENTITY_FILE=~/.ssh/id_ed25519_office ./deploy-to-vps.sh root@HOST
+# - Skip build and only recreate containers:
+#   DEPLOY_NO_BUILD=1 ./deploy-to-vps.sh root@HOST
 set -euo pipefail
 
 REMOTE="${1:?Usage: $0 user@host [remote_dir]}"
 RDIR="${2:-/opt/server-chat}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SSH_ID=()
+# shellcheck disable=SC2034
+SSH_OPTS=()
 RSYNC_E=(ssh)
 if [[ -n "${SSH_IDENTITY_FILE:-}" ]]; then
   EXPANDED="${SSH_IDENTITY_FILE/#\~/$HOME}"
-  SSH_ID=( -i "$EXPANDED" )
+  SSH_OPTS=( -i "$EXPANDED" )
   RSYNC_E=( ssh -i "$EXPANDED" )
 fi
 
@@ -38,7 +37,7 @@ if [[ ! -f "$ENV_SRC" ]]; then
 fi
 
 echo ">>> Syncing files to $REMOTE:$RDIR (excluding .git, .env on first pass)..."
-ssh "${SSH_ID[@]}" "$REMOTE" "mkdir -p '$RDIR'"
+ssh "${SSH_OPTS[@]}" "$REMOTE" "mkdir -p '$RDIR'"
 rsync -avz -e "${RSYNC_E[*]}" \
   --exclude '.git' \
   --exclude 'pgdata' \
@@ -48,22 +47,41 @@ rsync -avz -e "${RSYNC_E[*]}" \
   "$SCRIPT_DIR/" "$REMOTE:$RDIR/"
 
 echo ">>> Uploading .env..."
-scp "${SSH_ID[@]}" "$ENV_SRC" "$REMOTE:$RDIR/.env"
+scp "${SSH_OPTS[@]}" "$ENV_SRC" "$REMOTE:$RDIR/.env"
+
+if [[ "${REMOTE_BUILD:-1}" == "0" ]]; then
+  echo ">>> Building API image locally..."
+  (
+    cd "$SCRIPT_DIR"
+    docker compose --env-file "$ENV_SRC" build api
+  )
+
+  TMP_IMAGE="/tmp/server-chat-api.tgz"
+  echo ">>> Saving and uploading image to VPS..."
+  docker save server-chat-api:latest | gzip > "$TMP_IMAGE"
+  scp "${SSH_OPTS[@]}" "$TMP_IMAGE" "$REMOTE:/tmp/server-chat-api.tgz"
+
+  echo ">>> Loading image on VPS..."
+  ssh "${SSH_OPTS[@]}" "$REMOTE" "gunzip -c /tmp/server-chat-api.tgz | docker load && rm -f /tmp/server-chat-api.tgz"
+fi
 
 echo ">>> Starting containers..."
 if [[ "${DEPLOY_NO_BUILD:-}" == "1" ]]; then
-  ssh "${SSH_ID[@]}" "$REMOTE" "cd '$RDIR' && docker compose up -d --no-build"
+  ssh "${SSH_OPTS[@]}" "$REMOTE" "cd '$RDIR' && docker compose up -d --no-build"
 else
-  ssh "${SSH_ID[@]}" "$REMOTE" "cd '$RDIR' && docker compose up -d --build" || {
-    echo "!!! compose --build failed (registry/DNS?). On Mac: docker compose build api && docker save server-chat-api:latest | gzip > /tmp/api.tgz" >&2
-    echo "    scp /tmp/api.tgz $REMOTE:/tmp/ && ssh $REMOTE 'gunzip -c /tmp/api.tgz | docker load && rm /tmp/api.tgz'" >&2
-    echo "    DEPLOY_NO_BUILD=1 SSH_IDENTITY_FILE=~/.ssh/id_ed25519_office $0 $REMOTE $RDIR" >&2
-    exit 1
-  }
+  if [[ "${REMOTE_BUILD:-1}" == "0" ]]; then
+    ssh "${SSH_OPTS[@]}" "$REMOTE" "cd '$RDIR' && docker compose up -d --no-build --force-recreate api"
+  else
+    ssh "${SSH_OPTS[@]}" "$REMOTE" "cd '$RDIR' && docker compose up -d --build" || {
+      echo "!!! compose --build failed. Try local build mode:" >&2
+      echo "    REMOTE_BUILD=0 SSH_IDENTITY_FILE=~/.ssh/id_ed25519_office $0 $REMOTE $RDIR" >&2
+      exit 1
+    }
+  fi
 fi
 
 echo ">>> Status:"
-ssh "${SSH_ID[@]}" "$REMOTE" "cd '$RDIR' && docker compose ps"
+ssh "${SSH_OPTS[@]}" "$REMOTE" "cd '$RDIR' && docker compose ps"
 
 HOST_ONLY="${REMOTE#*@}"
 echo ""
