@@ -34,6 +34,7 @@ client-chat/.env.*
 
 # Server (Go)
 server-chat/.env
+server-chat/.env.prod
 !server-chat/.env.example
 !server-chat/.env.local.example
 !server-chat/.env.prod.example

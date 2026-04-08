@@ -1,0 +1,7 @@
+# Merge with docker-compose.yml on low-memory VPS:
+#   docker compose -f docker-compose.yml -f docker-compose.prebuilt.yml up -d --build
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.prebuilt

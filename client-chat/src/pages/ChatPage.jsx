@@ -13,16 +13,19 @@ import {
 	ChatDateDivider,
 } from "../components/chat/ChatThreadUi";
 import { useDirectChatRoom } from "../hooks/useDirectChatRoom";
+import { useChatPolls } from "../hooks/useChatPolls";
 import { useAppDispatch } from "../store/index";
 import { toggleSidebar } from "../store/uiSlice";
 import { Phone, Video, Pin, X } from "lucide-react";
 import { messageService } from "../services/messageService";
+import PollBubble from "../components/chat/PollBubble";
 
 const ChatPage = () => {
 	const { roomId } = useParams();
 	const dispatch = useAppDispatch();
 	const chat = useDirectChatRoom(roomId);
 	const [activeThread, setActiveThread] = useState(null);
+	const { polls, addPoll } = useChatPolls(Number(roomId), chat.on);
 	const [reactions, setReactions] = useState({}); // { [msgId]: [{emoji, count, reacted_by_me}] }
 	const reactionsRef = useRef(reactions);
 	useEffect(() => { reactionsRef.current = reactions; }, [reactions]);
@@ -230,7 +233,19 @@ const ChatPage = () => {
 								}}
 							/>
 						))}
-						{isTyping && <ChatTypingIndicator />}
+						{polls.length > 0 && (
+							<div className='flex flex-col gap-3 px-4 py-2'>
+								{polls.map((poll) => (
+									<PollBubble
+										key={poll.id}
+										poll={poll}
+										currentUserId={user?.id}
+										isOwn={poll.created_by_id === user?.id}
+									/>
+								))}
+							</div>
+						)}
+					{isTyping && <ChatTypingIndicator />}
 						<div ref={messagesEndRef} />
 					</div>
 				</div>
@@ -240,6 +255,7 @@ const ChatPage = () => {
 					replyTo={replyTo}
 					onCancelReply={() => setReplyTo(null)}
 					roomId={Number(roomId)}
+					onPollCreated={addPoll}
 				/>
 			</div>
 			{activeThread && (

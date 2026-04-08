@@ -1,0 +1,10 @@
+# Image for small VPS: copy a linux/amd64 binary built on a dev machine or CI (no Go compile in Docker).
+# Produce binary: GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o bin/server-linux-amd64 ./cmd/server
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates tzdata
+COPY bin/server-linux-amd64 /usr/local/bin/server
+RUN chmod +x /usr/local/bin/server
+WORKDIR /
+EXPOSE 8080
+ENV ADDR=:8080
+CMD ["server"]

@@ -176,10 +176,10 @@ const VideoLayout = ({ onEndCall, callData }) => {
 	const localTrack = cameraTracks.find(
 		(t) => isTrackReference(t) && t.participant.isLocal,
 	);
-	const [sharingScreen, setSharingScreen] = useState(false);
-	useEffect(() => {
-		setSharingScreen(localParticipant.isScreenShareEnabled);
-	}, [localParticipant]);
+	// Derive from live track list — updates automatically when the browser/OS stops sharing
+	const sharingScreen = screenTracks.some(
+		(t) => isTrackReference(t) && t.participant.isLocal,
+	);
 
 	const toggleMic = useCallback(() => {
 		localParticipant.setMicrophoneEnabled(muted);
@@ -220,9 +220,7 @@ const VideoLayout = ({ onEndCall, callData }) => {
 
 	const toggleScreenShare = useCallback(async () => {
 		try {
-			const next = !localParticipant.isScreenShareEnabled;
-			await localParticipant.setScreenShareEnabled(next);
-			setSharingScreen(next);
+			await localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled);
 		} catch {
 			toast.error(
 				"Tidak bisa berbagi layar (izin ditolak atau tidak didukung)",

@@ -13,16 +13,19 @@ import {
 	ChatDateDivider,
 } from "../components/chat/ChatThreadUi";
 import { useGroupChatRoom } from "../hooks/useGroupChatRoom";
+import { useChatPolls } from "../hooks/useChatPolls";
 import { useAppDispatch } from "../store/index";
 import { toggleSidebar } from "../store/uiSlice";
 import { Phone, Video, Pin, X } from "lucide-react";
 import { messageService } from "../services/messageService";
+import PollBubble from "../components/chat/PollBubble";
 
 const GroupChatPage = () => {
 	const { groupId } = useParams();
 	const dispatch = useAppDispatch();
 	const g = useGroupChatRoom(groupId);
 	const [activeThread, setActiveThread] = useState(null);
+	const { polls, addPoll } = useChatPolls(Number(groupId), g.on);
 	// localReactions: WS/user updates keyed by message id
 	const [localReactions, setLocalReactions] = useState({});
 	const reactionsRef = useRef({});
@@ -235,6 +238,18 @@ const GroupChatPage = () => {
 										}}
 									/>
 								))}
+								{polls.length > 0 && (
+									<div className="flex flex-col gap-3 px-4 py-2">
+										{polls.map((poll) => (
+											<PollBubble
+												key={poll.id}
+												poll={poll}
+												currentUserId={user?.id}
+												isOwn={poll.created_by_id === user?.id}
+											/>
+										))}
+									</div>
+								)}
 								{typingUser && (
 									<ChatTypingIndicatorWithName name={typingUser} />
 								)}
@@ -246,6 +261,8 @@ const GroupChatPage = () => {
 							onTyping={handleTyping}
 							replyTo={replyTo}
 							onCancelReply={() => setReplyTo(null)}
+							roomId={Number(groupId)}
+							onPollCreated={addPoll}
 						/>
 						{activeThread && (
 							<ThreadPanel

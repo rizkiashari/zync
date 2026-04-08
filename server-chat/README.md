@@ -380,9 +380,24 @@ Semua endpoint mengembalikan format yang konsisten:
 
 ---
 
+## Docker build di VPS
+
+Jika `docker compose up --build` gagal pada langkah `go build` (exit code 1 tanpa pesan jelas), umumnya **RAM VPS kecil** (kompilasi Go paralel kehabisan memori). Dockerfile memakai `GOMAXPROCS=1` dan `go build -p 1` untuk mengurangi penggunaan memori.
+
+Untuk melihat error asli di server:
+
+```bash
+cd /opt/server-chat   # atau path deploy Anda
+docker compose build api --progress=plain --no-cache 2>&1 | tee /tmp/build.log
+```
+
+Jika masih OOM, tambahkan **swap** di VPS atau build image di mesin lain (`REMOTE_BUILD=0` pada skrip deploy) lalu upload image.
+
+---
+
 ## Arsitektur
 
-```
+```js
 cmd/server/main.go          — entry point, inisialisasi deps
 internal/
   auth/                     — JWT service
