@@ -19,6 +19,8 @@ import { toggleSidebar } from "../store/uiSlice";
 import { Phone, Video, Pin, X } from "lucide-react";
 import { messageService } from "../services/messageService";
 import PollBubble from "../components/chat/PollBubble";
+import { shareRoomLink } from "../lib/platform";
+import toast from "react-hot-toast";
 
 const ChatPage = () => {
 	const { roomId } = useParams();
@@ -129,6 +131,10 @@ const ChatPage = () => {
 					onOpenSidebar={() => dispatch(toggleSidebar())}
 					onDelete={handleDeleteRoom}
 					onGallery={() => setShowGallery(true)}
+					onShare={async () => {
+						await shareRoomLink(roomId, contactName, "chat");
+						toast.success("Link berhasil disalin!");
+					}}
 					roomId={Number(roomId)}
 				/>
 				{!isConnected && (

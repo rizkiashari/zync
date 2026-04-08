@@ -1,9 +1,11 @@
-import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { useSelector } from "react-redux";
 import { useAuth } from "./context/AuthContext";
 import IncomingCallModal from "./components/call/IncomingCallModal";
+import { registerPlugin } from "@capacitor/core";
+const CapApp = registerPlugin("App");
 
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const RegisterPage = lazy(() => import("./pages/RegisterPage"));
@@ -78,7 +80,29 @@ const AdminRoute = ({ children }) => {
 	return children;
 };
 
+function useDeepLink() {
+	const navigate = useNavigate();
+	useEffect(() => {
+		let handle;
+		CapApp.addListener("appUrlOpen", (event) => {
+			// event.url === "zync://chat/123" or "zync://group/456"
+			try {
+				const url = new URL(event.url);
+				const type = url.hostname; // "chat" or "group"
+				const id = url.pathname.replace(/^\//, ""); // "123"
+				if ((type === "chat" || type === "group") && id) {
+					navigate(`/${type}/${id}`);
+				}
+			} catch {
+				// ignore malformed URLs
+			}
+		}).then((l) => { handle = l; });
+		return () => { handle?.remove(); };
+	}, [navigate]);
+}
+
 function App() {
+	useDeepLink();
 	return (
 		<>
 			<Toaster

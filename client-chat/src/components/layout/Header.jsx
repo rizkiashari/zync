@@ -8,6 +8,7 @@ import {
 	Users,
 	ClipboardList,
 	FolderOpen,
+	Share2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Avatar from "../ui/Avatar";
@@ -26,6 +27,7 @@ const Header = ({
 	memberCount,
 	onDelete,
 	onGallery,
+	onShare,
 	kanbanPath,
 	roomId,
 	lastSeenAt,
@@ -111,6 +113,17 @@ const Header = ({
 						title='Galeri & File'
 					>
 						<FolderOpen className='w-[18px] h-[18px]' />
+					</button>
+				)}
+				{onShare && (
+					<button
+						type='button'
+						onClick={onShare}
+						className={`min-h-11 min-w-11 flex items-center justify-center rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition-colors ${focusRing}`}
+						aria-label='Bagikan link ruang obrolan'
+						title='Bagikan link'
+					>
+						<Share2 className='w-[18px] h-[18px]' />
 					</button>
 				)}
 				{kanbanPath && (

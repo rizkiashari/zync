@@ -20,6 +20,7 @@
 	},
 	"dependencies": {
 		"@capacitor/android": "^7.6.1",
+		"@capacitor/app": "^7.1.2",
 		"@capacitor/cli": "^7.6.1",
 		"@capacitor/core": "^7.6.1",
 		"@capacitor/ios": "^7.6.1",
@@ -31,6 +32,7 @@
 		"react": "^19.2.4",
 		"react-dom": "^19.2.4",
 		"react-hot-toast": "^2.6.0",
+		"react-is": "^19.0.0",
 		"react-redux": "^9.2.0",
 		"react-router-dom": "^7.13.2",
 		"recharts": "^3.8.1"

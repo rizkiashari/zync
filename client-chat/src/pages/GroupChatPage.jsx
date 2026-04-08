@@ -19,6 +19,8 @@ import { toggleSidebar } from "../store/uiSlice";
 import { Phone, Video, Pin, X } from "lucide-react";
 import { messageService } from "../services/messageService";
 import PollBubble from "../components/chat/PollBubble";
+import { shareRoomLink } from "../lib/platform";
+import toast from "react-hot-toast";
 
 const GroupChatPage = () => {
 	const { groupId } = useParams();
@@ -144,6 +146,10 @@ const GroupChatPage = () => {
 					onOpenSidebar={() => dispatch(toggleSidebar())}
 					onInfo={() => setShowInfo(!showInfo)}
 					onGallery={() => setShowGallery(true)}
+					onShare={async () => {
+						await shareRoomLink(groupId, room.name || "Grup", "group");
+						toast.success("Link berhasil disalin!");
+					}}
 					kanbanPath={`/group/${groupId}/kanban`}
 				/>
 				{pinnedMessage && (

@@ -52,7 +52,12 @@ On your machine: builds a **linux/amd64** API binary (avoids OOM compiling Go on
 **Local:** `server-chat/.env.prod` (or `.env`) and `client-chat/.env.prod` with `VITE_API_URL` set to the public API URL.
 
 ```bash
+# npm needs "--" before user@host; otherwise the script gets no arguments.
 npm run deploy:vps:all -- root@YOUR_SERVER_IP
+
+# Optional: default host via env (no "--" needed), same shell session only:
+# DEPLOY_REMOTE=root@YOUR_SERVER_IP npm run deploy:vps:all
+
 # Custom path and web port:
 # WEB_PORT=3000 npm run deploy:vps:all -- root@YOUR_SERVER_IP /opt/zync
 ```
