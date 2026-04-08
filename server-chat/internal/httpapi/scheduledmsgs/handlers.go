@@ -14,7 +14,7 @@ import (
 	"zync-server/internal/repository"
 )
 
-// POST /api/rooms/:room_id/scheduled-messages
+// POST /api/rooms/:id/scheduled-messages
 // Body: { "content": "...", "scheduled_at": "2024-...", "reply_to_id": null }
 func postSchedule(sched *repository.ScheduledMessageRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -23,9 +23,9 @@ func postSchedule(sched *repository.ScheduledMessageRepository) gin.HandlerFunc 
 			response.Abort(c, http.StatusUnauthorized, response.CodeInvalidToken, "Unauthorized")
 			return
 		}
-		roomID, err := strconv.ParseUint(c.Param("room_id"), 10, 64)
+		roomID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 		if err != nil {
-			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid room_id")
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid room id")
 			return
 		}
 
@@ -59,7 +59,7 @@ func postSchedule(sched *repository.ScheduledMessageRepository) gin.HandlerFunc 
 	}
 }
 
-// GET /api/rooms/:room_id/scheduled-messages
+// GET /api/rooms/:id/scheduled-messages
 func getScheduled(sched *repository.ScheduledMessageRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		uid, ok := middleware.UserID(c)
@@ -67,9 +67,9 @@ func getScheduled(sched *repository.ScheduledMessageRepository) gin.HandlerFunc 
 			response.Abort(c, http.StatusUnauthorized, response.CodeInvalidToken, "Unauthorized")
 			return
 		}
-		roomID, err := strconv.ParseUint(c.Param("room_id"), 10, 64)
+		roomID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 		if err != nil {
-			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid room_id")
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid room id")
 			return
 		}
 		_ = uid // future: filter by sender or admin

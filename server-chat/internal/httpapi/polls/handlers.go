@@ -17,7 +17,7 @@ import (
 	"zync-server/internal/repository"
 )
 
-// POST /api/rooms/:room_id/polls
+// POST /api/rooms/:id/polls
 // Body: { "question": "...", "options": ["a","b"], "is_multiple": false, "expires_at": "2024-..." (optional) }
 func postCreatePoll(polls *repository.PollRepository, h *hub.Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -26,9 +26,9 @@ func postCreatePoll(polls *repository.PollRepository, h *hub.Hub) gin.HandlerFun
 			response.Abort(c, http.StatusUnauthorized, response.CodeInvalidToken, "Unauthorized")
 			return
 		}
-		roomID, err := strconv.ParseUint(c.Param("room_id"), 10, 64)
+		roomID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 		if err != nil {
-			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid room_id")
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid room id")
 			return
 		}
 
@@ -76,12 +76,12 @@ func postCreatePoll(polls *repository.PollRepository, h *hub.Hub) gin.HandlerFun
 	}
 }
 
-// GET /api/rooms/:room_id/polls
+// GET /api/rooms/:id/polls
 func getPolls(polls *repository.PollRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		roomID, err := strconv.ParseUint(c.Param("room_id"), 10, 64)
+		roomID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 		if err != nil {
-			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid room_id")
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid room id")
 			return
 		}
 		list, err := polls.GetByRoom(uint(roomID))

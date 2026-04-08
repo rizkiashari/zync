@@ -3,6 +3,10 @@
 #   docker compose --env-file .env.local up -d --build
 #
 # Di VPS setelah deploy, file di server bernama .env (isi = .env.prod lokal).
+#
+# Postgres: POSTGRES_* hanya dipakai saat volume `pgdata` pertama kali dibuat.
+# Ganti password di .env tanpa reset volume → auth gagal. Perbaikan: samakan password di DB
+# atau hapus volume (data hilang), mis. RESET_DB_VOLUME=1 pada scripts/vps-remote-build.sh.
 
 services:
   db:

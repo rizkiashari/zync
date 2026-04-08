@@ -9,9 +9,9 @@ import (
 
 // Register mounts poll endpoints under workspace-scoped group (Bearer + Tenant).
 func Register(g *gin.RouterGroup, polls *repository.PollRepository, h *hub.Hub) {
-	// Room-scoped
-	g.POST("/rooms/:room_id/polls", postCreatePoll(polls, h))
-	g.GET("/rooms/:room_id/polls", getPolls(polls))
+	// Room-scoped — param name :id must match /rooms/:id used by rooms + messages (gin/httprouter).
+	g.POST("/rooms/:id/polls", postCreatePoll(polls, h))
+	g.GET("/rooms/:id/polls", getPolls(polls))
 
 	// Poll-scoped
 	g.POST("/polls/:poll_id/vote", postVote(polls, h))

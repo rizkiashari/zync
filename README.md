@@ -43,13 +43,13 @@ Set `VITE_API_URL` in `client-chat` so it points at the same base URL as the bac
 
 ## Deploy
 
-### Full stack on VPS (build API + web on the server)
+### Full stack on VPS (`deploy:vps:all`)
 
-Rsyncs the repo to `/opt/zync` (or a path you pass), uploads `server-chat/.env` and `client-chat/.env.prod`, then on the VPS runs `docker compose up --build`, `npm ci`, `npm run build:prod -w client-chat`, and PM2 static serve.
+On your machine: builds a **linux/amd64** API binary (avoids OOM compiling Go on small VPS) and runs **Vite prod** for the client. Rsyncs to `/opt/zync` (or a path you pass), uploads `server-chat/.env` and `client-chat/.env.prod`. On the VPS: **Docker Compose** runs Postgres + API (`Dockerfile.prebuilt`) and **nginx** serves `client-chat/dist` on port **4173** (no Node.js required on the server for the web app).
 
-**VPS once:** Docker + Compose, **Node 20+**, `sudo npm install -g pm2 serve`, `pm2 startup`.
+**VPS:** Docker + Compose v2 only.
 
-**Local:** `server-chat/.env.prod` (or `.env`) and `client-chat/.env.prod` with `VITE_API_URL` pointing at the public API URL.
+**Local:** `server-chat/.env.prod` (or `.env`) and `client-chat/.env.prod` with `VITE_API_URL` set to the public API URL.
 
 ```bash
 npm run deploy:vps:all -- root@YOUR_SERVER_IP
