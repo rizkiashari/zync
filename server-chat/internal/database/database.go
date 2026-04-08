@@ -67,8 +67,15 @@ func Connect(dsn string, pool PoolConfig) (*gorm.DB, error) {
 		// Coin & sticker features
 		&models.CoinWallet{},
 		&models.CoinTransaction{},
+		&models.CoinWithdrawal{},
 		&models.StickerPack{},
 		&models.UserStickerPack{},
+		// Poll feature
+		&models.Poll{},
+		&models.PollOption{},
+		&models.PollVote{},
+		// Scheduled messages
+		&models.ScheduledMessage{},
 	); err != nil {
 		return nil, fmt.Errorf("migrate: %w", err)
 	}

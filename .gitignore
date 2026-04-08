@@ -1,7 +1,6 @@
 # Root / monorepo
-# Deploy scripts (local / ops; often contain server hosts or paths)
-/deploy-web-to-vps.sh
-/server-chat/deploy-to-vps.sh
+# Deploy / ops shell scripts (keep locally; not committed)
+scripts/*.sh
 
 node_modules/
 .turbo/

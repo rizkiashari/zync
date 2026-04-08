@@ -13,6 +13,8 @@ import (
 	"zync-server/internal/httpapi/calls"
 	coinsroute "zync-server/internal/httpapi/coins"
 	"zync-server/internal/httpapi/dashboard"
+	"zync-server/internal/httpapi/polls"
+	"zync-server/internal/httpapi/scheduledmsgs"
 	"zync-server/internal/httpapi/health"
 	"zync-server/internal/httpapi/messages"
 	"zync-server/internal/httpapi/middleware"
@@ -68,7 +70,7 @@ func NewRouter(d Deps) *gin.Engine {
 	// ── Public endpoints (no Bearer auth) ────────────────────────────
 	publicAPI := r.Group("/api")
 	onboardingpricing.RegisterPublic(publicAPI, d.OnboardingPricingPlans)
-	payments.RegisterPublic(publicAPI, d.Config, d.PaymentTransactions)
+	payments.RegisterPublic(publicAPI, d.Config, d.PaymentTransactions, d.Coins)
 
 	// ── Bearer-only routes (no workspace context required) ─────────────
 	api := r.Group("/api")
@@ -78,7 +80,7 @@ func NewRouter(d Deps) *gin.Engine {
 	if d.PushSubscriptions != nil {
 		pushroute.Register(api, d.PushSubscriptions, d.Config.VAPIDPublicKey)
 	}
-	coinsroute.Register(api, d.Coins, d.Users)
+	coinsroute.Register(api, d.Coins, d.Users, d.PaymentTransactions, d.CoinWithdrawals, d.Config)
 	stickersroute.Register(api, d.Stickers, d.Coins)
 	workspaces.Register(api, d.Workspaces, d.Users, "./uploads", d.Subscriptions, d.Rooms, d.OnboardingPricingPlans, d.PaymentTransactions, d.Notifications, d.Hub)
 
@@ -103,6 +105,8 @@ func NewRouter(d Deps) *gin.Engine {
 	bookmarks.Register(wsGroup, d.Bookmarks, d.Messages)
 	workspacefiles.Register(wsGroup, d.Messages, d.Workspaces)
 	payments.Register(wsGroup, d.Config, d.OnboardingPricingPlans, d.Users, d.PaymentTransactions)
+	polls.Register(wsGroup, d.Polls, d.Hub)
+	scheduledmsgs.Register(wsGroup, d.ScheduledMsgs)
 
 	return r
 }

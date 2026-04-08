@@ -235,6 +235,16 @@ func (r *PaymentTransactionRepository) UpdateMidtransMirror(orderID, transStatus
 		}).Error
 }
 
+// MarkCoinTopupApproved marks a coin topup payment transaction as approved without applying a subscription.
+func (r *PaymentTransactionRepository) MarkCoinTopupApproved(orderID string) error {
+	return r.db.Model(&models.PaymentTransaction{}).
+		Where("order_id = ? AND status = ?", orderID, models.PayTxnPending).
+		Updates(map[string]any{
+			"status":     models.PayTxnApproved,
+			"reviewed_at": time.Now().UTC(),
+		}).Error
+}
+
 // MarkMidtransNonSuccess updates mirror fields and terminal status for deny/cancel/expire.
 func (r *PaymentTransactionRepository) MarkMidtransNonSuccess(orderID, transStatus, paymentType, transID string) error {
 	ts := strings.ToLower(strings.TrimSpace(transStatus))

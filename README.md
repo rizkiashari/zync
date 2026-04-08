@@ -4,10 +4,10 @@ Monorepo for a real-time chat app: **React (Vite)** in `client-chat` and **Go (G
 
 ## Repository layout
 
-| Folder         | Description                                          |
-| -------------- | ---------------------------------------------------- |
-| `client-chat/` | Web & Capacitor (iOS/Android), chat UI, calls        |
-| `server-chat/` | REST API, WebSocket, PostgreSQL, JWT, Swagger        |
+| Folder         | Description                                   |
+| -------------- | --------------------------------------------- |
+| `client-chat/` | Web & Capacitor (iOS/Android), chat UI, calls |
+| `server-chat/` | REST API, WebSocket, PostgreSQL, JWT, Swagger |
 
 Feature lists, stacks, and file structure:
 
@@ -43,19 +43,35 @@ Set `VITE_API_URL` in `client-chat` so it points at the same base URL as the bac
 
 ## Deploy
 
-### Backend (Docker on a VPS)
+### Full stack on VPS (build API + web on the server)
+
+Rsyncs the repo to `/opt/zync` (or a path you pass), uploads `server-chat/.env` and `client-chat/.env.prod`, then on the VPS runs `docker compose up --build`, `npm ci`, `npm run build:prod -w client-chat`, and PM2 static serve.
+
+**VPS once:** Docker + Compose, **Node 20+**, `sudo npm install -g pm2 serve`, `pm2 startup`.
+
+**Local:** `server-chat/.env.prod` (or `.env`) and `client-chat/.env.prod` with `VITE_API_URL` pointing at the public API URL.
+
+```bash
+npm run deploy:vps:all -- root@YOUR_SERVER_IP
+# Custom path and web port:
+# WEB_PORT=3000 npm run deploy:vps:all -- root@YOUR_SERVER_IP /opt/zync
+```
+
+Shell entry points (all under `scripts/`, **gitignored** — keep copies locally): `deploy-vps-build-all.sh`, `vps-remote-build.sh`, `deploy-server-to-vps.sh`, `deploy-web-to-vps.sh`.
+
+### Backend only (Docker on a VPS)
 
 ```bash
 npm run deploy:vps -- root@YOUR_SERVER_IP
 ```
 
-Script: `server-chat/deploy-to-vps.sh` (gitignored — keep a copy locally for deploy). Environment details: `server-chat/README.md` and `server-chat/.env.prod.example`.
+Uses `scripts/deploy-server-to-vps.sh`. Default remote directory is `/opt/server-chat`; the full-stack flow uses one tree (e.g. `/opt/zync`). See `server-chat/README.md` and `server-chat/.env.prod.example`.
 
 ### Web frontend (static build + PM2)
 
 1. In `client-chat`: copy `.env.prod.example` to `.env.prod` and set `VITE_API_URL` to your public API (e.g. `http://YOUR_VPS_IP:8080`).
 2. On the server **once**: install Node, then `sudo npm install -g pm2 serve` and run `pm2 startup` as PM2 instructs.
-3. Deploy the static build using `deploy-web-to-vps.sh` at the repo root (gitignored — maintain locally):
+3. Deploy the static build with `scripts/deploy-web-to-vps.sh` (local file; not in git):
 
 ```bash
 # Ensure ALLOWED_ORIGINS in the backend .env on the VPS includes http://YOUR_VPS_IP:4173 (or your chosen port).

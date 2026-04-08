@@ -85,6 +85,9 @@ func main() {
 	paymentTxnRepo := repository.NewPaymentTransactionRepository(db)
 	coinRepo := repository.NewCoinRepository(db)
 	stickerRepo := repository.NewStickerRepository(db)
+	pollRepo := repository.NewPollRepository(db)
+	scheduledMsgRepo := repository.NewScheduledMessageRepository(db)
+	coinWithdrawalRepo := repository.NewCoinWithdrawalRepository(db)
 	mailSvc := mailer.New(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.SMTPFrom)
 
 	if err := database.SeedStickerPacks(db, log); err != nil {
@@ -97,6 +100,7 @@ func main() {
 
 	schedulerCtx, schedulerCancel := context.WithCancel(context.Background())
 	go scheduler.RunTaskReminders(schedulerCtx, taskRepo, notifRepo, h, log)
+	go scheduler.RunScheduledMessages(schedulerCtx, scheduledMsgRepo, msgRepo, h, log)
 
 	r := httpapi.NewRouter(httpapi.Deps{
 		Hub:           h,
@@ -113,7 +117,10 @@ func main() {
 		Subscriptions:       subscriptionRepo,
 		PaymentTransactions: paymentTxnRepo,
 		Coins:               coinRepo,
+		CoinWithdrawals:     coinWithdrawalRepo,
 		Stickers:            stickerRepo,
+		Polls:               pollRepo,
+		ScheduledMsgs:       scheduledMsgRepo,
 		Mailer:              mailSvc,
 		OnboardingPricingPlans: onboardingPricingRepo,
 		Auth:          jwtSvc,

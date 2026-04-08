@@ -15,7 +15,8 @@
 		"deploy:vps": "npm run deploy:vps -w server-chat",
 		"deploy:vps:local-build": "npm run deploy:vps:local-build -w server-chat",
 		"deploy:vps:no-build": "npm run deploy:vps:no-build -w server-chat",
-		"deploy:web:vps": "./deploy-web-to-vps.sh"
+		"deploy:web:vps": "bash scripts/deploy-web-to-vps.sh",
+		"deploy:vps:all": "bash scripts/deploy-vps-build-all.sh"
 	},
 	"devDependencies": {
 		"turbo": "^2.5.4"

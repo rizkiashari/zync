@@ -8,8 +8,8 @@ import (
 )
 
 // RegisterPublic mounts unauthenticated payment callbacks (Midtrans notification).
-func RegisterPublic(g *gin.RouterGroup, cfg *config.Config, txns *repository.PaymentTransactionRepository) {
-	g.POST("/payments/midtrans/notification", handleMidtransNotification(cfg, txns))
+func RegisterPublic(g *gin.RouterGroup, cfg *config.Config, txns *repository.PaymentTransactionRepository, coins *repository.CoinRepository) {
+	g.POST("/payments/midtrans/notification", handleMidtransNotification(cfg, txns, coins))
 }
 
 // Register mounts workspace-scoped payment routes (Bearer + Tenant).

@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"zync-server/internal/config"
+	"zync-server/internal/models"
 	"zync-server/internal/repository"
 )
 
@@ -36,7 +37,7 @@ type midtransNotifBody struct {
 
 // handleMidtransNotification handles Midtrans HTTP(S) notification (no auth — signature verified).
 // Configure URL in Midtrans dashboard: POST {PUBLIC_URL}/api/payments/midtrans/notification
-func handleMidtransNotification(cfg *config.Config, txns *repository.PaymentTransactionRepository) gin.HandlerFunc {
+func handleMidtransNotification(cfg *config.Config, txns *repository.PaymentTransactionRepository, coins *repository.CoinRepository) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if strings.TrimSpace(cfg.MidtransServerKey) == "" {
 			c.String(http.StatusServiceUnavailable, "payment unavailable")
@@ -78,7 +79,12 @@ func handleMidtransNotification(cfg *config.Config, txns *repository.PaymentTran
 		ts := strings.ToLower(transStatus)
 		switch ts {
 		case "settlement", "capture":
-			_ = txns.ApplyMidtransSuccess(orderID, meta)
+			// Coin topup orders are prefixed "zync-coin-{uid}-..."
+			if strings.HasPrefix(orderID, "zync-coin-") {
+				applyCoinTopupSuccess(txns, coins, orderID, meta)
+			} else {
+				_ = txns.ApplyMidtransSuccess(orderID, meta)
+			}
 		case "pending":
 			_ = txns.UpdateMidtransMirror(orderID, transStatus, paymentType, transID)
 		case "deny", "cancel", "expire", "failure":
@@ -89,6 +95,22 @@ func handleMidtransNotification(cfg *config.Config, txns *repository.PaymentTran
 
 		c.String(http.StatusOK, "OK")
 	}
+}
+
+// applyCoinTopupSuccess marks payment approved and credits coins to the user's wallet.
+func applyCoinTopupSuccess(txns *repository.PaymentTransactionRepository, coins *repository.CoinRepository, orderID string, meta map[string]string) {
+	txn, err := txns.GetByOrderID(orderID)
+	if err != nil || txn == nil {
+		return
+	}
+	if txn.Status == models.PayTxnApproved {
+		return // idempotent
+	}
+	// Mark transaction approved (reuse existing helper via raw update to avoid subscription logic)
+	_ = txns.UpdateMidtransMirror(orderID, meta["transaction_status"], meta["payment_type"], meta["transaction_id"])
+	_ = txns.MarkCoinTopupApproved(orderID)
+	// Credit coins: 1 IDR = 1 coin
+	_ = coins.Topup(txn.UserID, txn.AmountIDR, orderID, "Coin topup via Midtrans")
 }
 
 // normalizeGrossAmountForSignature matches Midtrans docs (string as sent, often "10000.00").

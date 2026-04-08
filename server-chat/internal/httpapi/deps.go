@@ -26,7 +26,10 @@ type Deps struct {
 	PaymentTransactions  *repository.PaymentTransactionRepository
 	PushSubscriptions *repository.PushSubscriptionRepository
 	Coins         *repository.CoinRepository
+	CoinWithdrawals *repository.CoinWithdrawalRepository
 	Stickers      *repository.StickerRepository
+	Polls         *repository.PollRepository
+	ScheduledMsgs *repository.ScheduledMessageRepository
 	Auth          *auth.Service
 	Mailer        *mailer.Mailer
 	Config        *config.Config

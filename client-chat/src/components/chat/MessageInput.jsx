@@ -9,9 +9,13 @@ import {
 	Image,
 	Mic,
 	Square,
+	BarChart2,
+	Clock,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { messageService } from "../../services/messageService";
+import PollCreator from "./PollCreator";
+import ScheduleMessageModal from "./ScheduleMessageModal";
 
 const ReplyBar = ({ replyTo, onCancel }) => (
 	<div className='flex items-center gap-3 px-4 py-2 bg-indigo-50 border-b border-indigo-100'>
@@ -75,12 +79,14 @@ function pickAudioMime() {
 	return "";
 }
 
-const MessageInput = ({ onSend, onTyping, replyTo, onCancelReply, roomId }) => {
+const MessageInput = ({ onSend, onTyping, replyTo, onCancelReply, roomId, onPollCreated }) => {
 	const [text, setText] = useState("");
 	const [attachedFile, setAttachedFile] = useState(null);
 	const [uploading, setUploading] = useState(false);
 	const [recording, setRecording] = useState(false);
 	const [recordSeconds, setRecordSeconds] = useState(0);
+	const [showPollCreator, setShowPollCreator] = useState(false);
+	const [showSchedule, setShowSchedule] = useState(false);
 	const textareaRef = useRef(null);
 	const fileInputRef = useRef(null);
 	const imageInputRef = useRef(null);
@@ -370,6 +376,26 @@ const MessageInput = ({ onSend, onTyping, replyTo, onCancelReply, roomId }) => {
 						>
 							<Paperclip className='w-5 h-5' />
 						</button>
+						{/* Poll */}
+						<button
+							type='button'
+							disabled={uploading || recording}
+							onClick={() => setShowPollCreator(true)}
+							className='p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors disabled:opacity-40'
+							title='Buat poll'
+						>
+							<BarChart2 className='w-5 h-5' />
+						</button>
+						{/* Schedule message */}
+						<button
+							type='button'
+							disabled={uploading || recording || !text.trim()}
+							onClick={() => setShowSchedule(true)}
+							className='p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-40'
+							title='Jadwalkan pesan'
+						>
+							<Clock className='w-5 h-5' />
+						</button>
 						<button
 							type='button'
 							onClick={handleSend}
@@ -390,6 +416,30 @@ const MessageInput = ({ onSend, onTyping, replyTo, onCancelReply, roomId }) => {
 					Enter untuk kirim · Shift+Enter untuk baris baru
 				</p>
 			</div>
+
+			{showPollCreator && (
+				<PollCreator
+					roomId={roomId}
+					onClose={() => setShowPollCreator(false)}
+					onCreated={(poll) => {
+						setShowPollCreator(false);
+						onPollCreated?.(poll);
+					}}
+				/>
+			)}
+			{showSchedule && (
+				<ScheduleMessageModal
+					roomId={roomId}
+					text={text}
+					replyTo={replyTo}
+					onClose={() => setShowSchedule(false)}
+					onScheduled={() => {
+						setText("");
+						if (textareaRef.current) textareaRef.current.style.height = "auto";
+						onTyping?.(false);
+					}}
+				/>
+			)}
 		</div>
 	);
 };
