@@ -1,4 +1,8 @@
 # Root / monorepo
+# Deploy scripts (local / ops; often contain server hosts or paths)
+/deploy-web-to-vps.sh
+/server-chat/deploy-to-vps.sh
+
 node_modules/
 .turbo/
 *.log
