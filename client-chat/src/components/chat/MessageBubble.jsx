@@ -20,8 +20,46 @@ import Avatar from "../ui/Avatar";
 import { formatMessageTime } from "../../data/mockData";
 import toast from "react-hot-toast";
 import { messageService } from "../../services/messageService";
+import LinkPreviewCard from "./LinkPreviewCard";
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+
+const URL_REGEX = /https?:\/\/[^\s<>"{}|\\^`[\]]+/;
+
+function extractFirstUrl(text) {
+  if (!text || typeof text !== "string") return null;
+  const match = text.match(URL_REGEX);
+  return match ? match[0] : null;
+}
+
+const previewCache = {};
+
+function useLinkPreview(text) {
+  const [preview, setPreview] = useState(null);
+  const url = extractFirstUrl(text);
+
+  useEffect(() => {
+    if (!url) return;
+    if (previewCache[url]) {
+      setPreview(previewCache[url]);
+      return;
+    }
+    let cancelled = false;
+    messageService.getLinkPreview(url)
+      .then((res) => {
+        if (cancelled) return;
+        const data = res.data?.data;
+        if (data?.title || data?.description) {
+          previewCache[url] = data;
+          setPreview(data);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [url]);
+
+  return preview;
+}
 
 const EmojiPicker = ({ onSelect, onClose }) => {
 	const ref = useRef(null);
@@ -436,6 +474,7 @@ const MessageBubble = ({
 	const isDeleted = message.deleted;
 	const isPinned = pinnedMessageId === message.id;
 	const isBookmarked = bookmarkedIds.includes(message.id);
+	const linkPreview = useLinkPreview(!isDeleted ? message.text : null);
 
 	const handleContextMenu = (e) => {
 		e.preventDefault();
@@ -504,9 +543,12 @@ const MessageBubble = ({
 									if (fileMeta)
 										return <FileBubble meta={fileMeta} dark={isOwn} />;
 									return (
-										<p className='text-sm leading-relaxed whitespace-pre-wrap break-words'>
-											{message.text}
-										</p>
+										<>
+											<p className='text-sm leading-relaxed whitespace-pre-wrap break-words'>
+												{message.text}
+											</p>
+											{linkPreview && <LinkPreviewCard preview={linkPreview} dark />}
+										</>
 									);
 								})()
 							)}
@@ -604,9 +646,12 @@ const MessageBubble = ({
 								if (fileMeta)
 									return <FileBubble meta={fileMeta} dark={false} />;
 								return (
-									<p className='text-sm leading-relaxed whitespace-pre-wrap break-words'>
-										{message.text}
-									</p>
+									<>
+										<p className='text-sm leading-relaxed whitespace-pre-wrap break-words'>
+											{message.text}
+										</p>
+										{linkPreview && <LinkPreviewCard preview={linkPreview} />}
+									</>
 								);
 							})()
 						)}
