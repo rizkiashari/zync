@@ -94,16 +94,26 @@ type RoomMemberStore interface {
 	GetMemberIDs(roomID uint) ([]uint, error)
 }
 
+// PushFunc sends a push notification to a user. May be nil if push is disabled.
+type PushFunc func(toUserID uint, title, body string)
+
+// MentionFunc creates in-app notifications for @mentioned users. May be nil.
+// text is the raw message body; senderID, roomID, msgID are the message context.
+type MentionFunc func(text string, senderID, roomID, msgID uint)
+
 type Client struct {
 	hub           *hub.Hub
 	store         MessageStore
 	presence      PresenceStore
 	members       RoomMemberStore
+	pushFn        PushFunc   // optional
+	mentionFn     MentionFunc // optional
 	conn          *gorillaws.Conn
 	send          chan []byte
 	userID        uint
 	roomID        uint
 	roomKey       string
+	senderName    string // display name of connected user
 	statusMessage string
 }
 
@@ -112,7 +122,7 @@ func (c *Client) SendCh() chan []byte  { return c.send }
 func (c *Client) ID() string          { return strconv.FormatUint(uint64(c.userID), 10) }
 func (c *Client) Room() string        { return c.roomKey }
 
-func Serve(h *hub.Hub, store MessageStore, presence PresenceStore, members RoomMemberStore, w http.ResponseWriter, r *http.Request, userID, roomID uint, statusMessage string, allowedOrigins []string) {
+func Serve(h *hub.Hub, store MessageStore, presence PresenceStore, members RoomMemberStore, pushFn PushFunc, mentionFn MentionFunc, w http.ResponseWriter, r *http.Request, userID, roomID uint, senderName, statusMessage string, allowedOrigins []string) {
 	roomKey := strconv.FormatUint(uint64(roomID), 10)
 	upgrader := newUpgrader(allowedOrigins)
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -125,11 +135,14 @@ func Serve(h *hub.Hub, store MessageStore, presence PresenceStore, members RoomM
 		store:         store,
 		presence:      presence,
 		members:       members,
+		pushFn:        pushFn,
+		mentionFn:     mentionFn,
 		conn:          conn,
 		send:          make(chan []byte, 256),
 		userID:        userID,
 		roomID:        roomID,
 		roomKey:       roomKey,
+		senderName:    senderName,
 		statusMessage: statusMessage,
 	}
 	c.hub.Register(c)
@@ -221,9 +234,25 @@ func (c *Client) readPump() {
 					for _, memberID := range memberIDs {
 						if memberID != c.userID {
 							_ = c.hub.NotifyUser(memberID, out)
+							// Push notification for offline/background members
+							if c.pushFn != nil {
+								name := c.senderName
+								if name == "" {
+									name = "Pesan baru"
+								}
+								preview := in.Text
+								if len(preview) > 80 {
+									preview = preview[:80] + "…"
+								}
+								go c.pushFn(memberID, name, preview)
+							}
 						}
 					}
 				}
+			}
+			// Parse @mentions and notify mentioned users
+			if c.mentionFn != nil {
+				go c.mentionFn(in.Text, c.userID, c.roomID, id)
 			}
 
 		case TypeTyping:

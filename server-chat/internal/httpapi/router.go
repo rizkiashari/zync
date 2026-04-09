@@ -13,6 +13,7 @@ import (
 	"zync-server/internal/httpapi/calls"
 	coinsroute "zync-server/internal/httpapi/coins"
 	"zync-server/internal/httpapi/dashboard"
+	"zync-server/internal/httpapi/linkpreview"
 	"zync-server/internal/httpapi/polls"
 	"zync-server/internal/httpapi/scheduledmsgs"
 	"zync-server/internal/httpapi/health"
@@ -65,7 +66,7 @@ func NewRouter(d Deps) *gin.Engine {
 	authGroup.Use(middleware.RateLimit(rate.Limit(10), 20))
 	authroute.Register(authGroup, d.Users, d.RefreshTokens, d.Auth, d.Workspaces)
 
-	realtime.Register(r, d.Hub, d.Messages, d.Rooms, d.Users, d.Workspaces, d.Auth, d.Config.AllowedOrigins)
+	realtime.Register(r, d.Hub, d.Messages, d.Rooms, d.Users, d.Workspaces, d.Notifications, d.PushSubscriptions, d.Config, d.Auth, d.Config.AllowedOrigins)
 
 	// ── Public endpoints (no Bearer auth) ────────────────────────────
 	publicAPI := r.Group("/api")
@@ -80,6 +81,7 @@ func NewRouter(d Deps) *gin.Engine {
 	if d.PushSubscriptions != nil {
 		pushroute.Register(api, d.PushSubscriptions, d.Config.VAPIDPublicKey)
 	}
+	linkpreview.Register(api)
 	coinsroute.Register(api, d.Coins, d.Users, d.PaymentTransactions, d.CoinWithdrawals, d.Config)
 	stickersroute.Register(api, d.Stickers, d.Coins)
 	workspaces.Register(api, d.Workspaces, d.Users, "./uploads", d.Subscriptions, d.Rooms, d.OnboardingPricingPlans, d.PaymentTransactions, d.Notifications, d.Hub)

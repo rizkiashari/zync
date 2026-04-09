@@ -19,4 +19,5 @@ func Register(api *gin.RouterGroup, msgRepo *repository.MessageRepository, rooms
 	api.GET("/messages/:msgId/reactions", getReactions(msgRepo))
 	api.POST("/messages/:msgId/reactions", addReaction(msgRepo, roomsRepo, h))
 	api.DELETE("/messages/:msgId/reactions/:emoji", removeReaction(msgRepo, roomsRepo, h))
+	api.POST("/messages/:msgId/forward", forwardMessage(msgRepo, roomsRepo, h))
 }

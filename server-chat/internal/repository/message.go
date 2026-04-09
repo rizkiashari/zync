@@ -98,6 +98,34 @@ func (r *MessageRepository) DeleteMessage(id uint) error {
 	}).Error
 }
 
+// Forward creates a copy of a message in one or more target rooms.
+// Returns the IDs of the newly created messages.
+func (r *MessageRepository) Forward(originalID, senderID uint, targetRoomIDs []uint) ([]uint, error) {
+	orig, err := r.GetByID(originalID)
+	if err != nil {
+		return nil, err
+	}
+	if orig == nil || orig.IsDeleted {
+		return nil, errors.New("message not found")
+	}
+	fwd := originalID
+	var newIDs []uint
+	for _, roomID := range targetRoomIDs {
+		m := models.Message{
+			RoomID:          roomID,
+			SenderID:        senderID,
+			Body:            orig.Body,
+			ForwardedFromID: &fwd,
+			CreatedAt:       time.Now().UTC(),
+		}
+		if err := r.db.Create(&m).Error; err != nil {
+			return newIDs, err
+		}
+		newIDs = append(newIDs, m.ID)
+	}
+	return newIDs, nil
+}
+
 // Search returns messages in a room matching a keyword (case-insensitive full-text search).
 func (r *MessageRepository) Search(roomID uint, query string, limit int) ([]models.Message, error) {
 	if limit <= 0 || limit > 100 {

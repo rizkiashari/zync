@@ -3,12 +3,16 @@ package realtime
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
 	"zync-server/internal/auth"
+	"zync-server/internal/config"
 	"zync-server/internal/httpapi/response"
 	"zync-server/internal/hub"
+	"zync-server/internal/models"
+	"zync-server/internal/pushsender"
 	"zync-server/internal/repository"
 	chatws "zync-server/internal/transport/websocket"
 )
@@ -50,6 +54,9 @@ func handleWebSocket(
 	roomsRepo *repository.RoomRepository,
 	usersRepo *repository.UserRepository,
 	wsRepo *repository.WorkspaceRepository,
+	notifRepo *repository.NotificationRepository,
+	pushRepo *repository.PushSubscriptionRepository,
+	cfg *config.Config,
 	jwtSvc *auth.Service,
 	allowedOrigins []string,
 ) gin.HandlerFunc {
@@ -104,10 +111,74 @@ func handleWebSocket(
 				}
 			}
 		}
+		senderName := ""
 		statusMessage := ""
 		if u, err2 := usersRepo.GetByID(userID); err2 == nil && u != nil {
+			senderName = u.Username
 			statusMessage = u.StatusMessage
 		}
-		chatws.Serve(h, msgRepo, usersRepo, roomsRepo, c.Writer, c.Request, userID, roomID, statusMessage, allowedOrigins)
+
+		// Build push notifier (nil-safe when VAPID not configured)
+		var pushFn chatws.PushFunc
+		if pushRepo != nil && cfg.VAPIDPublicKey != "" {
+			pushFn = func(toUserID uint, title, body string) {
+				pushsender.SendToUser(pushRepo, toUserID, pushsender.Payload{
+					Title: title,
+					Body:  body,
+				}, cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject)
+			}
+		}
+
+		// Build mention handler (nil-safe)
+		var mentionFn chatws.MentionFunc
+		if notifRepo != nil {
+			mentionFn = func(text string, sID, rID, mID uint) {
+				handleMentions(text, sID, rID, mID, roomsRepo, usersRepo, notifRepo, h)
+			}
+		}
+
+		chatws.Serve(h, msgRepo, usersRepo, roomsRepo, pushFn, mentionFn, c.Writer, c.Request, userID, roomID, senderName, statusMessage, allowedOrigins)
+	}
+}
+
+// handleMentions parses @username tokens from text, looks up each mentioned user
+// in the room members, and creates an in-app notification + WS notify.
+func handleMentions(text string, senderID, roomID, msgID uint, roomsRepo *repository.RoomRepository, usersRepo *repository.UserRepository, notifRepo *repository.NotificationRepository, h *hub.Hub) {
+	words := strings.Fields(text)
+	seen := map[string]bool{}
+	memberIDs, err := roomsRepo.GetMemberIDs(roomID)
+	if err != nil {
+		return
+	}
+	for _, w := range words {
+		if !strings.HasPrefix(w, "@") || len(w) < 2 {
+			continue
+		}
+		username := strings.ToLower(strings.TrimPrefix(w, "@"))
+		username = strings.TrimRight(username, ".,!?;:")
+		if seen[username] {
+			continue
+		}
+		seen[username] = true
+		// Find the user by username within room members
+		for _, mid := range memberIDs {
+			if mid == senderID {
+				continue
+			}
+			u, err := usersRepo.GetByID(mid)
+			if err != nil || u == nil {
+				continue
+			}
+			if strings.ToLower(u.Username) == username {
+				_ = notifRepo.CreateIfNotDND(mid, models.NotificationTypeMention, roomID, msgID, senderID, "@"+u.Username+" mentioned you")
+				_ = h.NotifyUser(mid, map[string]any{
+					"type":       "mention",
+					"room_id":    roomID,
+					"message_id": msgID,
+					"from_id":    senderID,
+				})
+				break
+			}
+		}
 	}
 }

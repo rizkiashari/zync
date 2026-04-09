@@ -463,6 +463,53 @@ func getThread(msgRepo *repository.MessageRepository) gin.HandlerFunc {
 	}
 }
 
+// forwardMessage godoc
+// POST /api/messages/:msgId/forward
+// Body: { "room_ids": [1, 2] }
+func forwardMessage(msgRepo *repository.MessageRepository, roomsRepo *repository.RoomRepository, h *hub.Hub) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userID, ok := middleware.UserID(c)
+		if !ok {
+			response.Error(c, http.StatusUnauthorized, response.CodeUnauthorized, "Unauthorized")
+			return
+		}
+		msgID, err := parseID(c, "msgId")
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "Invalid message ID")
+			return
+		}
+		var body struct {
+			RoomIDs []uint `json:"room_ids" binding:"required,min=1"`
+		}
+		if err := c.ShouldBindJSON(&body); err != nil {
+			response.Error(c, http.StatusBadRequest, response.CodeInvalidBody, "room_ids is required")
+			return
+		}
+		// Verify user is member of all target rooms
+		for _, rid := range body.RoomIDs {
+			if ok, _ := assertMember(c, roomsRepo, rid, userID); !ok {
+				return
+			}
+		}
+		newIDs, err := msgRepo.Forward(msgID, userID, body.RoomIDs)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, response.CodeInternal, "Failed to forward message")
+			return
+		}
+		// Broadcast to each target room
+		orig, _ := msgRepo.GetByID(msgID)
+		for i, rid := range body.RoomIDs {
+			if i < len(newIDs) {
+				_ = h.BroadcastToRoom(strconv.FormatUint(uint64(rid), 10), gin.H{
+					"type":    "new_message",
+					"message": gin.H{"id": newIDs[i], "room_id": rid, "sender_id": userID, "body": orig.Body, "forwarded_from_id": msgID},
+				})
+			}
+		}
+		response.OK(c, gin.H{"forwarded_message_ids": newIDs})
+	}
+}
+
 func parseID(c *gin.Context, param string) (uint, error) {
 	id64, err := strconv.ParseUint(c.Param(param), 10, 64)
 	return uint(id64), err
