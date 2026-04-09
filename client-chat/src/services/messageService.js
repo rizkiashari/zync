@@ -44,4 +44,10 @@ export const messageService = {
 
   listWorkspaceFiles: (workspaceId, params = {}) =>
     api.get(`/api/workspaces/${workspaceId}/files`, { params }),
+
+  forward: (msgId, roomIds) =>
+    api.post(`/api/messages/${msgId}/forward`, { room_ids: roomIds }),
+
+  getLinkPreview: (url) =>
+    api.get(`/api/link-preview`, { params: { url } }),
 };
