@@ -15,12 +15,14 @@ import {
 	Smile,
 	X,
 	ZoomIn,
+	Forward,
 } from "lucide-react";
 import Avatar from "../ui/Avatar";
 import { formatMessageTime } from "../../data/mockData";
 import toast from "react-hot-toast";
 import { messageService } from "../../services/messageService";
 import LinkPreviewCard from "./LinkPreviewCard";
+import ForwardMessageModal from "./ForwardMessageModal";
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
@@ -326,6 +328,7 @@ const ContextMenu = ({
 	onBookmark,
 	isBookmarked,
 	onOpenThread,
+	onForward,
 	onClose,
 }) => {
 	const ref = useRef(null);
@@ -374,6 +377,15 @@ const ContextMenu = ({
 				<Copy className='w-4 h-4 text-slate-500' />
 				Salin
 			</button>
+			{onForward && (
+				<button
+					onClick={onForward}
+					className='w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 text-slate-700 transition-colors'
+				>
+					<Forward className='w-4 h-4 text-slate-500' />
+					Teruskan
+				</button>
+			)}
 			{onBookmark && (
 				<button
 					onClick={onBookmark}
@@ -470,6 +482,7 @@ const MessageBubble = ({
 	// currentUserId unused — kept for future use
 }) => {
 	const [menu, setMenu] = useState(null);
+	const [showForward, setShowForward] = useState(false);
 	const time = formatMessageTime(message.timestamp);
 	const isDeleted = message.deleted;
 	const isPinned = pinnedMessageId === message.id;
@@ -511,6 +524,11 @@ const MessageBubble = ({
 
 	const handleOpenThread = () => {
 		onOpenThread?.(message);
+		setMenu(null);
+	};
+
+	const handleForward = () => {
+		setShowForward(true);
 		setMenu(null);
 	};
 
