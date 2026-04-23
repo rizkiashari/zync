@@ -25,12 +25,16 @@ import {
 	SmilePlus,
 	Monitor,
 	MonitorOff as MonitorStopIcon,
+	Hand,
+	MessageSquare,
 } from "lucide-react";
 import { useCallEvents } from "../hooks/useCallEvents";
 import CallEventOverlay from "../components/call/CallEventOverlay";
 import SawerPanel from "../components/call/SawerPanel";
 import StickerPanel from "../components/call/StickerPanel";
 import toast from "react-hot-toast";
+import ParticipantList from "../components/call/ParticipantList";
+import CallChat from "../components/call/CallChat";
 
 // ── Memoized voice tile ───────────────────────────────────────────────────────
 const VoiceTile = memo(({ participant }) => {
@@ -105,15 +109,33 @@ const VoiceLayout = ({ onEndCall }) => {
 	const participants = useParticipants();
 	const { localParticipant } = useLocalParticipant();
 	const [muted, setMuted] = useState(false);
+	const [showParticipants, setShowParticipants] = useState(false);
+	const [showChat, setShowChat] = useState(false);
+	const [handRaised, setHandRaised] = useState(false);
+
+	const { events, sendEvent, raisedHands, chatMessages } = useCallEvents();
 
 	const toggleMic = useCallback(() => {
 		localParticipant.setMicrophoneEnabled(muted);
 		setMuted((m) => !m);
 	}, [localParticipant, muted]);
 
+	const handleToggleHand = useCallback(() => {
+		const nextRaised = !handRaised;
+		setHandRaised(nextRaised);
+		sendEvent(nextRaised ? "raise_hand" : "lower_hand", {});
+	}, [handRaised, sendEvent]);
+
+	const handleSendChat = useCallback(
+		(text) => {
+			sendEvent("chat", { text });
+		},
+		[sendEvent],
+	);
+
 	return (
 		<div className='flex flex-col h-full bg-[#202124]'>
-			<div className='flex-1 flex items-center justify-center p-6'>
+			<div className='flex-1 relative flex items-center justify-center p-6'>
 				<div
 					className='grid gap-3 w-full max-w-2xl'
 					style={{
@@ -129,9 +151,26 @@ const VoiceLayout = ({ onEndCall }) => {
 						<VoiceTile key={p.identity} participant={p} />
 					))}
 				</div>
+
+				<CallEventOverlay events={events} />
+
+				{showParticipants && (
+					<ParticipantList
+						raisedHands={raisedHands}
+						onClose={() => setShowParticipants(false)}
+					/>
+				)}
+
+				{showChat && (
+					<CallChat
+						messages={chatMessages}
+						onSend={handleSendChat}
+						onClose={() => setShowChat(false)}
+					/>
+				)}
 			</div>
 			<RoomAudioRenderer />
-			<div className='flex items-center justify-center gap-3 border-t border-white/10 bg-[#202124] px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-4 sm:py-5'>
+			<div className='flex items-center justify-center gap-3 border-t border-white/10 bg-[#202124] px-2 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:gap-4 sm:py-5 flex-wrap'>
 				<CtrlBtn
 					active={muted}
 					onClick={toggleMic}
@@ -143,6 +182,40 @@ const VoiceLayout = ({ onEndCall }) => {
 						<Mic className='w-5 h-5 text-white' />
 					)}
 				</CtrlBtn>
+
+				{/* Raise hand */}
+				<CtrlBtn
+					active={handRaised}
+					onClick={handleToggleHand}
+					label={handRaised ? "Turunkan tangan" : "Angkat tangan"}
+				>
+					<Hand className={`w-5 h-5 ${handRaised ? "text-yellow-300" : "text-white"}`} />
+				</CtrlBtn>
+
+				{/* Participant list */}
+				<CtrlBtn
+					active={showParticipants}
+					onClick={() => {
+						setShowParticipants((v) => !v);
+						setShowChat(false);
+					}}
+					label="Daftar peserta"
+				>
+					<Users className="w-5 h-5 text-white" />
+				</CtrlBtn>
+
+				{/* In-call chat */}
+				<CtrlBtn
+					active={showChat}
+					onClick={() => {
+						setShowChat((v) => !v);
+						setShowParticipants(false);
+					}}
+					label="Chat"
+				>
+					<MessageSquare className="w-5 h-5 text-white" />
+				</CtrlBtn>
+
 				<EndBtn onClick={onEndCall} />
 			</div>
 		</div>
@@ -163,9 +236,12 @@ const VideoLayout = ({ onEndCall, callData }) => {
 	const [facingMode, setFacingMode] = useState("user"); // Feature 2
 	const [showSawer, setShowSawer] = useState(false); // Feature 3
 	const [showSticker, setShowSticker] = useState(false); // Feature 4+5
+	const [showParticipants, setShowParticipants] = useState(false);
+	const [showChat, setShowChat] = useState(false);
+	const [handRaised, setHandRaised] = useState(false);
 
 	// Feature 3+4 — data channel events
-	const { events, sendEvent } = useCallEvents();
+	const { events, sendEvent, raisedHands, chatMessages } = useCallEvents();
 
 	const remoteCameraTracks = cameraTracks.filter(
 		(t) => isTrackReference(t) && !t.participant.isLocal,
@@ -218,9 +294,24 @@ const VideoLayout = ({ onEndCall, callData }) => {
 		[sendEvent],
 	);
 
+	const handleToggleHand = useCallback(() => {
+		const nextRaised = !handRaised;
+		setHandRaised(nextRaised);
+		sendEvent(nextRaised ? "raise_hand" : "lower_hand", {});
+	}, [handRaised, sendEvent]);
+
+	const handleSendChat = useCallback(
+		(text) => {
+			sendEvent("chat", { text });
+		},
+		[sendEvent],
+	);
+
 	const toggleScreenShare = useCallback(async () => {
 		try {
-			await localParticipant.setScreenShareEnabled(!localParticipant.isScreenShareEnabled);
+			await localParticipant.setScreenShareEnabled(
+				!localParticipant.isScreenShareEnabled,
+			);
 		} catch {
 			toast.error(
 				"Tidak bisa berbagi layar (izin ditolak atau tidak didukung)",
@@ -321,6 +412,21 @@ const VideoLayout = ({ onEndCall, callData }) => {
 						onClose={() => setShowSticker(false)}
 					/>
 				)}
+
+				{showParticipants && (
+					<ParticipantList
+						raisedHands={raisedHands}
+						onClose={() => setShowParticipants(false)}
+					/>
+				)}
+
+				{showChat && (
+					<CallChat
+						messages={chatMessages}
+						onSend={handleSendChat}
+						onClose={() => setShowChat(false)}
+					/>
+				)}
 			</div>
 
 			<RoomAudioRenderer />
@@ -390,6 +496,39 @@ const VideoLayout = ({ onEndCall, callData }) => {
 					label='Stiker'
 				>
 					<SmilePlus className='w-5 h-5 text-emerald-300' />
+				</CtrlBtn>
+
+				{/* Raise hand */}
+				<CtrlBtn
+					active={handRaised}
+					onClick={handleToggleHand}
+					label={handRaised ? "Turunkan tangan" : "Angkat tangan"}
+				>
+					<Hand className={`w-5 h-5 ${handRaised ? "text-yellow-300" : "text-white"}`} />
+				</CtrlBtn>
+
+				{/* Participant list */}
+				<CtrlBtn
+					active={showParticipants}
+					onClick={() => {
+						setShowParticipants((v) => !v);
+						setShowChat(false);
+					}}
+					label="Daftar peserta"
+				>
+					<Users className="w-5 h-5 text-white" />
+				</CtrlBtn>
+
+				{/* In-call chat */}
+				<CtrlBtn
+					active={showChat}
+					onClick={() => {
+						setShowChat((v) => !v);
+						setShowParticipants(false);
+					}}
+					label="Chat"
+				>
+					<MessageSquare className="w-5 h-5 text-white" />
 				</CtrlBtn>
 
 				<EndBtn onClick={onEndCall} />
