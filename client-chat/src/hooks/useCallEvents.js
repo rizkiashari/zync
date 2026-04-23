@@ -10,6 +10,8 @@ export function useCallEvents() {
 	const room = useRoomContext();
 	const { localParticipant } = useLocalParticipant();
 	const [events, setEvents] = useState([]);
+	const [raisedHands, setRaisedHands] = useState(new Set());
+	const [chatMessages, setChatMessages] = useState([]);
 
 	const pushEvent = useCallback((ev) => {
 		const id = `${Date.now()}_${Math.random()}`;
@@ -25,7 +27,13 @@ export function useCallEvents() {
 		const handler = (data, participant) => {
 			try {
 				const msg = JSON.parse(new TextDecoder().decode(data));
-				if (msg.type === "sticker" || msg.type === "sawer") {
+				if (
+					msg.type === "sticker" ||
+					msg.type === "sawer" ||
+					msg.type === "raise_hand" ||
+					msg.type === "lower_hand" ||
+					msg.type === "chat"
+				) {
 					pushEvent({
 						...msg,
 						from:
@@ -33,6 +41,32 @@ export function useCallEvents() {
 							participant?.identity ||
 							"Seseorang",
 					});
+				}
+				if (msg.type === "raise_hand") {
+					setRaisedHands((prev) => {
+						const next = new Set(prev);
+						next.add(participant?.identity);
+						return next;
+					});
+				} else if (msg.type === "lower_hand") {
+					setRaisedHands((prev) => {
+						const next = new Set(prev);
+						next.delete(participant?.identity);
+						return next;
+					});
+				} else if (msg.type === "chat") {
+					setChatMessages((prev) => [
+						...prev,
+						{
+							id: `${Date.now()}_${Math.random()}`,
+							from:
+								participant?.name ||
+								participant?.identity ||
+								"Seseorang",
+							text: msg.text,
+							ts: new Date(),
+						},
+					]);
 				}
 			} catch {
 				// ignore malformed data
@@ -61,5 +95,5 @@ export function useCallEvents() {
 		[localParticipant, pushEvent],
 	);
 
-	return { events, sendEvent };
+	return { events, sendEvent, raisedHands, chatMessages };
 }
