@@ -2,7 +2,7 @@
  * useCallEvents — LiveKit data-channel hook for sticker & sawer events.
  * Must be used inside a <LiveKitRoom> component tree.
  */
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRoomContext, useLocalParticipant } from "@livekit/components-react";
 import { RoomEvent } from "livekit-client";
 
@@ -12,14 +12,24 @@ export function useCallEvents() {
 	const [events, setEvents] = useState([]);
 	const [raisedHands, setRaisedHands] = useState(new Set());
 	const [chatMessages, setChatMessages] = useState([]);
+	const idCounterRef = useRef(0);
+	const timeoutsRef = useRef([]);
 
 	const pushEvent = useCallback((ev) => {
-		const id = `${Date.now()}_${Math.random()}`;
+		const id = `ev_${++idCounterRef.current}`;
 		setEvents((prev) => [...prev, { ...ev, id }]);
-		setTimeout(
+		const tid = setTimeout(
 			() => setEvents((prev) => prev.filter((e) => e.id !== id)),
 			4500,
 		);
+		timeoutsRef.current.push(tid);
+	}, []);
+
+	// Cleanup pending timeouts on unmount
+	useEffect(() => {
+		return () => {
+			timeoutsRef.current.forEach(clearTimeout);
+		};
 	}, []);
 
 	// Receive events from remote participants
@@ -58,7 +68,7 @@ export function useCallEvents() {
 					setChatMessages((prev) => [
 						...prev,
 						{
-							id: `${Date.now()}_${Math.random()}`,
+							id: `ev_${++idCounterRef.current}`,
 							from:
 								participant?.name ||
 								participant?.identity ||
