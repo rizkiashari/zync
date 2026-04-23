@@ -1,4 +1,5 @@
 # Audio/Video Call — Design Spec
+
 **Date:** 2026-04-23
 **Status:** Approved
 
@@ -27,7 +28,7 @@ Tambah fitur Audio/Video Call ke Zync yang mendukung call 1-on-1 maupun group ca
 
 ### Komponen Utama
 
-```
+```js
 Client (React)
     │
     ├── WebSocket Zync ──► Go Backend
@@ -42,6 +43,7 @@ Backend Go berperan sebagai **orchestrator signaling** dan **Livekit token gener
 ### Alur Call
 
 **Inisiasi:**
+
 1. User A klik tombol call di chat/group
 2. Frontend kirim event WS `call:initiate` ke backend
 3. Backend buat Livekit room + generate token untuk A
@@ -49,15 +51,18 @@ Backend Go berperan sebagai **orchestrator signaling** dan **Livekit token gener
 5. Target terima notifikasi ringing di frontend
 
 **Accept:**
+
 1. User B kirim `call:accept`
 2. Backend generate token Livekit untuk B
 3. B join Livekit room dengan token tersebut
 
 **Reject:**
+
 1. User B kirim `call:reject`
 2. Backend broadcast `call:rejected` ke semua participant
 
 **End Call:**
+
 1. Siapapun kirim `call:end`
 2. Backend terminate Livekit room
 3. Semua participant disconnect, menerima event `call:ended`
@@ -69,6 +74,7 @@ Backend Go berperan sebagai **orchestrator signaling** dan **Livekit token gener
 ### Database
 
 Tabel `calls`:
+
 ```sql
 CREATE TABLE calls (
     id               BIGSERIAL PRIMARY KEY,
@@ -103,17 +109,20 @@ GET  /api/calls/history        — riwayat call user
 ```
 
 **POST /api/calls/token** — Request:
+
 ```json
 { "call_id": 1 }
 ```
+
 Response:
+
 ```json
 {
-  "success": true,
-  "data": {
-    "token": "<livekit-jwt>",
-    "livekit_url": "wss://livekit.example.com"
-  }
+	"success": true,
+	"data": {
+		"token": "<livekit-jwt>",
+		"livekit_url": "wss://livekit.example.com"
+	}
 }
 ```
 
@@ -153,17 +162,17 @@ Response:
 
 ### Struktur Komponen
 
-```
+```md
 components/call/
-  ├── CallManager.jsx         — global call state, handle WS events, di-mount di root App
-  ├── IncomingCallModal.jsx   — popup ringing (avatar, nama, tombol terima/tolak)
-  ├── OutgoingCallModal.jsx   — "Memanggil..." + tombol batalkan
-  ├── CallRoom.jsx            — full-screen call UI saat aktif
-  ├── CallRoomMini.jsx        — floating mini window (draggable, picture-in-picture)
-  ├── ParticipantTile.jsx     — tile video per participant
-  ├── CallControls.jsx        — mute, kamera, screen share, raise hand, end call
-  ├── ParticipantList.jsx     — sidebar daftar peserta + status (raise hand indicator)
-  └── CallChat.jsx            — in-call chat panel
+├── CallManager.jsx — global call state, handle WS events, di-mount di root App
+├── IncomingCallModal.jsx — popup ringing (avatar, nama, tombol terima/tolak)
+├── OutgoingCallModal.jsx — "Memanggil..." + tombol batalkan
+├── CallRoom.jsx — full-screen call UI saat aktif
+├── CallRoomMini.jsx — floating mini window (draggable, picture-in-picture)
+├── ParticipantTile.jsx — tile video per participant
+├── CallControls.jsx — mute, kamera, screen share, raise hand, end call
+├── ParticipantList.jsx — sidebar daftar peserta + status (raise hand indicator)
+└── CallChat.jsx — in-call chat panel
 ```
 
 ### UI States
