@@ -6,12 +6,7 @@
 // @BasePath /
 // @schemes http
 //
-// @securityDefinitions.apikey BearerAuth
-// @in header
-// @name Authorization
-// @description JWT access token. Format: Bearer followed by a space and the token value.
-//
-// Regenerate API docs from module root: swag init -g cmd/server/main.go -d . -o docs --parseInternal
+// API docs served at /docs/ (open-swag-go, Scalar UI)
 package main
 
 import (
@@ -21,8 +16,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	_ "zync-server/docs"
 
 	"zync-server/internal/auth"
 	"zync-server/internal/config"
